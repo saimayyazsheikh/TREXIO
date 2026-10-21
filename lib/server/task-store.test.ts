@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createOneOffTask, deleteTask, toggleSubtask, transitionTask, updateOneOffTask, type ActivityEntry, type AuditEntry, type AssigneeRecord, type TaskDb } from "@/lib/server/task-store";
+import { createOneOffTask, deleteTask, toggleSubtask, transitionTask, updateOneOffTask, type TaskDb } from "@/lib/server/task-store";
+import { makeDb, newWorld, type World } from "@/lib/server/test-support/memory-task-db";
 import { buildOneOffTask } from "@/lib/domain/task-builders";
 import { createTaskSchema, updateTaskSchema } from "@/lib/domain/task-schemas";
 import type { Actor, TaskData } from "@/lib/domain/tasks";
@@ -8,44 +9,6 @@ const now = new Date("2026-10-21T06:00:00Z");
 const admin: Actor = { uid: "admin1", name: "Boss", role: "admin" };
 const ali: Actor = { uid: "ali", name: "Ali", role: "employee" };
 
-type World = { tasks: Map<string, TaskData>; audits: AuditEntry[]; activities: ActivityEntry[]; users: Map<string, AssigneeRecord>; commits: number };
-
-/** In-memory transaction: buffers writes and applies them only if the callback succeeds (like Firestore). */
-function makeDb(world: World): TaskDb {
-  let seq = 0;
-  return {
-    now: () => now,
-    newId: () => `id${++seq}`,
-    async transaction(fn) {
-      const writes: (() => void)[] = [];
-      const result = await fn({
-        getTask: async (id) => world.tasks.get(id) ?? null,
-        getUser: async (uid) => world.users.get(uid) ?? null,
-        setTask: (id, data) => writes.push(() => world.tasks.set(id, data)),
-        updateTask: (id, patch) => writes.push(() => world.tasks.set(id, { ...world.tasks.get(id)!, ...patch })),
-        deleteTask: (id) => writes.push(() => world.tasks.delete(id)),
-        addAudit: (e) => writes.push(() => world.audits.push(e)),
-        addActivity: (e) => writes.push(() => world.activities.push(e)),
-      });
-      writes.forEach((w) => w());
-      world.commits++;
-      return result;
-    },
-  };
-}
-
-function newWorld(): World {
-  return {
-    tasks: new Map(), audits: [], activities: [], commits: 0,
-    users: new Map<string, AssigneeRecord>([
-      ["ali", { name: "Ali Khan", businessId: "b1", role: "employee", status: "active" }],
-      ["sara", { name: "Sara", businessId: "b2", role: "employee", status: "active" }],
-      ["off", { name: "Off Person", businessId: "b1", role: "employee", status: "disabled" }],
-      ["admin1", { name: "Boss", businessId: null, role: "admin", status: "active" }],
-    ]),
-  };
-}
-
 const create = createTaskSchema.parse({ title: "Count stock", priority: "high", date: "2026-10-21", dueTime: "17:00", assigneeId: "ali", subtasks: ["Shelf A"] });
 
 describe("shared task writer", () => {
@@ -53,7 +16,7 @@ describe("shared task writer", () => {
   let db: TaskDb;
   beforeEach(() => {
     world = newWorld();
-    db = makeDb(world);
+    db = makeDb(world, now);
   });
 
   it("create writes the task, an audit entry and an activity entry together", async () => {

@@ -1,7 +1,7 @@
 import { DomainError } from "@/lib/domain/errors";
 import type { TaskStatus } from "@/lib/domain/constants";
 import { planSubtaskToggle, planTransition, type Actor, type TaskData, type TaskPlan } from "@/lib/domain/tasks";
-import { buildOneOffTask, planTaskUpdate } from "@/lib/domain/task-builders";
+import { buildOneOffTask, planTaskUpdate, type TemplateData } from "@/lib/domain/task-builders";
 import type { CreateTaskInput, UpdateTaskInput } from "@/lib/domain/task-schemas";
 
 export const ACTIVITY_TTL_DAYS = 90;
@@ -35,6 +35,9 @@ export type ActivityEntry = {
 
 export type AssigneeRecord = { name: string; businessId: string | null; role: Actor["role"]; status: "active" | "disabled" };
 
+/** Who the audit trail credits for automated changes (cron generation, routine refreshes). */
+export const SYSTEM_ACTOR = { uid: "system", name: "Traxio", role: "system" } as const;
+
 /** Everything a task change may touch, scoped to one atomic transaction. Reads must come before writes. */
 export type TaskTx = {
   getTask(id: string): Promise<TaskData | null>;
@@ -42,6 +45,10 @@ export type TaskTx = {
   setTask(id: string, data: TaskData): void;
   updateTask(id: string, patch: Partial<TaskData>): void;
   deleteTask(id: string): void;
+  getTemplate(id: string): Promise<TemplateData | null>;
+  setTemplate(id: string, data: TemplateData): void;
+  updateTemplate(id: string, patch: Partial<TemplateData>): void;
+  deleteTemplate(id: string): void;
   addAudit(entry: AuditEntry): void;
   addActivity(entry: ActivityEntry): void;
 };
@@ -79,7 +86,14 @@ export function auditAndActivity(
  * THE shared writer: applies a planned change to a task together with its audit and activity entries.
  * All task mutations in the app go through here so nothing is ever changed without a trail.
  */
-export function commitTaskPlan(tx: TaskTx, actor: Actor, taskId: string, task: TaskData, plan: TaskPlan, now: Date): void {
+export function commitTaskPlan(
+  tx: TaskTx,
+  actor: { uid: string; name: string; role: AuditEntry["actorRole"] },
+  taskId: string,
+  task: TaskData,
+  plan: TaskPlan,
+  now: Date,
+): void {
   const { audit, activity } = auditAndActivity(actor, { entityType: "task", entityId: taskId, businessId: plan.patch.businessId ?? task.businessId }, plan, now);
   tx.updateTask(taskId, plan.patch);
   tx.addAudit(audit);

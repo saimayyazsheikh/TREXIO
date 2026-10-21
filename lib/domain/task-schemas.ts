@@ -31,9 +31,12 @@ export const formChecklistSchema = z
   .max(30, "A checklist can have up to 30 steps")
   .transform((items) => items.map((i) => ({ ...i, title: i.title.trim() })).filter((i) => i.title));
 
+/** Real Storage links are https; the local emulator serves plain http on localhost, which is allowed too. */
+const isStorageUrl = (u: string) => u.startsWith("https://") || /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(u);
+
 export const attachmentSchema = z.object({
   name: z.string().min(1).max(200),
-  url: z.string().url().startsWith("https://"),
+  url: z.string().url().refine(isStorageUrl, "Attachments must come from file storage"),
   size: z.number().int().min(0).max(10 * 1024 * 1024),
   type: z.string().max(100),
 });

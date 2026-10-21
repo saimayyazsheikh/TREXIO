@@ -3,11 +3,34 @@
 import { useRef, useState } from "react";
 import { FileText, Paperclip, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip } from "@/components/ui/tooltip";
 import { validateAttachment } from "@/lib/firebase/upload";
 import { formatBytes } from "@/lib/utils";
 
-/** Files chosen but not yet uploaded. The parent uploads them when the form is submitted. */
-export function AttachmentPicker({ files, onChange, max, label = "Attach files" }: { files: File[]; onChange: (files: File[]) => void; max: number; label?: string }) {
+/** The files chosen so far, each removable. */
+export function PickedFiles({ files, onChange }: { files: File[]; onChange: (files: File[]) => void }) {
+  if (files.length === 0) return null;
+  return (
+    <ul className="space-y-1">
+      {files.map((f, i) => (
+        <li key={`${f.name}-${i}`} className="flex items-center gap-2 text-sm">
+          <FileText className="size-4 shrink-0 text-muted" aria-hidden />
+          <span className="min-w-0 flex-1 truncate">{f.name}</span>
+          <span className="num text-muted">{formatBytes(f.size)}</span>
+          <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${f.name}`} onClick={() => onChange(files.filter((_, j) => j !== i))}>
+            <X aria-hidden />
+          </Button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Files chosen but not yet uploaded; the parent uploads them on submit.
+ * `compact` renders just an icon button (the parent shows `PickedFiles` wherever it likes).
+ */
+export function AttachmentPicker({ files, onChange, max, label = "Attach files", compact = false }: { files: File[]; onChange: (files: File[]) => void; max: number; label?: string; compact?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,33 +44,35 @@ export function AttachmentPicker({ files, onChange, max, label = "Attach files" 
     onChange([...files, ...incoming]);
   }
 
+  const hidden = <input ref={input} type="file" multiple className="sr-only" aria-label={label} tabIndex={-1} onChange={(e) => add(e.target.files)} />;
+  const errorLine = error ? (
+    <p role="alert" className="text-sm text-danger">
+      {error}
+    </p>
+  ) : null;
+
+  if (compact) {
+    return (
+      <div className="flex flex-col items-center">
+        {hidden}
+        <Tooltip label={label}>
+          <Button type="button" variant="secondary" size="icon" aria-label={label} disabled={files.length >= max} onClick={() => input.current?.click()}>
+            <Paperclip aria-hidden />
+          </Button>
+        </Tooltip>
+        {errorLine}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2">
-      {files.length > 0 ? (
-        <ul className="space-y-1">
-          {files.map((f, i) => (
-            <li key={`${f.name}-${i}`} className="flex items-center gap-2 text-sm">
-              <FileText className="size-4 shrink-0 text-muted" aria-hidden />
-              <span className="min-w-0 flex-1 truncate">{f.name}</span>
-              <span className="num text-muted">{formatBytes(f.size)}</span>
-              <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${f.name}`} onClick={() => onChange(files.filter((_, j) => j !== i))}>
-                <X aria-hidden />
-              </Button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      <input ref={input} type="file" multiple className="sr-only" aria-label={label} onChange={(e) => add(e.target.files)} />
+      <PickedFiles files={files} onChange={onChange} />
+      {hidden}
       <Button type="button" variant="secondary" size="sm" className="self-start" disabled={files.length >= max} onClick={() => input.current?.click()}>
         <Paperclip aria-hidden /> {label}
       </Button>
-      {error ? (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      ) : (
-        <p className="text-sm text-muted">Up to {max} files, 10 MB each.</p>
-      )}
+      {errorLine ?? <p className="text-sm text-muted">Up to {max} files, 10 MB each.</p>}
     </div>
   );
 }

@@ -12,3 +12,11 @@
 - New contrast-verified light/dark token set, elevation + motion tokens, 44px touch targets, 12px minimum text, tabular numbers, accessible badge colours.
 - Login: password toggle, field-linked errors, required markers.
 - Added design-system/traxio/MASTER.md and lib/design/contrast.test.ts.
+
+## Phase 1 — Auth & Team
+- Admin seed script (
+pm run seed:admin), custom claims, username to email login.
+- Businesses page: colour swatches, logo upload, working hours and days, active flag, safe delete.
+- Team page: add, edit, photo, password reset (with generator), turn off or on, search and filters.
+- Server routes under /api/admin/employees with rollback if the profile write fails.
+- Firestore and Storage rules v1 with emulator tests (written; need Java to run).

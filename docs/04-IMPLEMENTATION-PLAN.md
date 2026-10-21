@@ -8,9 +8,9 @@ Order is chosen so each phase is testable and later phases reuse earlier foundat
 - [x] Layout shells: AdminShell (sidebar+topbar), EmployeeShell; route guards
 - [x] Shared UI kit: PageHeader, StatCard, EmptyState, Avatar, PriorityBadge, StatusBadge, GlassCard, ConfirmDialog
 ## Phase 1 — Auth & Team (M1, M2)
-- [ ] Login page, seed admin script, custom claims, username→email mapping
-- [ ] Settings → Businesses CRUD; Settings → Team (employee CRUD, photo upload, password reset, disable)
-- [ ] Rules v1 (users, businesses, storage) + tests
+- [x] Login page, seed admin script, custom claims, username→email mapping
+- [x] Settings → Businesses CRUD; Settings → Team (employee CRUD, photo upload, password reset, disable)
+- [x] Rules v1 (users, businesses, storage) + tests
 ## Phase 2 — Task Core (M3, M4, M5, M6 + audit/activity helper)
 - [ ] `lib/domain/tasks`: transition helper writing task+audit+activity atomically (build FIRST)
 - [ ] Task templates UI (admin, per employee) + daily instance generation (cron + lazy)

@@ -60,6 +60,56 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Reminders: written by the server. A recipient may only stamp THEIR OWN read receipt with the server time.
+    match /reminders/{reminderId} {
+      allow read: if isAdmin() || (isEmployee() && request.auth.uid in resource.data.toUids);
+      allow create, delete: if false;
+      allow update: if isEmployee()
+        && request.auth.uid in resource.data.toUids
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy'])
+        && request.resource.data.readBy.diff(resource.data.readBy).affectedKeys().hasOnly([request.auth.uid])
+        && request.resource.data.readBy[request.auth.uid] == request.time;
+    }
+
+    // Questions (formal help threads): the admin and the employee who asked. All writes go through the server.
+    match /questions/{questionId} {
+      allow read: if isAdmin() || (isEmployee() && resource.data.employeeId == request.auth.uid);
+      allow write: if false;
+
+      match /messages/{messageId} {
+        allow read: if isAdmin()
+          || (isEmployee() && get(/databases/$(database)/documents/questions/$(questionId)).data.employeeId == request.auth.uid);
+        allow write: if false;
+      }
+    }
+
+    // Chat: the admin everywhere; an employee only in "everyone" and their own direct chat (dm_<uid>).
+    // Messages are written by the server; the only client write is your own "typing" marker.
+    function chatAccess(chatId) {
+      return isAdmin() || (isEmployee() && (chatId == 'everyone' || chatId == 'dm_' + request.auth.uid));
+    }
+
+    match /chats/{chatId} {
+      allow read: if chatAccess(chatId);
+      allow write: if false;
+
+      match /messages/{messageId} {
+        allow read: if chatAccess(chatId);
+        allow write: if false;
+      }
+
+      match /typing/{uid} {
+        allow read: if chatAccess(chatId);
+        allow create, update: if chatAccess(chatId)
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['name', 'at'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() <= 80
+          && request.resource.data.at == request.time;
+        allow delete: if chatAccess(chatId) && request.auth.uid == uid;
+      }
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

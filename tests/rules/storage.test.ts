@@ -87,6 +87,38 @@ describe("task attachments", () => {
   });
 });
 
+describe("reminder attachments", () => {
+  it("admin uploads; recipients and admin read; other employees can't", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "reminders/r1"), { toUids: ["emp1"] });
+    });
+    await assertSucceeds(uploadBytes(ref(admin(), "reminders/r1/brief.pdf"), png(), { contentType: "application/pdf" }));
+    await assertSucceeds(getBytes(ref(employee("emp1"), "reminders/r1/brief.pdf")));
+    await assertFails(getBytes(ref(employee("emp2"), "reminders/r1/brief.pdf")));
+    await assertFails(uploadBytes(ref(employee("emp1"), "reminders/r1/mine.pdf"), png(), { contentType: "application/pdf" }));
+  });
+});
+
+describe("chat files", () => {
+  it("Everyone: any team member adds and reads; role-less users can't", async () => {
+    await assertSucceeds(uploadBytes(ref(employee("emp1"), "chats/everyone/a.png"), png(), meta));
+    await assertSucceeds(getBytes(ref(employee("emp2"), "chats/everyone/a.png")));
+    await assertFails(getBytes(ref(stranger(), "chats/everyone/a.png")));
+  });
+  it("direct chats: only that employee and the admin", async () => {
+    await assertSucceeds(uploadBytes(ref(employee("emp1"), "chats/dm_emp1/a.png"), png(), meta));
+    await assertSucceeds(uploadBytes(ref(admin(), "chats/dm_emp1/b.png"), png(), meta));
+    await assertSucceeds(getBytes(ref(employee("emp1"), "chats/dm_emp1/b.png")));
+    await assertFails(getBytes(ref(employee("emp2"), "chats/dm_emp1/a.png")));
+    await assertFails(uploadBytes(ref(employee("emp2"), "chats/dm_emp1/c.png"), png(), meta));
+  });
+  it("enforces the size cap and admin-only delete", async () => {
+    await assertFails(uploadBytes(ref(employee("emp1"), "chats/everyone/big.bin"), png(10 * 1024 * 1024 + 1), { contentType: "application/octet-stream" }));
+    await assertFails(deleteObject(ref(employee("emp1"), "chats/everyone/a.png")));
+    await assertSucceeds(deleteObject(ref(admin(), "chats/everyone/a.png")));
+  });
+});
+
 describe("everything else is denied", () => {
   it("rejects unknown paths even for admin", async () => {
     await assertFails(uploadBytes(ref(admin(), "random/file.png"), png(), meta));

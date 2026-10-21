@@ -133,4 +133,12 @@ export type ChatMessageDoc = {
   deleted: boolean;
 };
 
+export type JournalDoc = {
+  employeeId: string;
+  date: string;
+  dayIndex: number;
+  slots: Record<string, { text: string; taskIds: string[]; updatedAt: Timestamp | null } | undefined>;
+  updatedAt: Timestamp | null;
+};
+
 export type WithId<T> = T & { id: string };

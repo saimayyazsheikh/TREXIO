@@ -16,6 +16,7 @@ import { ConfirmDialog } from "@/components/features/confirm-dialog";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
+import { EmployeeJournalTab } from "@/components/features/journal/employee-journal-tab";
 import { TaskSheet } from "@/components/features/tasks/task-sheet";
 import { TemplateSheet } from "@/components/features/tasks/template-sheet";
 import { DueChip } from "@/components/features/tasks/due-chip";
@@ -145,6 +146,7 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
         <TabsList aria-label="Work">
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="routines">Daily routines</TabsTrigger>
+          <TabsTrigger value="journal">Journal</TabsTrigger>
         </TabsList>
 
         <TabsContent value="tasks">
@@ -293,6 +295,9 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
               ))}
             </ul>
           )}
+        </TabsContent>
+        <TabsContent value="journal">
+          <EmployeeJournalTab employee={person} business={business} />
         </TabsContent>
       </Tabs>
 

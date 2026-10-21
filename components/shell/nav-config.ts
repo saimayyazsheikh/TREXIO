@@ -17,6 +17,10 @@ export const ADMIN_NAV: NavGroup[] = [
     ],
   },
   {
+    label: "People",
+    items: [{ href: "/admin/journals", label: "Journals", icon: NotebookPen, hint: "Who has logged their hours, and what they wrote" }],
+  },
+  {
     label: "Communicate",
     items: [
       { href: "/admin/inbox", label: "Inbox", icon: Inbox, hint: "Questions from your team that need an answer" },

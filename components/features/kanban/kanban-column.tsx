@@ -40,7 +40,7 @@ export function KanbanColumn({
       ref={setNodeRef}
       aria-label={`${label}, ${count} task${count === 1 ? "" : "s"}`}
       className={cn(
-        "flex w-72 shrink-0 snap-start flex-col rounded-card border bg-surface-raised/50 p-2.5 transition-colors sm:w-auto sm:min-w-0 sm:flex-1",
+        "flex w-72 shrink-0 snap-start flex-col rounded-card border bg-surface-raised/50 p-2.5 transition-colors sm:w-auto sm:min-w-60 sm:flex-1",
         dragging && droppable === true && "border-dashed border-ring",
         dragging && droppable === false && "opacity-50",
         isOver && droppable === true && "bg-surface-raised ring-2 ring-ring",

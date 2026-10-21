@@ -8,9 +8,20 @@ const adminEnvSchema = z.object({
   FIREBASE_DATABASE_URL: z.string().min(1),
 });
 
+/** True when the Admin SDK is pointed at local emulators (it then needs no real credentials). */
+export function usingEmulators(env: NodeJS.ProcessEnv = process.env): boolean {
+  return !!(env.FIREBASE_AUTH_EMULATOR_HOST && env.FIRESTORE_EMULATOR_HOST);
+}
+
 /** Initialises firebase-admin once. Shared by the Next.js server and `scripts/*` (no `server-only` here). */
 export function initAdminApp(env: NodeJS.ProcessEnv = process.env): App {
   if (getApps().length > 0) return getApp();
+
+  if (usingEmulators(env)) {
+    // Emulator mode: the SDK talks to localhost using the *_EMULATOR_HOST variables, so a project id is enough.
+    return initializeApp({ projectId: env.FIREBASE_ADMIN_PROJECT_ID || "demo-traxio", databaseURL: env.FIREBASE_DATABASE_URL });
+  }
+
   const parsed = adminEnvSchema.safeParse(env);
   if (!parsed.success) {
     const missing = parsed.error.issues.map((i) => i.path.join(".")).join(", ");

@@ -38,7 +38,7 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
   return (
     <div
       className={cn("glass rounded-control border-l-4 p-3 text-left transition-shadow", dragging && "shadow-[var(--shadow-3)] ring-2 ring-ring")}
-      style={accent ? { borderLeftColor: accent } : undefined}
+      style={accent ? { borderLeftColor: accent, borderLeftWidth: 4 } : undefined}
     >
       <div className="flex items-start gap-2">
         <p className="line-clamp-2 min-w-0 flex-1 text-sm font-semibold leading-snug">{task.title}</p>
@@ -83,7 +83,7 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
         </p>
       ) : null}
 
-      <div className="mt-2.5 flex items-center gap-3">
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
         <ul className="flex -space-x-2" aria-label={`Assigned to ${task.assigneeIds.map((u) => people.get(u)?.name ?? task.assigneeNames[u] ?? "teammate").join(", ")}`}>
           {task.assigneeIds.slice(0, 4).map((uid) => {
             const p = people.get(uid);
@@ -96,7 +96,7 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
           })}
           {task.assigneeIds.length > 4 ? <li className="num flex size-7 items-center justify-center rounded-full bg-surface-raised text-[10px] font-semibold ring-2 ring-surface-solid">+{task.assigneeIds.length - 4}</li> : null}
         </ul>
-        <div className="num ml-auto flex items-center gap-2.5 text-xs text-muted">
+        <div className="num ml-auto flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
           {task.assigneeIds.length > 1 ? (
             <span className="inline-flex items-center gap-1" title="Parts finished">
               <Users className="size-3.5" aria-hidden /> {done}/{task.assigneeIds.length}

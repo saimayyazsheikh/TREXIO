@@ -7,8 +7,9 @@
  */
 import { existsSync } from "fs";
 import { getAuth } from "firebase-admin/auth";
-import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { getFirestore } from "firebase-admin/firestore";
 import { initAdminApp } from "../lib/server/admin-config";
+import { upsertAdmin } from "./lib/admin-account";
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -26,43 +27,8 @@ async function main() {
   }
 
   const app = initAdminApp();
-  const auth = getAuth(app);
-  const db = getFirestore(app);
-
-  let uid: string;
-  try {
-    const existing = await auth.getUserByEmail(email);
-    uid = existing.uid;
-    await auth.updateUser(uid, { password, displayName: name, disabled: false });
-    console.log(`Updated existing admin ${email}`);
-  } catch (error) {
-    if ((error as { code?: string }).code !== "auth/user-not-found") throw error;
-    uid = (await auth.createUser({ email, password, displayName: name })).uid;
-    console.log(`Created admin ${email}`);
-  }
-
-  await auth.setCustomUserClaims(uid, { role: "admin" });
-  await auth.revokeRefreshTokens(uid);
-  await db.doc(`users/${uid}`).set(
-    {
-      role: "admin",
-      name,
-      username: null,
-      email,
-      contactEmail: email,
-      phone: null,
-      photoUrl: null,
-      businessId: null,
-      designation: "Owner",
-      status: "active",
-      workStart: null,
-      workEnd: null,
-      idleThresholdMin: null,
-      fcmTokens: [],
-      createdAt: FieldValue.serverTimestamp(),
-    },
-    { merge: true },
-  );
+  const { created } = await upsertAdmin(getAuth(app), getFirestore(app), { email, password, name });
+  console.log(`${created ? "Created" : "Updated existing"} admin ${email}`);
   console.log("Done. Sign in at /login with that email and password.");
 }
 

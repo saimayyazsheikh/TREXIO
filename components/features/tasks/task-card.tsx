@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, ChevronDown, Hand, Hourglass, Link2, Paperclip, Play, Repeat, Undo2, Unlock, Users } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PriorityBadge, StatusBadge } from "@/components/features/badges";
@@ -58,7 +59,9 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
       onClick={() => {
         if (done) return onMove(task, shared ? "in_progress" : "todo");
         if (myPartDone) return onMove(task, "in_progress", { kind: "untick" });
-        if (!checkDisabledReason) onMove(task, "completed");
+        // Tooltips don't exist on touch screens, so a click on a locked circle explains itself too.
+        if (checkDisabledReason) toast.info(checkDisabledReason);
+        else onMove(task, "completed");
       }}
       className={cn(
         "flex size-11 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-150",

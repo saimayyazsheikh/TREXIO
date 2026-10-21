@@ -3,9 +3,12 @@ node_modules
 out
 .env*
 !.env.example
+!.env.emulator
 *.tsbuildinfo
 next-env.d.ts
 .vercel
 firebase-debug.log
 firestore-debug.log
+database-debug.log
+ui-debug.log
 coverage

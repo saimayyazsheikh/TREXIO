@@ -10,7 +10,8 @@ export function GlassCard({
   return (
     <div
       className={cn("glass rounded-card", accent && "border-l-4", className)}
-      style={accent ? { ...style, borderLeftColor: accent } : style}
+      // Inline so the `glass` utility's 1px border shorthand can't shrink the accent band.
+      style={accent ? { ...style, borderLeftColor: accent, borderLeftWidth: 4 } : style}
       {...props}
     />
   );

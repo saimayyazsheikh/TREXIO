@@ -9,6 +9,14 @@ cp .env.example .env.local   # then fill in the values below
 npm run dev
 ```
 
+## Try it locally without Firebase (demo mode)
+Everything runs against Firebase's local emulators with fake accounts. Needs Java 21+ (`winget install Microsoft.OpenJDK.21`).
+```bash
+npm run emulators        # terminal 1: Auth, Firestore, Realtime DB and Storage on your machine
+npm run seed:emulator    # terminal 2, once: demo businesses, team, routines and tasks (add -- --reset to start over)
+npm run dev:emulated     # terminal 2: the app at http://localhost:3000
+```
+The seed prints the demo logins (they are also at the top of `scripts/seed-emulator.ts`). The admin signs in with an email, employees with just a username. The emulator data is wiped when you stop `npm run emulators`; run the seed again next time.
 ## Firebase setup (once)
 1. Create a Firebase project on the **Blaze** plan (Storage needs it).
 2. Build > **Authentication** > enable Email/Password.

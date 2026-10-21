@@ -37,3 +37,9 @@ pm run seed:admin), custom claims, username to email login.
 - Dependencies with loop detection and Waiting on messages; related links shown on both tasks.
 - Task drawer with checklist, links, attachments and an admin history timeline.
 - Light theme is the default again (matching the login page).
+
+## Local demo mode and test pass
+- Java installed; all 34 Firestore and Storage rules tests run and pass.
+- Demo mode: npm run emulators, seed:emulator and dev:emulated run the whole app against local emulators with fake accounts.
+- Admin dashboard shows live numbers (tasks today, completed, overdue, blocked, waiting for review).
+- Fixes found by clicking through: card accent width, Kanban column width, locked check circle explains itself, buttons default to type button.

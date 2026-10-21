@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { CircleCheck, CircleSlash, KeyRound, Pencil, Plus, Search, UserCheck, UserX, Users } from "lucide-react";
+import { CircleCheck, CircleSlash, ClipboardList, KeyRound, Pencil, Plus, Search, UserCheck, UserX, Users } from "lucide-react";
 import { collection, orderBy, query, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
@@ -143,7 +143,9 @@ export function TeamView() {
                     <GlassCard accent={business ? businessColorVar(business.color) : undefined} className={cn("flex flex-wrap items-center gap-x-4 gap-y-3 p-4", off && "opacity-80")}>
                       <Avatar name={u.name} src={u.photoUrl} ringColor={business ? businessColorVar(business.color) : undefined} />
                       <div className="min-w-0 flex-1 basis-48">
-                        <p className="truncate font-semibold">{u.name}</p>
+                        <Link href={`/admin/employees/${u.id}`} className="block truncate font-semibold hover:underline">
+                          {u.name}
+                        </Link>
                         <p className="truncate text-sm text-muted">
                           @{u.username}
                           {u.designation ? ` · ${u.designation}` : ""}
@@ -162,6 +164,13 @@ export function TeamView() {
                         </span>
                       </div>
                       <div className="ml-auto flex">
+                        <Tooltip label="Tasks and daily routines">
+                          <Button asChild variant="ghost" size="icon">
+                            <Link href={`/admin/employees/${u.id}`} aria-label={`Open ${u.name}'s work`}>
+                              <ClipboardList aria-hidden />
+                            </Link>
+                          </Button>
+                        </Tooltip>
                         <Tooltip label="Edit details">
                           <Button variant="ghost" size="icon" aria-label={`Edit ${u.name}`} onClick={() => openSheet(u)}>
                             <Pencil aria-hidden />

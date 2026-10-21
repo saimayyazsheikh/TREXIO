@@ -24,6 +24,12 @@ const editedSubtasks = z
   .array(z.object({ id: z.string().min(1).max(40).optional(), title: subtaskTitle }))
   .max(30, "A checklist can have up to 30 steps");
 
+/** Form-side checklist: blank rows are dropped and titles trimmed, so half-typed steps never block saving. */
+export const formChecklistSchema = z
+  .array(z.object({ id: z.string().optional(), title: z.string().max(120, "Keep each step under 120 characters") }))
+  .max(30, "A checklist can have up to 30 steps")
+  .transform((items) => items.map((i) => ({ ...i, title: i.title.trim() })).filter((i) => i.title));
+
 export const attachmentSchema = z.object({
   name: z.string().min(1).max(200),
   url: z.string().url().startsWith("https://"),

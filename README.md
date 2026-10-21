@@ -22,6 +22,15 @@ npm run dev
    ```
 8. Open http://localhost:3000 and sign in with that email and password.
 
+## Scheduled jobs
+`vercel.json` runs `/api/cron/generate-daily-tasks` daily at 19:05 UTC (00:05 PKT). Set `CRON_SECRET` in Vercel (a long random string): Vercel sends it as `Authorization: Bearer <secret>`. To trigger it by hand:
+```bash
+curl -H "Authorization: Bearer $CRON_SECRET" https://your-app.vercel.app/api/cron/generate-daily-tasks
+```
+Employees also get today's routines the moment they open their dashboard, so a missed run is harmless.
+
+After pulling new code, redeploy rules and indexes: `npx firebase-tools deploy --only firestore,storage,database --project <your-project-id>`. In the Firebase console, check Firestore > Indexes finishes building before first use.
+
 ## Tests
 - `npm test` runs unit tests (domain logic, schemas, contrast).
 - `npm run test:rules` runs the Firestore/Storage rules tests against the emulators (needs Java 21+ installed).

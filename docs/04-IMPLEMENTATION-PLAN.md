@@ -12,11 +12,11 @@ Order is chosen so each phase is testable and later phases reuse earlier foundat
 - [x] Settings → Businesses CRUD; Settings → Team (employee CRUD, photo upload, password reset, disable)
 - [x] Rules v1 (users, businesses, storage) + tests
 ## Phase 2 — Task Core (M3, M4, M5, M6 + audit/activity helper)
-- [ ] `lib/domain/tasks`: transition helper writing task+audit+activity atomically (build FIRST)
-- [ ] Task templates UI (admin, per employee) + daily instance generation (cron + lazy)
-- [ ] One-off task creation (single assignee first), priority, due dates, attachments
-- [ ] Employee "Today" dashboard: daily + one-off lists, check-off, sub-task checklist with completion rule
-- [ ] Admin per-employee dashboard v1 (tasks tab)
+- [x] `lib/domain/tasks`: transition helper writing task+audit+activity atomically (build FIRST)
+- [x] Task templates UI (admin, per employee) + daily instance generation (cron + lazy)
+- [x] One-off task creation (single assignee first), priority, due dates, attachments
+- [x] Employee "Today" dashboard: daily + one-off lists, check-off, sub-task checklist with completion rule
+- [x] Admin per-employee dashboard v1 (tasks tab)
 ## Phase 3 — Kanban & Relations (M7, M8)
 - [ ] Kanban board (dnd-kit) for admin + employee, filters, Blocked-with-reason modal, review flow
 - [ ] Multi-assignee + completion modes; related links; dependencies with cycle check and "waiting on" UI

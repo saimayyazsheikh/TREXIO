@@ -1,0 +1,237 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Traxio design tokens — see design-system/traxio/MASTER.md (ui-ux-pro-max: Dark Mode (OLED) + Data-Dense Dashboard,
+ * glass used only as an accent). Every foreground/background pair is verified by lib/design/contrast.test.ts.
+ * Rule: components use semantic tokens, never raw hex.
+ */
+:root {
+  /* Surfaces */
+  --background: #f5f7ff;
+  --surface-solid: #ffffff;
+  --surface-raised: #eef1fb;
+  --surface: rgb(255 255 255 / 0.72);
+  --border: rgb(255 255 255 / 0.55);
+  --border-solid: #d5dbea;
+  --input: #64748b;
+
+  /* Text */
+  --foreground: #0f172a;
+  --muted: #475569;
+
+  /* Brand: gradient buttons carry white text (>= 5.7:1); brand-text is for links/active text on surfaces */
+  --brand-from: #4f46e5;
+  --brand-to: #7c3aed;
+  --brand-text: #4338ca;
+  --ring: #4f46e5;
+
+  /* Semantic text colours (AA on tinted + solid surfaces) */
+  --accent: #155e75;
+  --success: #065f46;
+  --warning: #92400e;
+  --danger: #be123c;
+  --info: #075985;
+  --danger-solid: #be123c;
+
+  --status-todo: #475569;
+  --status-progress: #1d4ed8;
+  --status-review: #6d28d9;
+  --status-done: #065f46;
+  --status-blocked: #be123c;
+
+  --priority-high: #be123c;
+  --priority-medium: #92400e;
+  --priority-low: #075985;
+
+  /* Elevation scale (use only these) */
+  --shadow-1: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 1px rgb(15 23 42 / 0.04);
+  --shadow-2: 0 8px 24px -10px rgb(30 27 75 / 0.22);
+  --shadow-3: 0 24px 60px -20px rgb(30 27 75 / 0.35);
+
+  /* Motion tokens */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+  --dur-base: 200ms;
+  --dur-slow: 300ms;
+}
+
+.dark {
+  /* Deep navy, never pure black (avoids OLED smear); raised surfaces get lighter, not darker */
+  --background: #070b18;
+  --surface-solid: #0f1629;
+  --surface-raised: #172036;
+  --surface: rgb(15 22 41 / 0.76);
+  --border: rgb(255 255 255 / 0.12);
+  --border-solid: #2a3654;
+  --input: #7b89a8;
+
+  --foreground: #f1f5ff;
+  --muted: #a5b1cc;
+
+  --brand-from: #4f46e5;
+  --brand-to: #7c3aed;
+  --brand-text: #a5b4fc;
+  --ring: #a5b4fc;
+
+  --accent: #22d3ee;
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #fb7185;
+  --info: #38bdf8;
+  --danger-solid: #be123c;
+
+  --status-todo: #cbd5e1;
+  --status-progress: #60a5fa;
+  --status-review: #c4b5fd;
+  --status-done: #34d399;
+  --status-blocked: #fb7185;
+
+  --priority-high: #fb7185;
+  --priority-medium: #fbbf24;
+  --priority-low: #38bdf8;
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.5);
+  --shadow-2: 0 10px 30px -12px rgb(0 0 0 / 0.65);
+  --shadow-3: 0 28px 70px -20px rgb(0 0 0 / 0.8);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-surface-solid: var(--surface-solid);
+  --color-surface-raised: var(--surface-raised);
+  --color-border: var(--border);
+  --color-border-solid: var(--border-solid);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand-from);
+  --color-brand-2: var(--brand-to);
+  --color-brand-text: var(--brand-text);
+  --color-accent: var(--accent);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-danger-solid: var(--danger-solid);
+  --color-info: var(--info);
+  --color-status-todo: var(--status-todo);
+  --color-status-progress: var(--status-progress);
+  --color-status-review: var(--status-review);
+  --color-status-done: var(--status-done);
+  --color-status-blocked: var(--status-blocked);
+  --color-priority-high: var(--priority-high);
+  --color-priority-medium: var(--priority-medium);
+  --color-priority-low: var(--priority-low);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Type scale: 12 / 14 / 16 / 20 / 24 / 32 */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 2rem;
+
+  --radius-card: 18px;
+  --radius-control: 12px;
+  --shadow-card: var(--shadow-2);
+  --shadow-pop: var(--shadow-3);
+  --ease-out: var(--ease-out);
+}
+
+@layer base {
+  * {
+    border-color: var(--border-solid);
+  }
+  html {
+    color-scheme: light;
+    -webkit-text-size-adjust: 100%;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.5;
+    min-height: 100dvh;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  button,
+  [role="button"],
+  summary,
+  select {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  :focus-visible {
+    outline: 3px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* Ambient colour behind every page. Kept low-intensity so text on glass stays readable. */
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(40rem 40rem at 8% -10%, rgb(99 102 241 / 0.2), transparent 60%),
+    radial-gradient(36rem 36rem at 100% 0%, rgb(34 211 238 / 0.16), transparent 60%),
+    radial-gradient(40rem 40rem at 70% 110%, rgb(139 92 246 / 0.16), transparent 60%),
+    linear-gradient(180deg, #f5f7ff, #eef2ff);
+}
+.dark .app-backdrop {
+  background:
+    radial-gradient(40rem 40rem at 8% -10%, rgb(79 70 229 / 0.28), transparent 60%),
+    radial-gradient(36rem 36rem at 100% 0%, rgb(34 211 238 / 0.1), transparent 60%),
+    radial-gradient(40rem 40rem at 70% 110%, rgb(124 58 237 / 0.2), transparent 60%),
+    #070b18;
+}
+
+/* Glass: blur is for layering/dismissal context only; the surface is near-opaque so text contrast is stable. */
+@utility glass {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+}
+
+@utility bg-brand-gradient {
+  background-image: linear-gradient(135deg, var(--brand-from), var(--brand-to));
+}
+
+@utility text-brand-gradient {
+  background-image: linear-gradient(135deg, var(--brand-text), var(--accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Tabular figures keep columns, timers and counters from shifting. */
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

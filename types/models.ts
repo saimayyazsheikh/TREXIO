@@ -77,4 +77,60 @@ export type TemplateDoc = {
   order: number;
 };
 
+export type AttachmentDoc = { name: string; url: string; size: number; type: string };
+
+export type ReminderDoc = {
+  fromUid: string;
+  fromName: string;
+  toUids: string[];
+  toNames: Record<string, string>;
+  body: string;
+  attachments: AttachmentDoc[];
+  taskId: string | null;
+  taskTitle: string | null;
+  readBy: Record<string, Timestamp>;
+  createdAt: Timestamp;
+};
+
+export type QuestionStatus = "open" | "answered" | "closed";
+
+export type QuestionDoc = {
+  employeeId: string;
+  employeeName: string;
+  businessId: string | null;
+  taskId: string | null;
+  taskTitle: string | null;
+  subject: string;
+  status: QuestionStatus;
+  urgent: boolean;
+  unreadForAdmin: boolean;
+  unreadForEmployee: boolean;
+  lastMessageAt: Timestamp;
+  lastAuthorRole: Role;
+  createdAt: Timestamp;
+};
+
+export type QuestionMessageDoc = { authorId: string; authorName: string; authorRole: Role; body: string; attachments: AttachmentDoc[]; createdAt: Timestamp };
+
+export type ChatDoc = {
+  type: "direct" | "group";
+  title: string;
+  employeeId: string | null;
+  lastMessage: { text: string; authorName: string } | null;
+  lastAt: Timestamp | null;
+  unread: Record<string, number>;
+};
+
+export type ChatMessageDoc = {
+  authorId: string;
+  authorName: string;
+  authorRole: Role;
+  body: string;
+  attachments: AttachmentDoc[];
+  reactions: Record<string, string[]>;
+  createdAt: Timestamp;
+  editedAt: Timestamp | null;
+  deleted: boolean;
+};
+
 export type WithId<T> = T & { id: string };

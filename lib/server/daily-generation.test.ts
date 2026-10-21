@@ -31,7 +31,11 @@ function makeDeps(w: World): GenerationDeps {
     // Like Firestore `create`: never overwrites an existing document.
     createTasks: async (items) => {
       let n = 0;
-      for (const { id, data } of items) if (!w.tasks.has(id)) (w.tasks.set(id, data), n++);
+      for (const { id, data } of items) {
+        if (w.tasks.has(id)) continue;
+        w.tasks.set(id, data);
+        n++;
+      }
       return n;
     },
     writeAudit: async (e) => void w.audits.push(e),

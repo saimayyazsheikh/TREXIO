@@ -27,6 +27,13 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    // Task attachments: uploaded by the admin, readable by the admin and the task's assignees.
+    match /tasks/{taskId}/{file} {
+      allow read: if isAdmin() || (hasRole() && request.auth.uid in firestore.get(/databases/(default)/documents/tasks/$(taskId)).data.assigneeIds);
+      allow write: if isAdmin() && request.resource.size < 10 * 1024 * 1024;
+      allow delete: if isAdmin();
+    }
+
     // Private per-user files (attachments in later phases): owner and admin only.
     match /u/{uid}/{allPaths=**} {
       allow read: if hasRole() && (request.auth.uid == uid || isAdmin());

@@ -38,6 +38,28 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Tasks, routines, audit and activity are written ONLY by server routes (Admin SDK bypasses rules), so every
+    // change passes the shared writer that records audit + activity. Clients just read.
+    match /tasks/{taskId} {
+      allow read: if isAdmin() || (isEmployee() && request.auth.uid in resource.data.assigneeIds);
+      allow write: if false;
+    }
+
+    match /taskTemplates/{templateId} {
+      allow read: if isAdmin() || (isEmployee() && resource.data.employeeId == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    match /activity/{activityId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

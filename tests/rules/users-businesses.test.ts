@@ -92,7 +92,7 @@ describe("businesses", () => {
 
 describe("collections not opened yet", () => {
   it("stay denied for admin too", async () => {
-    await assertFails(getDoc(doc(admin(), "tasks/t1")));
-    await assertFails(setDoc(doc(admin(), "auditLogs/a1"), { x: 1 }));
+    await assertFails(getDoc(doc(admin(), "journals/j1")));
+    await assertFails(setDoc(doc(admin(), "chats/c1"), { x: 1 }));
   });
 });

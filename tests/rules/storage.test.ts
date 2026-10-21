@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, it } from "vitest";
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from "@firebase/rules-unit-testing";
 import { deleteObject, getBytes, ref, uploadBytes } from "firebase/storage";
+import { doc, setDoc } from "firebase/firestore";
 import { readFileSync } from "fs";
 
 let env: RulesTestEnvironment;
@@ -16,6 +17,8 @@ beforeAll(async () => {
   env = await initializeTestEnvironment({
     projectId: "demo-traxio",
     storage: { rules: readFileSync("storage.rules", "utf8"), host: "127.0.0.1", port: 9199 },
+    // Task-attachment rules read the task document to find its assignees.
+    firestore: { rules: readFileSync("firestore.rules", "utf8"), host: "127.0.0.1", port: 8080 },
   });
 });
 afterAll(() => env.cleanup());
@@ -62,6 +65,25 @@ describe("private user files", () => {
   });
   it("enforces the 10 MB cap", async () => {
     await assertFails(uploadBytes(ref(employee("emp1"), "u/emp1/big.bin"), png(10 * 1024 * 1024 + 1), { contentType: "application/octet-stream" }));
+  });
+});
+
+describe("task attachments", () => {
+  it("admin uploads; the assignee and admin read; other employees cannot", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "tasks/t1"), { assigneeIds: ["emp1"] });
+    });
+    await assertSucceeds(uploadBytes(ref(admin(), "tasks/t1/brief.pdf"), png(), { contentType: "application/pdf" }));
+    await assertSucceeds(getBytes(ref(employee("emp1"), "tasks/t1/brief.pdf")));
+    await assertSucceeds(getBytes(ref(admin(), "tasks/t1/brief.pdf")));
+    await assertFails(getBytes(ref(employee("emp2"), "tasks/t1/brief.pdf")));
+    await assertFails(getBytes(ref(stranger(), "tasks/t1/brief.pdf")));
+  });
+  it("employees cannot upload or delete; files are capped at 10 MB", async () => {
+    await assertFails(uploadBytes(ref(employee("emp1"), "tasks/t1/mine.pdf"), png(), { contentType: "application/pdf" }));
+    await assertFails(deleteObject(ref(employee("emp1"), "tasks/t1/brief.pdf")));
+    await assertFails(uploadBytes(ref(admin(), "tasks/t1/huge.bin"), png(10 * 1024 * 1024 + 1), { contentType: "application/octet-stream" }));
+    await assertSucceeds(deleteObject(ref(admin(), "tasks/t1/brief.pdf")));
   });
 });
 

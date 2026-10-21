@@ -3,7 +3,7 @@ import { createOneOffTask, deleteTask, toggleSubtask, transitionTask, updateOneO
 import { makeDb, newWorld, type World } from "@/lib/server/test-support/memory-task-db";
 import { buildOneOffTask } from "@/lib/domain/task-builders";
 import { createTaskSchema, updateTaskSchema } from "@/lib/domain/task-schemas";
-import type { Actor, TaskData } from "@/lib/domain/tasks";
+import type { Actor } from "@/lib/domain/tasks";
 
 const now = new Date("2026-10-21T06:00:00Z");
 const admin: Actor = { uid: "admin1", name: "Boss", role: "admin" };

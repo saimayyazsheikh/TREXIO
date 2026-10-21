@@ -25,10 +25,10 @@ Order is chosen so each phase is testable and later phases reuse earlier foundat
 - [x] Questions/Help inbox (threaded) — separate from chat
 - [x] Chat: direct + everyone group, unread counts, attachments, typing, reactions
 ## Phase 5 — Journal (M12, M13)
-- [ ] Hourly timeline UI, text per slot, drag tasks into slots
-- [ ] Midnight lock rule (dayIndex) + emulator tests incl. bypass attempts
-- [ ] Hourly prompt at :55 (modal + browser notification)
-- [ ] Admin journal views (per-employee tab + overview)
+- [x] Hourly timeline UI, text per slot, drag tasks into slots
+- [x] Midnight lock rule (dayIndex) + emulator tests incl. bypass attempts
+- [x] Hourly prompt at :55 (modal + browser notification)
+- [x] Admin journal views (per-employee tab + overview)
 ## Phase 6 — Presence & Time (M14, M15)
 - [ ] Presence heartbeat (RTDB), idle hook, breaks (types, timer), daily rollups
 - [ ] Admin live status board + idle/break report

@@ -50,3 +50,10 @@ pm run seed:admin), custom claims, username to email login.
 - Chat: direct chat with the admin plus Everyone, unread counts, files, emoji reactions, edit and delete your own, typing indicator, earlier messages on demand.
 - Menu badges for unread questions, chat and reminders.
 - Rules and tests for all of it (50 emulator tests passing); fixed a stuck Sending placeholder found while testing chat.
+
+## Phase 5 - Journal
+- Employee Journal: an hourly timeline across working hours with autosave, drag tasks into an hour (or use the Add a task menu), a Now highlight, a day navigator, and a lock banner on past days.
+- Midnight lock enforced by the database rules: the document id must contain today's PKT date computed from the server clock. 28 emulator tests cover bypass attempts (yesterday, tomorrow, someone else, forged dates, fake timestamps, bad shapes); a live forged-write attempt over the raw API was refused.
+- Hourly prompt at :55 of a working hour when the hour is empty: save an entry in place, snooze 3 minutes, or skip; browser notification when the tab is hidden and allowed.
+- Admin: Journal tab on each employee and a Journals overview with fill rates and expandable entries.
+- Employee menu: Journal added; phones get four tabs plus a More menu.

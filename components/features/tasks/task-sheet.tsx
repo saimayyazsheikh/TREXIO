@@ -11,12 +11,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { AssigneePicker } from "@/components/features/tasks/assignee-picker";
 import { ChecklistEditor, type ChecklistItem } from "@/components/features/tasks/checklist-editor";
+import { TaskLinkField } from "@/components/features/tasks/task-link-field";
 import { PrioritySelect } from "@/components/features/tasks/priority-select";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
+import { MAX_DEPENDENCIES, MAX_RELATED } from "@/lib/domain/dependencies";
 import { createTaskSchema, formChecklistSchema } from "@/lib/domain/task-schemas";
 import type { Priority } from "@/lib/domain/constants";
 import { pktDateString } from "@/lib/time";
@@ -32,7 +34,10 @@ type FormValues = {
   priority: Priority;
   date: string;
   dueTime: string;
-  assigneeId: string;
+  assigneeIds: string[];
+  completionMode: "all" | "any";
+  dependsOnIds: string[];
+  relatedTaskIds: string[];
   requiresReview: boolean;
   subtasks: ChecklistItem[];
 };
@@ -63,6 +68,7 @@ export function TaskSheet({
   const [existing, setExisting] = useState<Attachment[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const [titles, setTitles] = useState<Record<string, string>>({});
   const fileInput = useRef<HTMLInputElement>(null);
   const {
     register,
@@ -70,8 +76,10 @@ export function TaskSheet({
     handleSubmit,
     reset,
     getValues,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(formSchema) as unknown as Resolver<FormValues> });
+  const assigneeCount = watch("assigneeIds")?.length ?? 0;
 
   useEffect(() => {
     if (!open) return;
@@ -79,6 +87,7 @@ export function TaskSheet({
     setFileError(null);
     setFormError(null);
     setExisting(task?.attachments ?? []);
+    setTitles(task?.linkTitles ?? {});
     reset(
       task
         ? {
@@ -87,11 +96,17 @@ export function TaskSheet({
             priority: task.priority,
             date: task.date,
             dueTime: task.dueAt ? new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(task.dueAt.toDate()) : "",
-            assigneeId: task.assigneeIds[0] ?? "",
+            assigneeIds: task.assigneeIds,
+            completionMode: task.completionMode,
+            dependsOnIds: task.dependsOnIds,
+            relatedTaskIds: task.relatedTaskIds,
             requiresReview: task.requiresReview,
             subtasks: task.subtasks.map((s) => ({ id: s.id, title: s.title })),
           }
-        : { title: "", description: "", priority: "medium", date: pktDateString(), dueTime: "", assigneeId: defaultAssigneeId ?? "", requiresReview: false, subtasks: [] },
+        : {
+            title: "", description: "", priority: "medium", date: pktDateString(), dueTime: "", assigneeIds: defaultAssigneeId ? [defaultAssigneeId] : [],
+            completionMode: "all", dependsOnIds: [], relatedTaskIds: [], requiresReview: false, subtasks: [],
+          },
     );
   }, [open, task, defaultAssigneeId, reset]);
 
@@ -121,7 +136,8 @@ export function TaskSheet({
     const raw = getValues();
     const base = {
       title: raw.title, description: raw.description, priority: raw.priority, date: raw.date, dueTime: raw.dueTime,
-      assigneeId: raw.assigneeId, requiresReview: raw.requiresReview,
+      assigneeIds: raw.assigneeIds, completionMode: raw.completionMode, dependsOnIds: raw.dependsOnIds, relatedTaskIds: raw.relatedTaskIds,
+      requiresReview: raw.requiresReview,
     };
     try {
       let taskId = task?.id;
@@ -164,10 +180,6 @@ export function TaskSheet({
     }
   }
 
-  const businessName = new Map(businesses.map((b) => [b.id, b.name]));
-  const selectable = employees.filter((e) => e.status === "active" || e.id === task?.assigneeIds[0]);
-  const groups = [...new Set(selectable.map((e) => e.businessId ?? ""))];
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -200,25 +212,43 @@ export function TaskSheet({
             )}
           </Field>
 
-          <Field id="task-assignee" label="Assign to" required error={errors.assigneeId?.message}>
-            {(aria) => (
-              <Select {...aria} {...register("assigneeId")}>
-                <option value="">Choose a team member…</option>
-                {groups.map((g) => (
-                  <optgroup key={g} label={businessName.get(g) ?? "No business"}>
-                    {selectable
-                      .filter((e) => (e.businessId ?? "") === g)
-                      .map((e) => (
-                        <option key={e.id} value={e.id}>
-                          {e.name}
-                          {e.status === "disabled" ? " (turned off)" : ""}
-                        </option>
-                      ))}
-                  </optgroup>
-                ))}
-              </Select>
+          <Controller
+            control={control}
+            name="assigneeIds"
+            render={({ field }) => (
+              <AssigneePicker
+                // Remount when the sheet reopens on another task so the business starts in the right place.
+                key={task?.id ?? "new"}
+                value={field.value ?? []}
+                onChange={field.onChange}
+                employees={employees}
+                businesses={businesses}
+                error={errors.assigneeIds?.message}
+              />
             )}
-          </Field>
+          />
+
+          {assigneeCount > 1 ? (
+            <fieldset>
+              <legend className="mb-1.5 text-sm font-medium">When is it finished?</legend>
+              <div className="flex flex-col gap-1">
+                {(
+                  [
+                    ["all", "When everyone has finished their part", "Each person ticks their own part."],
+                    ["any", "As soon as one person finishes", "The first to finish completes it for everyone."],
+                  ] as const
+                ).map(([value, title, help]) => (
+                  <label key={value} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-control px-1 py-1.5 hover:bg-surface-raised">
+                    <input type="radio" value={value} className="mt-1 size-5 accent-[var(--brand-from)]" {...register("completionMode")} />
+                    <span>
+                      <span className="block text-sm font-medium">{title}</span>
+                      <span className="block text-sm text-muted">{help}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ) : null}
 
           <div className="flex flex-col gap-1.5">
             <span id="task-priority-label" className="text-sm font-medium">
@@ -241,6 +271,40 @@ export function TaskSheet({
             <Controller control={control} name="subtasks" render={({ field }) => <ChecklistEditor items={field.value ?? []} onChange={field.onChange} />} />
             {errors.subtasks ? <p className="text-sm text-danger">{errors.subtasks.message}</p> : null}
           </div>
+
+          <Controller
+            control={control}
+            name="dependsOnIds"
+            render={({ field }) => (
+              <TaskLinkField
+                label="Must be finished first"
+                hint="They can't start or finish this task until these are completed. They'll see what they're waiting on."
+                value={field.value ?? []}
+                onChange={field.onChange}
+                titles={titles}
+                onTitle={(id, title) => setTitles((t) => ({ ...t, [id]: title }))}
+                excludeId={task?.id}
+                max={MAX_DEPENDENCIES}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="relatedTaskIds"
+            render={({ field }) => (
+              <TaskLinkField
+                label="Related tasks"
+                hint="Just a link for context. It doesn't block anything, and it shows on both tasks."
+                value={field.value ?? []}
+                onChange={field.onChange}
+                titles={titles}
+                onTitle={(id, title) => setTitles((t) => ({ ...t, [id]: title }))}
+                excludeId={task?.id}
+                max={MAX_RELATED}
+              />
+            )}
+          />
 
           <div className="flex flex-col gap-2">
             <span className="text-sm font-medium">Attachments</span>

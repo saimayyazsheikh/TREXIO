@@ -12,10 +12,10 @@ const sub = (id: string, done = false): Subtask => ({ id, title: `Step ${id}`, d
 function task(over: Partial<TaskData> = {}): TaskData {
   const subtasks = over.subtasks ?? [];
   return {
-    kind: "oneoff", templateId: null, date: "2026-10-21", businessId: "b1", assigneeIds: ["ali"], completion: {}, completionMode: "all",
+    kind: "oneoff", templateId: null, date: "2026-10-21", businessId: "b1", assigneeIds: ["ali"], assigneeNames: { ali: "Ali" }, completion: {}, completionMode: "all",
     title: "Server check", description: "", priority: "medium", status: "todo", blockedReason: null, blockedBy: null, dueAt: null,
     requiresReview: false, subtasks, subtaskTotal: subtasks.length, subtaskDone: subtasks.filter((s) => s.done).length,
-    relatedTaskIds: [], dependsOnIds: [], attachments: [], tags: [], createdBy: "admin1", createdAt: now, updatedAt: now,
+    relatedTaskIds: [], dependsOnIds: [], linkTitles: {}, waitingOnIds: [], attachments: [], tags: [], createdBy: "admin1", createdAt: now, updatedAt: now,
     completedAt: null, escalation: { l1At: null, l2At: null }, ...over,
   };
 }
@@ -120,6 +120,106 @@ describe("planTransition", () => {
       expect(unblocked.audit.meta).toMatchObject({ previousReason: "Printer is down", unblockedBy: "admin1" });
       expect(unblocked.activityText).toBe("Boss unblocked and restarted “Server check”");
     });
+  });
+});
+
+describe("several assignees", () => {
+  const team = (over: Partial<TaskData> = {}) => task({ assigneeIds: ["ali", "sara", "omar"], assigneeNames: { ali: "Ali", sara: "Sara", omar: "Omar" }, status: "in_progress", ...over });
+
+  it("each person ticks their own part and the task completes only when everyone has (mode: all)", () => {
+    const first = planTransition(team(), "completed", ali, { now });
+    expect(first.patch.status).toBe("in_progress");
+    expect(first.patch.completion?.ali).toEqual({ done: true, at: now });
+    expect(first.audit).toMatchObject({ action: "task.complete", meta: { progress: "1/3", mode: "all" } });
+    expect(first.activityText).toBe("Ali finished their part of “Server check” (1/3)");
+
+    const almost = team({ completion: { ali: { done: true, at: now }, sara: { done: true, at: now } } });
+    const last = planTransition(almost, "completed", { uid: "omar", name: "Omar", role: "employee" }, { now });
+    expect(last.patch).toMatchObject({ status: "completed", completedAt: now });
+    expect(last.audit).toMatchObject({ action: "task.status", to: "completed", meta: { progress: "3/3" } });
+  });
+
+  it("starting from To-Do, the first finisher moves the task to In Progress", () => {
+    expect(planTransition(team({ status: "todo" }), "completed", ali, { now }).patch.status).toBe("in_progress");
+  });
+
+  it("can't tick the same part twice", () => {
+    const t = team({ completion: { ali: { done: true, at: now } } });
+    expect(() => planTransition(t, "completed", ali, { now })).toThrow(/already finished your part/);
+  });
+
+  it("'any' mode: the first person to finish completes it", () => {
+    const plan = planTransition(team({ completionMode: "any" }), "completed", sara, { now });
+    expect(plan.patch.status).toBe("completed");
+    expect(plan.patch.completion?.omar?.done ?? false).toBe(false);
+  });
+
+  it("when it needs review, the last finisher sends it to review and the admin approves", () => {
+    const almost = team({ requiresReview: true, completion: { ali: { done: true, at: now }, sara: { done: true, at: now } } });
+    const review = planTransition(almost, "completed", { uid: "omar", name: "Omar", role: "employee" }, { now });
+    expect(review.patch.status).toBe("under_review");
+    const approved = planTransition({ ...almost, status: "under_review", completion: { ali: { done: true, at: now }, sara: { done: true, at: now }, omar: { done: true, at: now } } }, "completed", admin, { now });
+    expect(approved.patch.status).toBe("completed");
+  });
+
+  it("the admin completes it for everyone", () => {
+    const plan = planTransition(team(), "completed", admin, { now });
+    expect(plan.patch.status).toBe("completed");
+    expect(Object.values(plan.patch.completion ?? {}).every((c) => c.done)).toBe(true);
+  });
+
+  it("someone can take back their own tick while the task is still in progress", () => {
+    const t = team({ completion: { ali: { done: true, at: now }, sara: { done: true, at: now } } });
+    const plan = planTransition(t, "in_progress", ali, { now });
+    expect(plan.patch.status).toBeUndefined();
+    expect(plan.patch.completion).toMatchObject({ ali: { done: false, at: null }, sara: { done: true } });
+    expect(plan.audit).toMatchObject({ action: "task.reopen", meta: { progress: "1/3" } });
+    expect(plan.activityText).toBe("Ali took back their part of “Server check” (1/3)");
+    expect(() => planTransition(team(), "in_progress", ali, { now })).toThrow(/already In Progress/);
+  });
+
+  it("an employee reopening clears only their own tick; the admin resets everyone", () => {
+    const done = team({ status: "completed", completedAt: now, completion: { ali: { done: true, at: now }, sara: { done: true, at: now }, omar: { done: true, at: now } } });
+    const mine = planTransition(done, "in_progress", ali, { now });
+    expect(mine.patch.completion).toMatchObject({ ali: { done: false }, sara: { done: true }, omar: { done: true } });
+    const all = planTransition(done, "in_progress", admin, { now });
+    expect(Object.values(all.patch.completion ?? {}).every((c) => !c.done)).toBe(true);
+  });
+
+  it("sending a review task back resets everyone's tick", () => {
+    const inReview = team({ requiresReview: true, status: "under_review", completion: { ali: { done: true, at: now }, sara: { done: true, at: now }, omar: { done: true, at: now } } });
+    const back = planTransition(inReview, "in_progress", admin, { now });
+    expect(Object.values(back.patch.completion ?? {}).every((c) => !c.done)).toBe(true);
+  });
+});
+
+describe("dependencies", () => {
+  const waiting = [{ id: "t1", title: "Prepare invoices", status: "in_progress" as const }];
+  const ready = [{ id: "t1", title: "Prepare invoices", status: "completed" as const }];
+
+  it("refuses to start or complete a task while a prerequisite isn't completed, naming it", () => {
+    expect(() => planTransition(task(), "in_progress", ali, { now, deps: waiting })).toThrow(/Waiting on: Prepare invoices/);
+    expect(() => planTransition(task({ status: "in_progress" }), "completed", ali, { now, deps: waiting })).toThrow(/Waiting on: Prepare invoices/);
+    expect(() => planTransition(task({ status: "in_progress" }), "completed", admin, { now, deps: waiting })).toThrow(/Waiting on/);
+  });
+  it("lists every unmet prerequisite and ignores met ones", () => {
+    const deps = [...waiting, { id: "t2", title: "Approve budget", status: "todo" as const }, { id: "t3", title: "Done thing", status: "completed" as const }];
+    expect(() => planTransition(task(), "in_progress", ali, { now, deps })).toThrow(/Prepare invoices, Approve budget\./);
+  });
+  it("allows it once every prerequisite is completed", () => {
+    expect(planTransition(task(), "in_progress", ali, { now, deps: ready }).patch.status).toBe("in_progress");
+    expect(planTransition(task({ status: "in_progress" }), "completed", ali, { now, deps: ready }).patch.status).toBe("completed");
+  });
+  it("still lets people block a waiting task or move it back to To-Do", () => {
+    expect(planTransition(task(), "blocked", ali, { now, deps: waiting, reason: "no data yet" }).patch.status).toBe("blocked");
+    expect(planTransition(task({ status: "in_progress" }), "todo", ali, { now, deps: waiting }).patch.status).toBe("todo");
+  });
+  it("unblocking into In Progress is gated too", () => {
+    expect(() => planTransition(task({ status: "blocked", blockedReason: "x" }), "in_progress", ali, { now, deps: waiting })).toThrow(/Waiting on/);
+  });
+  it("a personal tick in a multi-assignee task is gated as well", () => {
+    const team = task({ assigneeIds: ["ali", "sara"], status: "in_progress" });
+    expect(() => planTransition(team, "completed", ali, { now, deps: waiting })).toThrow(/Waiting on/);
   });
 });
 

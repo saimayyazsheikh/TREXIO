@@ -10,6 +10,11 @@ export function taskFromFirestore(raw: Record<string, unknown>): TaskData {
   const data = raw as unknown as TaskData;
   return {
     ...data,
+    assigneeNames: data.assigneeNames ?? {},
+    linkTitles: data.linkTitles ?? {},
+    waitingOnIds: data.waitingOnIds ?? [],
+    dependsOnIds: data.dependsOnIds ?? [],
+    relatedTaskIds: data.relatedTaskIds ?? [],
     dueAt: toDate(raw.dueAt),
     createdAt: required(raw.createdAt),
     updatedAt: required(raw.updatedAt),

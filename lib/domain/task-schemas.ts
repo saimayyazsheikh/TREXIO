@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PRIORITIES, TASK_STATUSES } from "@/lib/domain/constants";
+import { MAX_DEPENDENCIES, MAX_RELATED } from "@/lib/domain/dependencies";
 import { workDaysSchema } from "@/lib/domain/schemas";
 
 const hhmmOrEmpty = z
@@ -37,15 +38,34 @@ export const attachmentSchema = z.object({
   type: z.string().max(100),
 });
 
+const uniqueIds = (max: number, what: string) =>
+  z
+    .array(z.string().min(1))
+    .max(max, `Up to ${max} ${what}`)
+    .transform((ids) => [...new Set(ids)]);
+
+const assigneeIds = uniqueIds(10, "people per task").pipe(z.array(z.string()).min(1, "Choose who it's for"));
+
+/** Shared by create and edit: who, how it completes, and links to other tasks. */
+const taskRelations = {
+  assigneeIds,
+  /** "all": every assignee must finish their part. "any": the first to finish completes it. */
+  completionMode: z.enum(["all", "any"]).default("all"),
+  /** Prerequisites: this task can't start or finish until they are completed. */
+  dependsOnIds: uniqueIds(MAX_DEPENDENCIES, "prerequisites").default([]),
+  /** Informational two-way links. */
+  relatedTaskIds: uniqueIds(MAX_RELATED, "related tasks").default([]),
+};
+
 export const createTaskSchema = z.object({
   title,
   description,
   priority: z.enum(PRIORITIES),
   date,
   dueTime: hhmmOrEmpty,
-  assigneeId: z.string().min(1, "Choose who it's for"),
   requiresReview: z.boolean().default(false),
   subtasks: newSubtasks.default([]),
+  ...taskRelations,
 });
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 
@@ -56,10 +76,10 @@ export const updateTaskSchema = z.object({
   priority: z.enum(PRIORITIES),
   date,
   dueTime: hhmmOrEmpty,
-  assigneeId: z.string().min(1, "Choose who it's for"),
   requiresReview: z.boolean(),
   subtasks: editedSubtasks,
   attachments: z.array(attachmentSchema).max(10, "Up to 10 attachments").optional(),
+  ...taskRelations,
 });
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 

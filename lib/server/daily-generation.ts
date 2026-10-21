@@ -5,7 +5,7 @@ import { SYSTEM_ACTOR, type AuditEntry } from "@/lib/server/task-store";
 export type GenerationDeps = {
   /** Active routines only, optionally for one employee. */
   loadTemplates(employeeId?: string): Promise<{ id: string; data: TemplateData }[]>;
-  loadEmployees(ids: string[]): Promise<Map<string, { status: "active" | "disabled"; businessId: string | null }>>;
+  loadEmployees(ids: string[]): Promise<Map<string, { name: string; status: "active" | "disabled"; businessId: string | null }>>;
   loadBusinesses(ids: string[]): Promise<Map<string, { active: boolean; workDays: number[] }>>;
   existingTaskIds(ids: string[]): Promise<Set<string>>;
   /** Must create only documents that don't exist yet (never overwrite) and return how many it created. */
@@ -38,7 +38,7 @@ export async function generateDailyTasks(deps: GenerationDeps, opts: { date: str
     const business = businesses.get(employee.businessId);
     if (!business || !templateRunsOn(data, business, opts.date)) continue;
     // The employee's current business wins over the one recorded when the routine was created.
-    due.push({ id: dailyTaskId(id, data.employeeId, opts.date), data: buildDailyInstance({ ...data, businessId: employee.businessId }, id, opts.date, now) });
+    due.push({ id: dailyTaskId(id, data.employeeId, opts.date), data: buildDailyInstance({ ...data, businessId: employee.businessId }, id, employee.name, opts.date, now) });
   }
 
   const existing = await deps.existingTaskIds(due.map((d) => d.id));

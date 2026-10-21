@@ -13,6 +13,9 @@ export type TaskData = {
   date: string;
   businessId: string;
   assigneeIds: string[];
+  /** Names copied onto the task so employees can see co-assignees without reading other profiles. */
+  assigneeNames: Record<string, string>;
+  /** Each assignee's own tick. A task completes when everyone ("all") or anyone ("any") has ticked. */
   completion: Record<string, { done: boolean; at: Date | null }>;
   completionMode: "all" | "any";
   title: string;
@@ -26,8 +29,14 @@ export type TaskData = {
   subtasks: Subtask[];
   subtaskTotal: number;
   subtaskDone: number;
+  /** Informational two-way links. */
   relatedTaskIds: string[];
+  /** Prerequisites: this task can't start or finish until every one of them is completed. */
   dependsOnIds: string[];
+  /** Titles of linked tasks (dependencies and related), so people who can't read them still see names. */
+  linkTitles: Record<string, string>;
+  /** The subset of `dependsOnIds` not completed yet. Kept in sync by the shared writer; display only. */
+  waitingOnIds: string[];
   attachments: Attachment[];
   tags: string[];
   createdBy: string;
@@ -38,6 +47,9 @@ export type TaskData = {
 };
 
 export type Actor = { uid: string; name: string; role: Role };
+
+/** A prerequisite as read inside the transaction (authoritative; never trust `waitingOnIds` for rules). */
+export type DependencySnapshot = { id: string; title: string; status: TaskStatus };
 
 /** What a shared writer must persist together: the task change, an audit entry and an activity entry. */
 export type TaskPlan = {
@@ -61,19 +73,31 @@ export function canTransition(from: TaskStatus, to: TaskStatus): boolean {
   return TRANSITIONS[from].includes(to);
 }
 
-/** An employee finishing a task that needs review lands in "under_review"; only the admin can reach "completed". */
-export function resolveRequestedStatus(task: Pick<TaskData, "requiresReview">, requested: TaskStatus, role: Role): TaskStatus {
-  return requested === "completed" && task.requiresReview && role !== "admin" ? "under_review" : requested;
-}
-
 export function countSubtasks(subtasks: Subtask[]): { total: number; done: number } {
   return { total: subtasks.length, done: subtasks.filter((s) => s.done).length };
+}
+
+/** How many assignees have ticked their part, and whether the completion rule is met. */
+export function completionProgress(task: Pick<TaskData, "assigneeIds" | "completion" | "completionMode">): { done: number; total: number; satisfied: boolean } {
+  const done = task.assigneeIds.filter((uid) => task.completion[uid]?.done).length;
+  const total = task.assigneeIds.length;
+  return { done, total, satisfied: task.completionMode === "any" ? done >= 1 : done === total };
 }
 
 function assertCanAct(task: Pick<TaskData, "assigneeIds">, actor: Actor) {
   if (actor.role !== "admin" && !task.assigneeIds.includes(actor.uid)) {
     throw new DomainError("This task isn't assigned to you.", 403);
   }
+}
+
+function assertChecklistDone(task: Pick<TaskData, "subtasks">) {
+  const { total, done } = countSubtasks(task.subtasks);
+  if (done < total) throw new DomainError(`Finish the checklist first (${done} of ${total} done).`, 409);
+}
+
+function assertDependenciesDone(deps: DependencySnapshot[]) {
+  const waiting = deps.filter((d) => d.status !== "completed");
+  if (waiting.length > 0) throw new DomainError(`Waiting on: ${waiting.map((d) => d.title).join(", ")}.`, 409);
 }
 
 function verb(from: TaskStatus, to: TaskStatus): string {
@@ -85,32 +109,83 @@ function verb(from: TaskStatus, to: TaskStatus): string {
   return from === "completed" ? "reopened" : "moved back to To-Do";
 }
 
+const clearCompletion = (assigneeIds: string[], keep: TaskData["completion"], only?: string): TaskData["completion"] => {
+  const next = { ...keep };
+  for (const uid of only ? [only] : assigneeIds) next[uid] = { done: false, at: null };
+  return next;
+};
+
 /**
- * Plans a status change. `requested` may be "completed" even for tasks that need review: an employee's
- * completion then lands in "under_review" and only an admin can approve it.
+ * Plans a status change.
+ *
+ * - "completed" requested by an employee ticks THEIR part. With several assignees the task only completes once the
+ *   completion rule is met; a task that needs review then lands in "under_review" and only the admin can approve.
+ * - The admin completing a task completes it for everyone.
+ * - Moving into In Progress / Completed / Under Review is refused while a prerequisite isn't completed.
  */
 export function planTransition(
   task: TaskData,
   requested: TaskStatus,
   actor: Actor,
-  opts: { reason?: string; now: Date },
+  opts: { reason?: string; now: Date; deps?: DependencySnapshot[] },
 ): TaskPlan {
   assertCanAct(task, actor);
   const from = task.status;
-  if (from === "under_review" && actor.role !== "admin") {
-    throw new DomainError("Only the admin can review this task.", 403);
+  const deps = opts.deps ?? [];
+  const now = opts.now;
+  const isAdmin = actor.role === "admin";
+  if (from === "under_review" && !isAdmin) throw new DomainError("Only the admin can review this task.", 403);
+
+  if (requested === "completed") {
+    if (from === "completed") throw new DomainError(`This task is already ${TASK_STATUS_LABEL.completed}.`, 409);
+    if (!canTransition(from, "completed")) throw new DomainError(`A ${TASK_STATUS_LABEL[from]} task can't move to ${TASK_STATUS_LABEL.completed}.`, 409);
+    assertChecklistDone(task);
+    assertDependenciesDone(deps);
+
+    const completion = { ...task.completion };
+    if (isAdmin) {
+      for (const uid of task.assigneeIds) completion[uid] = { done: true, at: completion[uid]?.done ? completion[uid].at : now };
+    } else {
+      if (completion[actor.uid]?.done) throw new DomainError("You've already finished your part.", 409);
+      completion[actor.uid] = { done: true, at: now };
+    }
+    const progress = completionProgress({ ...task, completion });
+
+    if (!progress.satisfied) {
+      const to: TaskStatus = "in_progress";
+      return {
+        patch: { status: to, completion, updatedAt: now },
+        audit: { action: "task.complete", from, to, meta: { progress: `${progress.done}/${progress.total}`, mode: task.completionMode } },
+        activityText: `${actor.name} finished their part of “${task.title}” (${progress.done}/${progress.total})`,
+      };
+    }
+    const to: TaskStatus = task.requiresReview && !isAdmin ? "under_review" : "completed";
+    return {
+      patch: { status: to, completion, completedAt: to === "completed" ? now : null, blockedReason: null, blockedBy: null, updatedAt: now },
+      audit: { action: "task.status", from, to, meta: { requested, ...(task.assigneeIds.length > 1 ? { progress: `${progress.done}/${progress.total}` } : {}) } },
+      activityText: `${actor.name} ${verb(from, to)} “${task.title}”`,
+    };
   }
 
-  const to = resolveRequestedStatus(task, requested, actor.role);
+  const to = requested;
+  // Taking back your own tick while teammates are still working: the task stays In Progress.
+  if (from === "in_progress" && to === "in_progress" && !isAdmin && task.completion[actor.uid]?.done) {
+    const completion = { ...task.completion, [actor.uid]: { done: false, at: null } };
+    const progress = completionProgress({ ...task, completion });
+    return {
+      patch: { completion, updatedAt: now },
+      audit: { action: "task.reopen", from, to, meta: { progress: `${progress.done}/${progress.total}` } },
+      activityText: `${actor.name} took back their part of “${task.title}” (${progress.done}/${progress.total})`,
+    };
+  }
   if (from === to) throw new DomainError(`This task is already ${TASK_STATUS_LABEL[to]}.`, 409);
-  if (!canTransition(from, to)) {
-    throw new DomainError(`A ${TASK_STATUS_LABEL[from]} task can't move to ${TASK_STATUS_LABEL[to]}.`, 409);
-  }
+  if (!canTransition(from, to)) throw new DomainError(`A ${TASK_STATUS_LABEL[from]} task can't move to ${TASK_STATUS_LABEL[to]}.`, 409);
 
-  if (to === "completed" || to === "under_review") {
-    const { total, done } = countSubtasks(task.subtasks);
-    if (done < total) throw new DomainError(`Finish the checklist first (${done} of ${total} done).`, 409);
+  if (to === "under_review") {
+    assertChecklistDone(task);
+    assertDependenciesDone(deps);
   }
+  if (to === "in_progress" && (from === "todo" || from === "blocked")) assertDependenciesDone(deps);
 
   let reason: string | null = null;
   if (to === "blocked") {
@@ -119,21 +194,20 @@ export function planTransition(
     if (reason.length > MAX_BLOCK_REASON) throw new DomainError(`Keep the reason under ${MAX_BLOCK_REASON} characters.`, 400);
   }
 
-  const completion = { ...task.completion };
-  if (to === "completed") {
-    for (const uid of task.assigneeIds) completion[uid] = { done: true, at: opts.now };
-  } else if (from === "completed") {
-    for (const uid of task.assigneeIds) completion[uid] = { done: false, at: null };
+  // Leaving "completed" or "under_review" reopens work: an employee reopens only their own part; the admin resets everyone.
+  let completion = task.completion;
+  if (from === "completed" || from === "under_review") {
+    completion = clearCompletion(task.assigneeIds, task.completion, isAdmin ? undefined : actor.uid);
   }
 
   return {
     patch: {
       status: to,
       completion,
-      completedAt: to === "completed" ? opts.now : null,
+      completedAt: null,
       blockedReason: reason,
       blockedBy: to === "blocked" ? actor.uid : null,
-      updatedAt: opts.now,
+      updatedAt: now,
     },
     audit: {
       action: "task.status",

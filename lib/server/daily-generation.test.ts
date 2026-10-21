@@ -17,7 +17,7 @@ type World = {
   templates: Map<string, TemplateData>;
   tasks: Map<string, TaskData>;
   audits: AuditEntry[];
-  employees: Map<string, { status: "active" | "disabled"; businessId: string | null }>;
+  employees: Map<string, { name: string; status: "active" | "disabled"; businessId: string | null }>;
   businesses: Map<string, { active: boolean; workDays: number[] }>;
 };
 
@@ -49,7 +49,7 @@ describe("generateDailyTasks", () => {
       templates: new Map([["t1", tpl()]]),
       tasks: new Map(),
       audits: [],
-      employees: new Map([["ali", { status: "active", businessId: "b1" }]]),
+      employees: new Map([["ali", { name: "Ali Khan", status: "active", businessId: "b1" }]]),
       businesses: new Map([["b1", { active: true, workDays: [1, 2, 3, 4, 5, 6] }]]),
     };
   });
@@ -100,12 +100,12 @@ describe("generateDailyTasks", () => {
     w.businesses.set("b1", { active: false, workDays: [1, 2, 3, 4, 5, 6] });
     expect((await generateDailyTasks(makeDeps(w), { date: WED })).created).toBe(0);
     w.businesses.set("b1", { active: true, workDays: [1, 2, 3, 4, 5, 6] });
-    w.employees.set("ali", { status: "disabled", businessId: "b1" });
+    w.employees.set("ali", { name: "Ali Khan", status: "disabled", businessId: "b1" });
     expect((await generateDailyTasks(makeDeps(w), { date: WED })).created).toBe(0);
   });
 
   it("uses the employee's current business, not the one stored on the routine", async () => {
-    w.employees.set("ali", { status: "active", businessId: "b2" });
+    w.employees.set("ali", { name: "Ali Khan", status: "active", businessId: "b2" });
     w.businesses.set("b2", { active: true, workDays: [1, 2, 3, 4, 5, 6] });
     await generateDailyTasks(makeDeps(w), { date: WED });
     expect(w.tasks.get(`t1_ali_${WED}`)?.businessId).toBe("b2");
@@ -113,7 +113,7 @@ describe("generateDailyTasks", () => {
 
   it("can generate for a single employee (the lazy dashboard path)", async () => {
     w.templates.set("t2", tpl({ employeeId: "sara" }));
-    w.employees.set("sara", { status: "active", businessId: "b1" });
+    w.employees.set("sara", { name: "Ali Khan", status: "active", businessId: "b1" });
     const res = await generateDailyTasks(makeDeps(w), { date: WED, employeeId: "sara" });
     expect(res.created).toBe(1);
     expect([...w.tasks.keys()]).toEqual([`t2_sara_${WED}`]);

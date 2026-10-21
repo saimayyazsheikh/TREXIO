@@ -1,24 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ListChecks, PartyPopper } from "lucide-react";
 import { collection, limit, orderBy, query, where } from "firebase/firestore";
-import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
 import { PageHeader } from "@/components/features/page-header";
+import { BlockDialog } from "@/components/features/tasks/block-dialog";
 import { TaskCard } from "@/components/features/tasks/task-card";
 import { useCollection } from "@/hooks/use-collection";
 import { useNow } from "@/hooks/use-now";
+import { useTaskActions } from "@/hooks/use-task-actions";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
-import type { TaskStatus } from "@/lib/domain/constants";
 import { compareTasks } from "@/lib/domain/task-sort";
-import { resolveRequestedStatus } from "@/lib/domain/tasks";
 import { formatPkt, pktDateString } from "@/lib/time";
-import { toggleSubtask, transitionTask } from "@/lib/tasks-client";
 import type { TaskDoc, WithId } from "@/types/models";
 
 const sortTasks = (tasks: WithId<TaskDoc>[]) =>
@@ -41,51 +39,9 @@ export function TodayView({ uid }: { uid: string }) {
     apiFetch("/api/me/ensure-daily", "POST", {}).catch(() => undefined);
   }, [today]);
 
-  // Optimistic status, cleared once the live data catches up (or after a short grace period).
-  const [pending, setPending] = useState<Record<string, TaskStatus>>({});
-  const [savingSubtasks, setSavingSubtasks] = useState<ReadonlySet<string>>(new Set());
-  const clearPending = useCallback((id: string) => setPending((p) => (id in p ? Object.fromEntries(Object.entries(p).filter(([k]) => k !== id)) : p)), []);
-
-  useEffect(() => {
-    const all = [...(todays.data ?? []), ...(carried.data ?? [])];
-    setPending((p) => {
-      const next = Object.fromEntries(Object.entries(p).filter(([id, status]) => all.find((t) => t.id === id)?.status !== status));
-      return Object.keys(next).length === Object.keys(p).length ? p : next;
-    });
-  }, [todays.data, carried.data]);
-
-  const displayStatus = (t: WithId<TaskDoc>): TaskStatus => pending[t.id] ?? t.status;
-
-  const requestStatus = useCallback(
-    async (task: WithId<TaskDoc>, requested: TaskStatus) => {
-      const resolved = resolveRequestedStatus(task, requested, "employee");
-      setPending((p) => ({ ...p, [task.id]: resolved }));
-      try {
-        await transitionTask(task.id, requested);
-        setTimeout(() => clearPending(task.id), 4000);
-        if (resolved === "completed") {
-          toast.success(`Done: ${task.title}`, { action: { label: "Undo", onClick: () => void requestStatus({ ...task, status: "completed" }, "todo") } });
-        } else if (resolved === "under_review") {
-          toast.success("Sent for review. Your admin will take a look.");
-        }
-      } catch (error) {
-        clearPending(task.id);
-        toast.error(error instanceof Error ? error.message : "Couldn't update that task.");
-      }
-    },
-    [clearPending],
-  );
-
-  const tickSubtask = useCallback(async (task: WithId<TaskDoc>, subtaskId: string, done: boolean) => {
-    setSavingSubtasks((s) => new Set(s).add(subtaskId));
-    try {
-      await toggleSubtask(task.id, subtaskId, done);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Couldn't save that step.");
-    } finally {
-      setSavingSubtasks((s) => new Set([...s].filter((x) => x !== subtaskId)));
-    }
-  }, []);
+  const all = useMemo(() => [...(todays.data ?? []), ...(carried.data ?? [])], [todays.data, carried.data]);
+  const { displayStatus, move, tickSubtask, savingSubtasks } = useTaskActions({ uid, role: "employee" }, all);
+  const [blocking, setBlocking] = useState<WithId<TaskDoc> | null>(null);
 
   const error = todays.error ?? carried.error;
   const loading = todays.loading || carried.loading;
@@ -93,7 +49,9 @@ export function TodayView({ uid }: { uid: string }) {
   const overdue = sortTasks((carried.data ?? []).filter((t) => displayStatus(t) !== "completed"));
   const daily = todayTasks.filter((t) => t.kind === "daily");
   const oneoff = todayTasks.filter((t) => t.kind === "oneoff");
-  const doneCount = todayTasks.filter((t) => displayStatus(t) === "completed").length;
+  // "Done" for you means your own part is ticked, even if teammates are still finishing theirs.
+  const isDone = (t: WithId<TaskDoc>) => displayStatus(t) === "completed" || !!t.completion[uid]?.done;
+  const doneCount = todayTasks.filter(isDone).length;
   const pct = todayTasks.length ? Math.round((doneCount / todayTasks.length) * 100) : 0;
   const allDone = todayTasks.length > 0 && doneCount === todayTasks.length && overdue.length === 0;
 
@@ -101,7 +59,17 @@ export function TodayView({ uid }: { uid: string }) {
     <ul className="space-y-3">
       {items.map((t) => (
         <li key={t.id}>
-          <TaskCard task={t} status={displayStatus(t)} now={now} today={today} savingSubtasks={savingSubtasks} onRequestStatus={requestStatus} onToggleSubtask={tickSubtask} />
+          <TaskCard
+            task={t}
+            viewer={{ uid, role: "employee" }}
+            status={displayStatus(t)}
+            now={now}
+            today={today}
+            savingSubtasks={savingSubtasks}
+            onMove={(task, status, opts) => void move(task, status, opts)}
+            onBlock={setBlocking}
+            onToggleSubtask={tickSubtask}
+          />
         </li>
       ))}
     </ul>
@@ -167,6 +135,12 @@ export function TodayView({ uid }: { uid: string }) {
           ) : null}
         </div>
       )}
+
+      <BlockDialog
+        title={blocking?.title ?? null}
+        onOpenChange={(o) => !o && setBlocking(null)}
+        onConfirm={(reason) => (blocking ? move(blocking, "blocked", { reason }) : Promise.resolve(false))}
+      />
     </>
   );
 }

@@ -56,8 +56,8 @@ describe("daily routines", () => {
 
     beforeEach(() => {
       const t = world.templates.get(templateId)!;
-      world.tasks.set(todaysId(), buildDailyInstance(t, templateId, TODAY, now));
-      world.tasks.set(yesterdayId(), { ...buildDailyInstance(t, templateId, "2026-10-20", now), status: "completed" });
+      world.tasks.set(todaysId(), buildDailyInstance(t, templateId, "Ali Khan", TODAY, now));
+      world.tasks.set(yesterdayId(), { ...buildDailyInstance(t, templateId, "Ali Khan", "2026-10-20", now), status: "completed" });
     });
 
     it("refreshes today's copy while untouched, and never rewrites history", async () => {

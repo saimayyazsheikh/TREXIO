@@ -42,6 +42,9 @@ export type TaskDoc = {
   date: string;
   businessId: string;
   assigneeIds: string[];
+  assigneeNames: Record<string, string>;
+  completion: Record<string, { done: boolean }>;
+  completionMode: "all" | "any";
   title: string;
   description: string;
   priority: Priority;
@@ -49,6 +52,10 @@ export type TaskDoc = {
   blockedReason: string | null;
   dueAt: Timestamp | null;
   requiresReview: boolean;
+  dependsOnIds: string[];
+  relatedTaskIds: string[];
+  linkTitles: Record<string, string>;
+  waitingOnIds: string[];
   subtasks: { id: string; title: string; done: boolean }[];
   subtaskTotal: number;
   subtaskDone: number;

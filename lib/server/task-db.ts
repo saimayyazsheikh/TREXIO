@@ -24,6 +24,15 @@ export function realTaskDb(): TaskDb {
             const snap = await t.get(db.doc(`tasks/${id}`));
             return snap.exists ? taskFromFirestore(snap.data()!) : null;
           },
+          getTasksLinkingTo: async (taskId) => {
+            const [dependents, related] = await Promise.all([
+              t.get(db.collection("tasks").where("dependsOnIds", "array-contains", taskId)),
+              t.get(db.collection("tasks").where("relatedTaskIds", "array-contains", taskId)),
+            ]);
+            const byId = new Map<string, TaskData>();
+            for (const d of [...dependents.docs, ...related.docs]) byId.set(d.id, taskFromFirestore(d.data()));
+            return [...byId].map(([id, task]) => ({ id, task }));
+          },
           getUser: async (uid): Promise<AssigneeRecord | null> => {
             const snap = await t.get(db.doc(`users/${uid}`));
             if (!snap.exists) return null;
@@ -65,7 +74,7 @@ export function realGenerationDeps(): GenerationDeps {
     },
     loadEmployees: async (ids) => {
       const docs = await getAllByIds(db, "users", ids);
-      return new Map(docs.filter((d) => d.exists).map((d) => [d.id, { status: (d.data() as UserDoc).status, businessId: (d.data() as UserDoc).businessId }]));
+      return new Map(docs.filter((d) => d.exists).map((d) => [d.id, { name: (d.data() as UserDoc).name, status: (d.data() as UserDoc).status, businessId: (d.data() as UserDoc).businessId }]));
     },
     loadBusinesses: async (ids) => {
       const docs = await getAllByIds(db, "businesses", ids);

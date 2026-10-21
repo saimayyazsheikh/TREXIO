@@ -25,7 +25,7 @@ describe("baseline firestore rules", () => {
 
   it("deny signed-in users on collections no phase has opened yet", async () => {
     const db = env.authenticatedContext("u1", { role: "admin" }).firestore();
-    await assertFails(getDoc(doc(db, "journals/x")));
-    await assertFails(setDoc(doc(db, "journals/x"), { a: 1 }));
+    await assertFails(getDoc(doc(db, "leaveRequests/x")));
+    await assertFails(setDoc(doc(db, "leaveRequests/x"), { a: 1 }));
   });
 });

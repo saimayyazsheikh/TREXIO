@@ -50,6 +50,14 @@
       ]
     },
     {
+      "collectionGroup": "journals",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "employeeId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "auditLogs",
       "queryScope": "COLLECTION",
       "fields": [

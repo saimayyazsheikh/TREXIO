@@ -110,6 +110,71 @@ service cloud.firestore {
       }
     }
 
+    // Journals: one document per employee per PKT day, written only by that employee, only while the day is
+    // still today. "Today" is computed here from the SERVER clock (PKT is UTC+5), and the document id must contain
+    // it, so no crafted write can reach another day: previous days are read-only the moment the date rolls over.
+    function pktNow() {
+      return request.time + duration.value(5, 'h');
+    }
+    function two(n) {
+      return n < 10 ? '0' + string(n) : string(n);
+    }
+    function pktToday() {
+      return string(pktNow().year()) + '-' + two(pktNow().month()) + '-' + two(pktNow().day());
+    }
+    function slotOk(s, h) {
+      return !(h in s)
+        || (s[h] is map
+          && s[h].keys().hasOnly(['text', 'taskIds', 'updatedAt'])
+          && s[h].text is string && s[h].text.size() <= 2000
+          && s[h].taskIds is list && s[h].taskIds.size() <= 20
+          && s[h].updatedAt is timestamp);
+    }
+    function slotsOk(s) {
+      return slotOk(s, '00')
+      && slotOk(s, '01')
+      && slotOk(s, '02')
+      && slotOk(s, '03')
+      && slotOk(s, '04')
+      && slotOk(s, '05')
+      && slotOk(s, '06')
+      && slotOk(s, '07')
+      && slotOk(s, '08')
+      && slotOk(s, '09')
+      && slotOk(s, '10')
+      && slotOk(s, '11')
+      && slotOk(s, '12')
+      && slotOk(s, '13')
+      && slotOk(s, '14')
+      && slotOk(s, '15')
+      && slotOk(s, '16')
+      && slotOk(s, '17')
+      && slotOk(s, '18')
+      && slotOk(s, '19')
+      && slotOk(s, '20')
+      && slotOk(s, '21')
+      && slotOk(s, '22')
+      && slotOk(s, '23');
+    }
+    function journalOk(j) {
+      return j.keys().hasOnly(['employeeId', 'date', 'dayIndex', 'slots', 'updatedAt'])
+        && j.keys().hasAll(['employeeId', 'date', 'dayIndex', 'slots', 'updatedAt'])
+        && j.employeeId == request.auth.uid
+        && j.date == pktToday()
+        && j.dayIndex == math.floor(pktNow().toMillis() / 86400000)
+        && j.slots is map
+        && j.slots.keys().hasOnly(['00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23'])
+        && slotsOk(j.slots)
+        && j.updatedAt == request.time;
+    }
+
+    match /journals/{journalId} {
+      // Reading a day that has no journal yet must work, so single reads check the id; list queries check the data.
+      allow get: if isAdmin() || (isEmployee() && journalId.matches(request.auth.uid + '_[0-9]{4}-[0-9]{2}-[0-9]{2}'));
+      allow list: if isAdmin() || (isEmployee() && resource.data.employeeId == request.auth.uid);
+      allow create, update: if isEmployee() && journalId == request.auth.uid + '_' + pktToday() && journalOk(request.resource.data);
+      allow delete: if false;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

@@ -1,6 +1,6 @@
-import { Bell, Building2, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, Sun, Users, type LucideIcon } from "lucide-react";
+import { Bell, Building2, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, NotebookPen, Sun, Users, type LucideIcon } from "lucide-react";
 
-export type NavItem = { href: string; label: string; icon: LucideIcon; hint: string };
+export type NavItem = { href: string; label: string; icon: LucideIcon; hint: string; /** Shown as a tab on phones; the rest live under "More". */ primary?: boolean };
 export type NavGroup = { label: string; items: NavItem[]; /** Rendered at the bottom of the sidebar. */ pinned?: boolean };
 
 /** Only routes that exist are listed; each phase appends its pages here (docs/06 layout groups). */
@@ -33,11 +33,12 @@ export const ADMIN_NAV: NavGroup[] = [
   },
 ];
 
-/** Five items so the mobile tab bar stays within the five-tab limit. */
+/** Phones show the four `primary` items as tabs and the rest under "More", keeping the tab bar within five slots. */
 export const EMPLOYEE_NAV: NavItem[] = [
-  { href: "/me", label: "Today", icon: Sun, hint: "Your tasks for today" },
-  { href: "/me/board", label: "My board", icon: Columns3, hint: "Your tasks by status" },
+  { href: "/me", label: "Today", icon: Sun, hint: "Your tasks for today", primary: true },
+  { href: "/me/board", label: "My board", icon: Columns3, hint: "Your tasks by status", primary: true },
+  { href: "/me/journal", label: "Journal", icon: NotebookPen, hint: "Note what you worked on, hour by hour", primary: true },
   { href: "/me/reminders", label: "Reminders", icon: Bell, hint: "Nudges from your admin" },
   { href: "/me/ask", label: "Ask", icon: CircleHelp, hint: "Ask your admin a question" },
-  { href: "/me/chat", label: "Chat", icon: MessageCircle, hint: "Quick talk with your team" },
+  { href: "/me/chat", label: "Chat", icon: MessageCircle, hint: "Quick talk with your team", primary: true },
 ];

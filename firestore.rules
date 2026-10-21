@@ -1,8 +1,43 @@
 rules_version = '2';
 
-// Phase 0 baseline: everything is denied. Each phase opens exactly what it needs, with emulator tests.
+// Rules v1 (Phase 1): users + businesses. Everything else stays denied until its phase opens it.
+// Roles come from custom claims set by server routes, never from client-supplied data.
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return signedIn() && request.auth.token.role == 'admin';
+    }
+    function isEmployee() {
+      return signedIn() && request.auth.token.role == 'employee';
+    }
+
+    // Profiles are created and changed only by server routes (Admin SDK bypasses rules).
+    // The one client write allowed is the admin attaching a profile photo.
+    match /users/{uid} {
+      allow get: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow list: if isAdmin();
+      allow create, delete: if false;
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photoUrl'])
+        && (request.resource.data.photoUrl == null || request.resource.data.photoUrl is string);
+    }
+
+    match /businesses/{businessId} {
+      allow read: if isAdmin() || (isEmployee() && request.auth.token.businessId == businessId);
+      allow create, update: if isAdmin()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.active is bool
+        && request.resource.data.workDays is list
+        && request.resource.data.workDays.size() >= 1;
+      allow delete: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

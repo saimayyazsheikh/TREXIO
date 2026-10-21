@@ -16,15 +16,16 @@ import { cn } from "@/lib/utils";
 function NavList({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
   return (
-    <nav aria-label="Main" className="flex flex-col gap-5">
+    <nav aria-label="Main" className="flex flex-1 flex-col gap-5">
       {ADMIN_NAV.map((group) => (
-        <div key={group.label}>
+        <div key={group.label} className={group.pinned ? "mt-auto" : undefined}>
           {collapsed ? null : (
             <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-wider text-muted">{group.label}</p>
           )}
           <ul className="flex flex-col gap-1">
             {group.items.map((item) => {
               const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+              const tip = collapsed ? `${item.label}: ${item.hint}` : item.hint;
               const link = (
                 <Link
                   href={item.href}
@@ -42,13 +43,9 @@ function NavList({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: (
               );
               return (
                 <li key={item.href}>
-                  {collapsed ? (
-                    <Tooltip label={item.label} side="right">
-                      {link}
-                    </Tooltip>
-                  ) : (
-                    link
-                  )}
+                  <Tooltip label={tip} side="right">
+                    {link}
+                  </Tooltip>
                 </li>
               );
             })}
@@ -74,7 +71,7 @@ export function AdminShell({ userName, children }: { userName: string; children:
         <div className={cn("mb-6 flex items-center", collapsed ? "justify-center" : "justify-between")}>
           <Brand compact={collapsed} />
         </div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <NavList collapsed={collapsed} />
         </div>
         <Tooltip label={collapsed ? "Expand sidebar" : "Collapse sidebar"} side="right">

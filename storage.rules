@@ -5,10 +5,10 @@ service firebase.storage {
   match /b/{bucket}/o {
 
     function hasRole() {
-      return request.auth != null && request.auth.token.role in ['admin', 'employee'];
+      return request.auth != null && request.auth.token.get('role', '') in ['admin', 'employee'];
     }
     function isAdmin() {
-      return request.auth != null && request.auth.token.role == 'admin';
+      return request.auth != null && request.auth.token.get('role', '') == 'admin';
     }
     function isImageUnder(maxBytes) {
       return request.resource.size < maxBytes && request.resource.contentType.matches('image/(png|jpeg|webp)');

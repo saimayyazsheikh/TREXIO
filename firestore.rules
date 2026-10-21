@@ -9,10 +9,10 @@ service cloud.firestore {
       return request.auth != null;
     }
     function isAdmin() {
-      return signedIn() && request.auth.token.role == 'admin';
+      return signedIn() && request.auth.token.get('role', '') == 'admin';
     }
     function isEmployee() {
-      return signedIn() && request.auth.token.role == 'employee';
+      return signedIn() && request.auth.token.get('role', '') == 'employee';
     }
 
     // Profiles are created and changed only by server routes (Admin SDK bypasses rules).

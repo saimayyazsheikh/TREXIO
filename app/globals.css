@@ -45,6 +45,15 @@
   --priority-medium: #92400e;
   --priority-low: #075985;
 
+  --biz-indigo: #4338ca;
+  --biz-violet: #6d28d9;
+  --biz-pink: #9d174d;
+  --biz-rose: #be123c;
+  --biz-amber: #92400e;
+  --biz-emerald: #065f46;
+  --biz-teal: #115e59;
+  --biz-sky: #075985;
+
   /* Elevation scale (use only these) */
   --shadow-1: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 1px rgb(15 23 42 / 0.04);
   --shadow-2: 0 8px 24px -10px rgb(30 27 75 / 0.22);
@@ -92,6 +101,15 @@
   --priority-medium: #fbbf24;
   --priority-low: #38bdf8;
 
+  --biz-indigo: #a5b4fc;
+  --biz-violet: #c4b5fd;
+  --biz-pink: #f9a8d4;
+  --biz-rose: #fda4af;
+  --biz-amber: #fcd34d;
+  --biz-emerald: #6ee7b7;
+  --biz-teal: #5eead4;
+  --biz-sky: #7dd3fc;
+
   --shadow-1: 0 1px 2px rgb(0 0 0 / 0.5);
   --shadow-2: 0 10px 30px -12px rgb(0 0 0 / 0.65);
   --shadow-3: 0 28px 70px -20px rgb(0 0 0 / 0.8);
@@ -117,6 +135,7 @@
   --color-danger: var(--danger);
   --color-danger-solid: var(--danger-solid);
   --color-info: var(--info);
+  --color-biz-indigo: var(--biz-indigo);
   --color-status-todo: var(--status-todo);
   --color-status-progress: var(--status-progress);
   --color-status-review: var(--status-review);

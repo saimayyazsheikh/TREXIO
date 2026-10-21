@@ -1,6 +1,7 @@
-import { Circle, CircleCheck, CircleDashed, CircleDot, Flame, Minus, OctagonAlert, ArrowDown, Eye } from "lucide-react";
+import { CircleCheck, CircleDashed, CircleDot, Flame, Minus, OctagonAlert, ArrowDown, Eye } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { PRIORITY_LABEL, TASK_STATUS_LABEL, type Priority, type TaskStatus } from "@/lib/domain/constants";
+import { businessColorVar } from "@/lib/domain/business-colors";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLE: Record<TaskStatus, { icon: LucideIcon; cls: string }> = {
@@ -40,14 +41,19 @@ export function PriorityBadge({ priority, className }: { priority: Priority; cla
   );
 }
 
-/** Business tag using the business's own colour. */
+/** Business tag. `color` is a curated swatch id (see business-colors.ts); the name is always shown. */
 export function BusinessChip({ name, color, className }: { name: string; color: string; className?: string }) {
+  const c = businessColorVar(color);
   return (
     <span
       className={cn(pill, "border", className)}
-      style={{ color, borderColor: `${color}55`, backgroundColor: `${color}1f` }}
+      style={{
+        color: c,
+        borderColor: `color-mix(in srgb, ${c} 40%, transparent)`,
+        backgroundColor: `color-mix(in srgb, ${c} 15%, transparent)`,
+      }}
     >
-      <Circle className="size-2.5 fill-current" aria-hidden />
+      <span aria-hidden className="size-2 rounded-full" style={{ backgroundColor: c }} />
       {name}
     </span>
   );

@@ -32,6 +32,7 @@ const themes = { light: readTokens(":root"), dark: readTokens(".dark") } as cons
 const SEMANTIC = [
   "status-todo", "status-progress", "status-review", "status-done", "status-blocked",
   "priority-high", "priority-medium", "priority-low", "success", "warning", "danger", "info", "accent",
+  "biz-indigo", "biz-violet", "biz-pink", "biz-rose", "biz-amber", "biz-emerald", "biz-teal", "biz-sky",
 ];
 
 describe.each(Object.entries(themes))("%s theme contrast (WCAG 2.2 AA)", (_name, t) => {

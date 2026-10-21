@@ -14,6 +14,8 @@ const tpl = (over: Partial<TemplateData> = {}): TemplateData => ({
 });
 
 type World = {
+  calendar: { date: string; businessId: string | null }[];
+  leaves: Map<string, { fromDate: string; toDate: string; kind: "leave" | "excuse"; status: string }[]>;
   templates: Map<string, TemplateData>;
   tasks: Map<string, TaskData>;
   audits: AuditEntry[];
@@ -27,6 +29,8 @@ function makeDeps(w: World): GenerationDeps {
     loadTemplates: async (employeeId) => [...w.templates].filter(([, t]) => t.active && (!employeeId || t.employeeId === employeeId)).map(([id, data]) => ({ id, data })),
     loadEmployees: async (ids) => new Map(ids.filter((i) => w.employees.has(i)).map((i) => [i, w.employees.get(i)!])),
     loadBusinesses: async (ids) => new Map(ids.filter((i) => w.businesses.has(i)).map((i) => [i, w.businesses.get(i)!])),
+    loadCalendar: async (date) => w.calendar.filter((e) => e.date === date),
+    loadEmployeesOnLeave: async (date) => new Set([...w.leaves].filter(([, ls]) => ls.some((l) => l.kind === "leave" && l.status === "approved" && l.fromDate <= date && date <= l.toDate)).map(([uid]) => uid)),
     existingTaskIds: async (ids) => new Set(ids.filter((i) => w.tasks.has(i))),
     // Like Firestore `create`: never overwrites an existing document.
     createTasks: async (items) => {
@@ -46,6 +50,8 @@ describe("generateDailyTasks", () => {
   let w: World;
   beforeEach(() => {
     w = {
+      calendar: [],
+      leaves: new Map(),
       templates: new Map([["t1", tpl()]]),
       tasks: new Map(),
       audits: [],
@@ -117,6 +123,46 @@ describe("generateDailyTasks", () => {
     const res = await generateDailyTasks(makeDeps(w), { date: WED, employeeId: "sara" });
     expect(res.created).toBe(1);
     expect([...w.tasks.keys()]).toEqual([`t2_sara_${WED}`]);
+  });
+
+  describe("holidays, closures and leave", () => {
+    it("a public holiday pauses every business", async () => {
+      w.calendar.push({ date: WED, businessId: null });
+      expect(await generateDailyTasks(makeDeps(w), { date: WED })).toMatchObject({ created: 0 });
+      expect(w.tasks.size).toBe(0);
+    });
+    it("a closure pauses only its own business", async () => {
+      w.templates.set("t2", tpl({ employeeId: "sara" }));
+      w.employees.set("sara", { name: "Sara", status: "active", businessId: "b2" });
+      w.businesses.set("b2", { active: true, workDays: [1, 2, 3, 4, 5, 6] });
+      w.calendar.push({ date: WED, businessId: "b1" });
+      await generateDailyTasks(makeDeps(w), { date: WED });
+      expect([...w.tasks.keys()]).toEqual([`t2_sara_${WED}`]);
+    });
+    it("a closure on another day changes nothing", async () => {
+      w.calendar.push({ date: "2026-10-22", businessId: null });
+      expect((await generateDailyTasks(makeDeps(w), { date: WED })).created).toBe(1);
+    });
+    it("approved leave pauses that employee's routines, for every day it covers", async () => {
+      w.leaves.set("ali", [{ fromDate: "2026-10-20", toDate: "2026-10-22", kind: "leave", status: "approved" }]);
+      expect((await generateDailyTasks(makeDeps(w), { date: WED })).created).toBe(0);
+      w.leaves.set("ali", [{ fromDate: "2026-10-22", toDate: "2026-10-23", kind: "leave", status: "approved" }]);
+      expect((await generateDailyTasks(makeDeps(w), { date: WED })).created).toBe(1);
+    });
+    it("pending or rejected leave, and short excuses, don't pause anything", async () => {
+      for (const l of [{ kind: "leave", status: "pending" }, { kind: "leave", status: "rejected" }, { kind: "excuse", status: "approved" }] as const) {
+        w.tasks.clear();
+        w.leaves.set("ali", [{ fromDate: WED, toDate: WED, ...l }]);
+        expect((await generateDailyTasks(makeDeps(w), { date: WED })).created).toBe(1);
+      }
+    });
+    it("leave for one person leaves a colleague's routines alone", async () => {
+      w.templates.set("t2", tpl({ employeeId: "sara" }));
+      w.employees.set("sara", { name: "Sara", status: "active", businessId: "b1" });
+      w.leaves.set("ali", [{ fromDate: WED, toDate: WED, kind: "leave", status: "approved" }]);
+      await generateDailyTasks(makeDeps(w), { date: WED });
+      expect([...w.tasks.keys()]).toEqual([`t2_sara_${WED}`]);
+    });
   });
 
   it("does nothing when there are no routines", async () => {

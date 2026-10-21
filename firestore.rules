@@ -175,6 +175,72 @@ service cloud.firestore {
       allow create, update: if isEmployee() && journalId == request.auth.uid + '_' + pktToday() && journalOk(request.resource.data);
       allow delete: if false;
     }
+    // Leave requests and breaks are written by server routes; employees read their own, the admin reads all.
+    match /leaveRequests/{requestId} {
+      allow get: if isAdmin() || (isEmployee() && resource.data.employeeId == request.auth.uid);
+      allow list: if isAdmin() || (isEmployee() && resource.data.employeeId == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /breaks/{breakId} {
+      allow get, list: if isAdmin() || (isEmployee() && resource.data.employeeId == request.auth.uid);
+      allow write: if false;
+    }
+
+    // Holidays (for everyone) and business closures. Everyone signed in may read them; only the admin edits.
+    // The id is "<date>_all" or "<date>_<businessId>", so a date and scope can only exist once.
+    match /calendar/{entryId} {
+      allow read: if isAdmin() || isEmployee();
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['date', 'name', 'type', 'businessId'])
+        && request.resource.data.keys().hasAll(['date', 'name', 'type', 'businessId'])
+        && request.resource.data.date is string
+        && request.resource.data.date.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 80
+        && (request.resource.data.businessId == null || request.resource.data.businessId is string)
+        && entryId == request.resource.data.date + '_' + (request.resource.data.businessId == null ? 'all' : request.resource.data.businessId)
+        && request.resource.data.type == (request.resource.data.businessId == null ? 'holiday' : 'closure');
+      allow delete: if isAdmin();
+    }
+
+    // Daily time totals (active / idle / break seconds), written by the employee's own browser while Traxio is open.
+    // Pinned to today like journals, totals can only grow, and a write can't claim more time than has really passed
+    // (server clock + a small slack), so the numbers can't be inflated by a crafted request.
+    function secs(d) {
+      return d.activeSec + d.idleSec + d.breakSec;
+    }
+    function secsOk(d) {
+      return d.activeSec is int && d.idleSec is int && d.breakSec is int && d.activeSec >= 0 && d.idleSec >= 0 && d.breakSec >= 0;
+    }
+    function presenceCreateOk(n) {
+      return n.keys().hasOnly(['employeeId', 'date', 'activeSec', 'idleSec', 'breakSec', 'firstSeenAt', 'lastSeenAt'])
+        && n.keys().hasAll(['employeeId', 'date', 'activeSec', 'idleSec', 'breakSec', 'firstSeenAt', 'lastSeenAt'])
+        && n.employeeId == request.auth.uid
+        && n.date == pktToday()
+        && secsOk(n)
+        && n.firstSeenAt == request.time && n.lastSeenAt == request.time
+        && secs(n) <= math.floor((pktNow().toMillis() % 86400000) / 1000) + 120;
+    }
+    function presenceUpdateOk(o, n) {
+      return n.keys().hasOnly(['employeeId', 'date', 'activeSec', 'idleSec', 'breakSec', 'firstSeenAt', 'lastSeenAt'])
+        && n.keys().hasAll(['employeeId', 'date', 'activeSec', 'idleSec', 'breakSec', 'firstSeenAt', 'lastSeenAt'])
+        && n.employeeId == o.employeeId && n.employeeId == request.auth.uid
+        && n.date == o.date && n.date == pktToday()
+        && n.firstSeenAt == o.firstSeenAt
+        && secsOk(n)
+        && n.activeSec >= o.activeSec && n.idleSec >= o.idleSec && n.breakSec >= o.breakSec
+        && secs(n) - secs(o) <= math.floor((request.time.toMillis() - o.lastSeenAt.toMillis()) / 1000) + 120
+        && n.lastSeenAt == request.time;
+    }
+
+    match /presenceDaily/{docId} {
+      allow get: if isAdmin() || (isEmployee() && docId.matches(request.auth.uid + '_[0-9]{4}-[0-9]{2}-[0-9]{2}'));
+      allow list: if isAdmin() || (isEmployee() && resource.data.employeeId == request.auth.uid);
+      allow create: if isEmployee() && docId == request.auth.uid + '_' + pktToday() && presenceCreateOk(request.resource.data);
+      allow update: if isEmployee() && docId == request.auth.uid + '_' + pktToday() && presenceUpdateOk(resource.data, request.resource.data);
+      allow delete: if false;
+    }
     match /{document=**} {
       allow read, write: if false;
     }

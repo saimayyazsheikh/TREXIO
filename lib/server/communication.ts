@@ -15,6 +15,8 @@ export type DocTx = {
   /** Creates a document; the caller has already checked that it doesn't exist. */
   create(path: string, data: Doc): void;
   update(path: string, patch: Doc): void;
+  /** Documents of a top-level collection whose fields all equal the given values (null matches a null field). */
+  find(collection: string, filters: [field: string, value: string | number | boolean | null][], limit?: number): Promise<{ id: string; data: Doc }[]>;
   activeEmployees(): Promise<{ id: string; name: string }[]>;
 };
 

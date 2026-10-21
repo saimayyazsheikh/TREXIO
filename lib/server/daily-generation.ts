@@ -1,4 +1,5 @@
 import { buildDailyInstance, dailyTaskId, templateRunsOn, type TemplateData } from "@/lib/domain/task-builders";
+import { isClosedFor, type CalendarEntry } from "@/lib/domain/timeoff";
 import type { TaskData } from "@/lib/domain/tasks";
 import { SYSTEM_ACTOR, type AuditEntry } from "@/lib/server/task-store";
 
@@ -7,6 +8,10 @@ export type GenerationDeps = {
   loadTemplates(employeeId?: string): Promise<{ id: string; data: TemplateData }[]>;
   loadEmployees(ids: string[]): Promise<Map<string, { name: string; status: "active" | "disabled"; businessId: string | null }>>;
   loadBusinesses(ids: string[]): Promise<Map<string, { active: boolean; workDays: number[] }>>;
+  /** Holidays (for everyone) and business closures that fall on `date`. */
+  loadCalendar(date: string): Promise<CalendarEntry[]>;
+  /** Employees with an approved whole-day leave covering `date`. */
+  loadEmployeesOnLeave(date: string): Promise<ReadonlySet<string>>;
   existingTaskIds(ids: string[]): Promise<Set<string>>;
   /** Must create only documents that don't exist yet (never overwrite) and return how many it created. */
   createTasks(items: { id: string; data: TaskData }[]): Promise<number>;
@@ -30,6 +35,7 @@ export async function generateDailyTasks(deps: GenerationDeps, opts: { date: str
   for (const e of employees.values()) if (e.businessId) businessIds.add(e.businessId);
   const businesses = await deps.loadBusinesses([...businessIds]);
 
+  const [calendar, onLeave] = await Promise.all([deps.loadCalendar(opts.date), deps.loadEmployeesOnLeave(opts.date)]);
   const now = deps.now();
   const due: { id: string; data: TaskData }[] = [];
   for (const { id, data } of templates) {
@@ -37,6 +43,8 @@ export async function generateDailyTasks(deps: GenerationDeps, opts: { date: str
     if (!employee || employee.status !== "active" || !employee.businessId) continue;
     const business = businesses.get(employee.businessId);
     if (!business || !templateRunsOn(data, business, opts.date)) continue;
+    // Holidays, business closures and approved leave pause the day's routines.
+    if (isClosedFor(opts.date, employee.businessId, calendar) || onLeave.has(data.employeeId)) continue;
     // The employee's current business wins over the one recorded when the routine was created.
     due.push({ id: dailyTaskId(id, data.employeeId, opts.date), data: buildDailyInstance({ ...data, businessId: employee.businessId }, id, employee.name, opts.date, now) });
   }

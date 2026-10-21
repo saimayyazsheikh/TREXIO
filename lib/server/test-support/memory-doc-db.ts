@@ -14,6 +14,11 @@ export function makeDocDb(docs: Map<string, Doc>, now: Date): DocDb {
         get: async (path) => docs.get(path) ?? null,
         create: (path, data) => writes.push(() => docs.set(path, data)),
         update: (path, patch) => writes.push(() => docs.set(path, { ...docs.get(path), ...patch })),
+        find: async (collection, filters, limit) => {
+          const direct = new RegExp(`^${collection}/[^/]+$`);
+          const hits = [...docs].filter(([p, d]) => direct.test(p) && filters.every(([f, v]) => d[f] === v)).map(([p, d]) => ({ id: p.slice(collection.length + 1), data: d }));
+          return limit ? hits.slice(0, limit) : hits;
+        },
         activeEmployees: async () =>
           [...docs].filter(([p, d]) => /^users\/[^/]+$/.test(p) && d.role === "employee" && d.status === "active").map(([p, d]) => ({ id: p.slice(6), name: String(d.name) })),
       });

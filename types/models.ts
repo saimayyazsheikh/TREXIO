@@ -1,5 +1,5 @@
 import type { Timestamp } from "firebase/firestore";
-import type { Role } from "@/lib/domain/constants";
+import type { Priority, Role, TaskStatus } from "@/lib/domain/constants";
 import type { BusinessColorId } from "@/lib/domain/business-colors";
 
 export type BusinessDoc = {
@@ -33,6 +33,41 @@ export type UserDoc = {
   idleThresholdMin: number | null;
   fcmTokens: string[];
   createdAt: Timestamp | null;
+};
+
+/** Task as read in the browser (Firestore Timestamps). Written only by server routes. */
+export type TaskDoc = {
+  kind: "daily" | "oneoff";
+  templateId: string | null;
+  date: string;
+  businessId: string;
+  assigneeIds: string[];
+  title: string;
+  description: string;
+  priority: Priority;
+  status: TaskStatus;
+  blockedReason: string | null;
+  dueAt: Timestamp | null;
+  requiresReview: boolean;
+  subtasks: { id: string; title: string; done: boolean }[];
+  subtaskTotal: number;
+  subtaskDone: number;
+  attachments: { name: string; url: string; size: number; type: string }[];
+  createdAt: Timestamp;
+  completedAt: Timestamp | null;
+};
+
+export type TemplateDoc = {
+  employeeId: string;
+  businessId: string;
+  title: string;
+  description: string;
+  priority: Priority;
+  dueTime: string | null;
+  subtasks: { id: string; title: string }[];
+  activeDays: number[];
+  active: boolean;
+  order: number;
 };
 
 export type WithId<T> = T & { id: string };

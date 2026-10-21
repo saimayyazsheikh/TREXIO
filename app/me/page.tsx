@@ -1,19 +1,9 @@
-import { ListChecks } from "lucide-react";
-import { EmptyState } from "@/components/features/empty-state";
-import { PageHeader } from "@/components/features/page-header";
-import { formatPkt } from "@/lib/time";
+import { TodayView } from "@/components/features/tasks/today-view";
+import { requireRole } from "@/lib/server/session";
 
 export const metadata = { title: "Today" };
 
-export default function EmployeeToday() {
-  return (
-    <>
-      <PageHeader title="Today" subtitle={`${formatPkt(new Date(), "EEEE, d MMMM")} · your tasks for the day appear here.`} />
-      <EmptyState
-        icon={ListChecks}
-        title="Nothing assigned yet"
-        description="When your admin gives you work for today, it will show up here for you to check off."
-      />
-    </>
-  );
+export default async function EmployeeToday() {
+  const session = await requireRole("employee");
+  return <TodayView uid={session.uid} />;
 }

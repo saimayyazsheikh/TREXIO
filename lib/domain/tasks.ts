@@ -61,6 +61,11 @@ export function canTransition(from: TaskStatus, to: TaskStatus): boolean {
   return TRANSITIONS[from].includes(to);
 }
 
+/** An employee finishing a task that needs review lands in "under_review"; only the admin can reach "completed". */
+export function resolveRequestedStatus(task: Pick<TaskData, "requiresReview">, requested: TaskStatus, role: Role): TaskStatus {
+  return requested === "completed" && task.requiresReview && role !== "admin" ? "under_review" : requested;
+}
+
 export function countSubtasks(subtasks: Subtask[]): { total: number; done: number } {
   return { total: subtasks.length, done: subtasks.filter((s) => s.done).length };
 }
@@ -96,7 +101,7 @@ export function planTransition(
     throw new DomainError("Only the admin can review this task.", 403);
   }
 
-  const to: TaskStatus = requested === "completed" && task.requiresReview && actor.role !== "admin" ? "under_review" : requested;
+  const to = resolveRequestedStatus(task, requested, actor.role);
   if (from === to) throw new DomainError(`This task is already ${TASK_STATUS_LABEL[to]}.`, 409);
   if (!canTransition(from, to)) {
     throw new DomainError(`A ${TASK_STATUS_LABEL[from]} task can't move to ${TASK_STATUS_LABEL[to]}.`, 409);

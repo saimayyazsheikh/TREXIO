@@ -9,13 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { getFirebase } from "@/lib/firebase/client";
 
-export function UserMenu({ name, roleLabel }: { name: string; roleLabel: string }) {
+export function UserMenu({ name, roleLabel, onBeforeSignOut }: { name: string; roleLabel: string; onBeforeSignOut?: () => Promise<void> }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
   async function logout() {
     setBusy(true);
     try {
+      await onBeforeSignOut?.();
       await fetch("/api/auth/session", { method: "DELETE" });
       await signOut(getFirebase().auth);
     } finally {

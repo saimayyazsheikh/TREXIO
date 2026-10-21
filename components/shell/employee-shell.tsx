@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -7,15 +7,18 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Tooltip } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/features/theme-toggle";
 import { HourlyPrompt } from "@/components/features/journal/hourly-prompt";
+import { PresencePill, goOffline } from "@/components/features/presence/presence-pill";
 import { Brand } from "@/components/shell/brand";
 import { EMPLOYEE_NAV } from "@/components/shell/nav-config";
 import { NavBadge } from "@/components/shell/nav-badge";
 import { UserMenu } from "@/components/shell/user-menu";
+import { useMyHours } from "@/hooks/use-my-hours";
 import { useNavBadges } from "@/hooks/use-nav-badges";
 import { cn } from "@/lib/utils";
 
 export function EmployeeShell({ userName, uid, children }: { userName: string; uid: string; children: React.ReactNode }) {
   const pathname = usePathname();
+  const hours = useMyHours(uid);
   const badges = useNavBadges({ uid, role: "employee" });
   const isActive = (href: string) => (href === "/me" ? pathname === "/me" : pathname.startsWith(href));
   const primary = EMPLOYEE_NAV.filter((i) => i.primary);
@@ -51,8 +54,9 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
           </nav>
         </div>
         <div className="flex items-center gap-1">
+          <PresencePill uid={uid} name={userName} idleMin={hours.user?.idleThresholdMin ?? null} />
           <ThemeToggle />
-          <UserMenu name={userName} roleLabel="Team member" />
+          <UserMenu name={userName} roleLabel="Team member" onBeforeSignOut={() => goOffline(uid)} />
         </div>
       </header>
       <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6">

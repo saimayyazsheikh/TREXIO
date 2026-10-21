@@ -21,9 +21,9 @@ Order is chosen so each phase is testable and later phases reuse earlier foundat
 - [x] Kanban board (dnd-kit) for admin + employee, filters, Blocked-with-reason modal, review flow
 - [x] Multi-assignee + completion modes; related links; dependencies with cycle check and "waiting on" UI
 ## Phase 4 — Communication (M9, M10, M11)
-- [ ] Reminders (compose with attachments, read receipts, employee section)
-- [ ] Questions/Help inbox (threaded) — separate from chat
-- [ ] Chat: direct + everyone group, unread counts, attachments, typing, reactions
+- [x] Reminders (compose with attachments, read receipts, employee section)
+- [x] Questions/Help inbox (threaded) — separate from chat
+- [x] Chat: direct + everyone group, unread counts, attachments, typing, reactions
 ## Phase 5 — Journal (M12, M13)
 - [ ] Hourly timeline UI, text per slot, drag tasks into slots
 - [ ] Midnight lock rule (dayIndex) + emulator tests incl. bypass attempts

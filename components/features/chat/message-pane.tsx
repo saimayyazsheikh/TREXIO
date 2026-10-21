@@ -76,11 +76,14 @@ export function MessagePane({
     }
   }, [unread, chatId]);
 
-  // Once the live data contains a message we just sent, drop its placeholder.
+  // Once the live data contains a message we just sent, drop its placeholder. Checked whenever either side changes,
+  // because the live update can arrive before OR after the server's reply tells us the new message's id.
   useEffect(() => {
     const ids = new Set(messages.map((m) => m.id));
-    setPending((p) => (p.some((x) => x.messageId && ids.has(x.messageId)) ? p.filter((x) => !(x.messageId && ids.has(x.messageId))) : p));
-  }, [messages]);
+    if (pending.some((x) => x.messageId && ids.has(x.messageId))) {
+      setPending((p) => p.filter((x) => !(x.messageId && ids.has(x.messageId))));
+    }
+  }, [messages, pending]);
 
   const stopTyping = useCallback(() => {
     lastTypingWrite.current = 0;

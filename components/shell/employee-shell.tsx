@@ -27,7 +27,7 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
                 href={item.href}
                 aria-current={isActive(item.href) ? "page" : undefined}
                 className={cn(
-                  "flex items-center gap-2 rounded-control px-3 py-2 text-sm font-medium transition-colors",
+                  "flex items-center gap-2 whitespace-nowrap rounded-control px-3 py-2 text-sm font-medium transition-colors",
                   isActive(item.href) ? "bg-brand-gradient text-white" : "hover:bg-surface-raised",
                 )}
               >

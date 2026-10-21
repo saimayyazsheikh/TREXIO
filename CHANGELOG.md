@@ -43,3 +43,10 @@ pm run seed:admin), custom claims, username to email login.
 - Demo mode: npm run emulators, seed:emulator and dev:emulated run the whole app against local emulators with fake accounts.
 - Admin dashboard shows live numbers (tasks today, completed, overdue, blocked, waiting for review).
 - Fixes found by clicking through: card accent width, Kanban column width, locked check circle explains itself, buttons default to type button.
+
+## Phase 4 - Communication
+- Reminders: admin sends to chosen people or everyone with files and an optional linked task; read receipts per person; employees get a Reminders page with Got it and an unread badge.
+- Questions: employees ask a formal question (subject, details, task, urgent, files); admin Inbox with Open, Answered and Closed, replies, close and reopen; unread badges on both sides.
+- Chat: direct chat with the admin plus Everyone, unread counts, files, emoji reactions, edit and delete your own, typing indicator, earlier messages on demand.
+- Menu badges for unread questions, chat and reminders.
+- Rules and tests for all of it (50 emulator tests passing); fixed a stuck Sending placeholder found while testing chat.

@@ -133,6 +133,47 @@ export type ChatMessageDoc = {
   deleted: boolean;
 };
 
+export type LeaveRequestDoc = {
+  employeeId: string;
+  employeeName: string;
+  businessId: string | null;
+  kind: "leave" | "excuse";
+  fromDate: string;
+  toDate: string;
+  fromTime: string | null;
+  toTime: string | null;
+  reason: string;
+  attachments: AttachmentDoc[];
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  decidedBy: string | null;
+  decidedByName: string | null;
+  decisionNote: string;
+  decidedAt: Timestamp | null;
+  createdAt: Timestamp;
+};
+
+export type BreakDoc = {
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  type: "namaz" | "lunch" | "other";
+  note: string;
+  startAt: Timestamp;
+  endAt: Timestamp | null;
+};
+
+export type PresenceDailyDoc = {
+  employeeId: string;
+  date: string;
+  activeSec: number;
+  idleSec: number;
+  breakSec: number;
+  firstSeenAt: Timestamp;
+  lastSeenAt: Timestamp;
+};
+
+export type CalendarDoc = { date: string; name: string; type: "holiday" | "closure"; businessId: string | null };
+
 export type JournalDoc = {
   employeeId: string;
   date: string;

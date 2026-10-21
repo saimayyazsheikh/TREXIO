@@ -1,4 +1,4 @@
-import { Bell, Building2, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, NotebookPen, Sun, Users, type LucideIcon } from "lucide-react";
+import { Activity, Bell, Building2, CalendarDays, CalendarOff, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, NotebookPen, Sun, Users, type LucideIcon } from "lucide-react";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; hint: string; /** Shown as a tab on phones; the rest live under "More". */ primary?: boolean };
 export type NavGroup = { label: string; items: NavItem[]; /** Rendered at the bottom of the sidebar. */ pinned?: boolean };
@@ -18,7 +18,11 @@ export const ADMIN_NAV: NavGroup[] = [
   },
   {
     label: "People",
-    items: [{ href: "/admin/journals", label: "Journals", icon: NotebookPen, hint: "Who has logged their hours, and what they wrote" }],
+    items: [
+      { href: "/admin/presence", label: "Presence", icon: Activity, hint: "Who is working right now, and daily active and idle time" },
+      { href: "/admin/journals", label: "Journals", icon: NotebookPen, hint: "Who has logged their hours, and what they wrote" },
+      { href: "/admin/leave", label: "Leave", icon: CalendarOff, hint: "Approve or decline time off" },
+    ],
   },
   {
     label: "Communicate",
@@ -33,6 +37,7 @@ export const ADMIN_NAV: NavGroup[] = [
     items: [
       { href: "/admin/settings/team", label: "Team", icon: Users, hint: "Add and manage employees" },
       { href: "/admin/settings/businesses", label: "Businesses", icon: Building2, hint: "Your businesses, colours and hours" },
+      { href: "/admin/settings/calendar", label: "Holidays", icon: CalendarDays, hint: "Holidays and closures when no tasks are created" },
     ],
   },
 ];
@@ -43,6 +48,7 @@ export const EMPLOYEE_NAV: NavItem[] = [
   { href: "/me/board", label: "My board", icon: Columns3, hint: "Your tasks by status", primary: true },
   { href: "/me/journal", label: "Journal", icon: NotebookPen, hint: "Note what you worked on, hour by hour", primary: true },
   { href: "/me/reminders", label: "Reminders", icon: Bell, hint: "Nudges from your admin" },
+  { href: "/me/leave", label: "Leave", icon: CalendarOff, hint: "Ask for time off and see your breaks" },
   { href: "/me/ask", label: "Ask", icon: CircleHelp, hint: "Ask your admin a question" },
   { href: "/me/chat", label: "Chat", icon: MessageCircle, hint: "Quick talk with your team", primary: true },
 ];

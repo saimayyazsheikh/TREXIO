@@ -57,3 +57,10 @@ pm run seed:admin), custom claims, username to email login.
 - Hourly prompt at :55 of a working hour when the hour is empty: save an entry in place, snooze 3 minutes, or skip; browser notification when the tab is hidden and allowed.
 - Admin: Journal tab on each employee and a Journals overview with fill rates and expandable entries.
 - Employee menu: Journal added; phones get four tabs plus a More menu.
+
+## Phase 6 - Presence and time
+- Live status (Online, Idle, On break, Offline) from activity inside the Traxio tab only, with one-click Namaz, lunch and other breaks and a plain-words tracking notice.
+- Daily active/idle/break totals, rules-bounded so they can't be inflated.
+- Admin: Presence board with a daily report, Leave approvals with a waiting-count badge, Holidays and closures page, and an "Online now" card on the dashboard.
+- Employee: Leave and breaks page, short excuses, and a Today banner for holidays, closures and approved leave.
+- Approved leave, holidays and closures pause daily task generation; a stale-break cron closes forgotten breaks.

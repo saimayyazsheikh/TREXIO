@@ -30,9 +30,9 @@ Order is chosen so each phase is testable and later phases reuse earlier foundat
 - [x] Hourly prompt at :55 (modal + browser notification)
 - [x] Admin journal views (per-employee tab + overview)
 ## Phase 6 — Presence & Time (M14, M15)
-- [ ] Presence heartbeat (RTDB), idle hook, breaks (types, timer), daily rollups
-- [ ] Admin live status board + idle/break report
-- [ ] Leave/excuse requests + approval; global calendar (weekends/holidays/closures) wired into task generation
+- [x] Presence heartbeat (RTDB), idle hook, breaks (types, timer), daily rollups
+- [x] Admin live status board + idle/break report
+- [x] Leave/excuse requests + approval; global calendar (weekends/holidays/closures) wired into task generation
 ## Phase 7 — Live Feed & Audit UI (M16, M18)
 - [ ] Activity stream widget on admin dashboard; Audit log page (filter, search, CSV export)
 ## Phase 8 — Notifications & Automation (M17)

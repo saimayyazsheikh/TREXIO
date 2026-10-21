@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
 import { PageHeader } from "@/components/features/page-header";
+import { DayNotice } from "@/components/features/leave/day-notice";
 import { BlockDialog } from "@/components/features/tasks/block-dialog";
 import { TaskCard } from "@/components/features/tasks/task-card";
 import { useCollection } from "@/hooks/use-collection";
@@ -79,6 +80,7 @@ export function TodayView({ uid }: { uid: string }) {
     <>
       <PageHeader title="Today" subtitle={`${formatPkt(now, "EEEE, d MMMM")} · tick things off as you finish them.`} />
 
+      <DayNotice uid={uid} today={today} />
       {error ? (
         <ErrorState
           onRetry={() => {

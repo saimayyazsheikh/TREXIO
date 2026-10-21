@@ -1,4 +1,4 @@
-import { Building2, LayoutDashboard, Sun, Users, type LucideIcon } from "lucide-react";
+import { Building2, Columns3, LayoutDashboard, Sun, Users, type LucideIcon } from "lucide-react";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; hint: string };
 export type NavGroup = { label: string; items: NavItem[]; /** Rendered at the bottom of the sidebar. */ pinned?: boolean };
@@ -10,6 +10,10 @@ export const ADMIN_NAV: NavGroup[] = [
     items: [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard, hint: "Today across all your businesses" }],
   },
   {
+    label: "Work",
+    items: [{ href: "/admin/kanban", label: "Kanban", icon: Columns3, hint: "Every task by status; drag cards to move them" }],
+  },
+  {
     label: "Settings",
     pinned: true,
     items: [
@@ -19,4 +23,7 @@ export const ADMIN_NAV: NavGroup[] = [
   },
 ];
 
-export const EMPLOYEE_NAV: NavItem[] = [{ href: "/me", label: "Today", icon: Sun, hint: "Your tasks for today" }];
+export const EMPLOYEE_NAV: NavItem[] = [
+  { href: "/me", label: "Today", icon: Sun, hint: "Your tasks for today" },
+  { href: "/me/board", label: "My board", icon: Columns3, hint: "Your tasks by status" },
+];

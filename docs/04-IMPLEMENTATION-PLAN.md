@@ -18,8 +18,8 @@ Order is chosen so each phase is testable and later phases reuse earlier foundat
 - [x] Employee "Today" dashboard: daily + one-off lists, check-off, sub-task checklist with completion rule
 - [x] Admin per-employee dashboard v1 (tasks tab)
 ## Phase 3 — Kanban & Relations (M7, M8)
-- [ ] Kanban board (dnd-kit) for admin + employee, filters, Blocked-with-reason modal, review flow
-- [ ] Multi-assignee + completion modes; related links; dependencies with cycle check and "waiting on" UI
+- [x] Kanban board (dnd-kit) for admin + employee, filters, Blocked-with-reason modal, review flow
+- [x] Multi-assignee + completion modes; related links; dependencies with cycle check and "waiting on" UI
 ## Phase 4 — Communication (M9, M10, M11)
 - [ ] Reminders (compose with attachments, read receipts, employee section)
 - [ ] Questions/Help inbox (threaded) — separate from chat

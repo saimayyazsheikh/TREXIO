@@ -29,3 +29,11 @@ pm run seed:admin), custom claims, username to email login.
 - Employee Today screen: check-off with undo, start, checklist, review, carried-over tasks.
 - Admin team-member page: tasks by day, approve or send back, routines (add, pause, edit, delete).
 - Rules for tasks, routines, audit and activity; indexes; activity TTL (90 days).
+
+## Phase 3 — Kanban and relations
+- Kanban board for admin (all businesses) and employees (own tasks): drag and drop, keyboard moves (arrow keys jump columns), a Move to menu, filters (period, priority, business, person, search), swimlanes by person or business.
+- Blocked needs a reason; review flow and sub-task gate enforced on every move; refused moves explain why.
+- Several assignees per task with all/any completion; each person ticks their own part.
+- Dependencies with loop detection and Waiting on messages; related links shown on both tasks.
+- Task drawer with checklist, links, attachments and an admin history timeline.
+- Light theme is the default again (matching the login page).

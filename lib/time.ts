@@ -31,6 +31,17 @@ export function pktDayBounds(date: string): { start: Date; end: Date } {
   return { start, end: new Date(start.getTime() + DAY_MS) };
 }
 
+/** The UTC instant of `HH:mm` on a PKT calendar date. */
+export function pktInstant(date: string, hhmm: string): Date {
+  return fromZonedTime(`${date}T${hhmm}:00`, APP_TIMEZONE);
+}
+
+/** ISO weekday (1 = Monday … 7 = Sunday) of a PKT calendar date string. */
+export function isoWeekdayOfDate(date: string): number {
+  // Day index 0 (1970-01-01) was a Thursday (ISO 4).
+  return ((((dayIndexFromDateString(date) + 3) % 7) + 7) % 7) + 1;
+}
+
 /** Hour of day (0–23) in PKT. */
 export function pktHour(at: Date = new Date()): number {
   return Number(formatInTimeZone(at, APP_TIMEZONE, "H"));

@@ -6,7 +6,9 @@ import {
   pktDayBounds,
   pktDayIndex,
   pktHour,
+  pktInstant,
   pktIsoWeekday,
+  isoWeekdayOfDate,
 } from "@/lib/time";
 
 describe("PKT day boundaries", () => {
@@ -31,6 +33,13 @@ describe("PKT day boundaries", () => {
     const { start, end } = pktDayBounds("2026-10-21");
     expect(start.toISOString()).toBe("2026-10-20T19:00:00.000Z");
     expect(end.toISOString()).toBe("2026-10-21T19:00:00.000Z");
+  });
+
+  it("computes the ISO weekday of a date string and a PKT instant", () => {
+    expect(isoWeekdayOfDate("2026-10-21")).toBe(3); // Wednesday
+    expect(isoWeekdayOfDate("2026-10-25")).toBe(7); // Sunday
+    expect(isoWeekdayOfDate("1970-01-01")).toBe(4);
+    expect(pktInstant("2026-10-21", "09:30").toISOString()).toBe("2026-10-21T04:30:00.000Z");
   });
 
   it("reads hour and ISO weekday in PKT", () => {

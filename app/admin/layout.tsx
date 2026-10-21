@@ -3,5 +3,6 @@ import { requireRole } from "@/lib/server/session";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await requireRole("admin");
-  return <AdminShell userName={session.name}>{children}</AdminShell>;
+  return <AdminShell userName={session.name} uid={session.uid}>{children}</AdminShell>;
 }
+

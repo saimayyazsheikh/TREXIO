@@ -4,12 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/features/theme-toggle";
 import { Brand } from "@/components/shell/brand";
+import { NavBadge } from "@/components/shell/nav-badge";
 import { UserMenu } from "@/components/shell/user-menu";
+import { useNavBadges } from "@/hooks/use-nav-badges";
 import { EMPLOYEE_NAV } from "@/components/shell/nav-config";
 import { cn } from "@/lib/utils";
 
-export function EmployeeShell({ userName, children }: { userName: string; children: React.ReactNode }) {
+export function EmployeeShell({ userName, uid, children }: { userName: string; uid: string; children: React.ReactNode }) {
   const pathname = usePathname();
+  const badges = useNavBadges({ uid, role: "employee" });
   const isActive = (href: string) => (href === "/me" ? pathname === "/me" : pathname.startsWith(href));
 
   return (
@@ -30,6 +33,7 @@ export function EmployeeShell({ userName, children }: { userName: string; childr
               >
                 <item.icon className="size-4" aria-hidden />
                 {item.label}
+                <NavBadge count={badges[item.href] ?? 0} />
               </Link>
             ))}
           </nav>
@@ -53,7 +57,10 @@ export function EmployeeShell({ userName, children }: { userName: string; childr
               isActive(item.href) ? "text-brand-text" : "text-muted",
             )}
           >
-            <item.icon className="size-5" aria-hidden />
+            <span className="relative">
+              <item.icon className="size-5" aria-hidden />
+              <NavBadge count={badges[item.href] ?? 0} className="absolute -right-3 -top-2 min-w-4 px-1 text-[10px]" />
+            </span>
             {item.label}
           </Link>
         ))}

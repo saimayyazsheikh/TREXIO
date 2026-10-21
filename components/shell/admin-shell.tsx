@@ -9,11 +9,13 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ThemeToggle } from "@/components/features/theme-toggle";
 import { Brand } from "@/components/shell/brand";
+import { NavBadge } from "@/components/shell/nav-badge";
 import { UserMenu } from "@/components/shell/user-menu";
+import { useNavBadges } from "@/hooks/use-nav-badges";
 import { ADMIN_NAV } from "@/components/shell/nav-config";
 import { cn } from "@/lib/utils";
 
-function NavList({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
+function NavList({ collapsed, onNavigate, badges }: { collapsed: boolean; onNavigate?: () => void; badges: Record<string, number> }) {
   const pathname = usePathname();
   return (
     <nav aria-label="Main" className="flex flex-1 flex-col gap-5">
@@ -25,6 +27,7 @@ function NavList({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: (
           <ul className="flex flex-col gap-1">
             {group.items.map((item) => {
               const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+              const count = badges[item.href] ?? 0;
               const tip = collapsed ? `${item.label}: ${item.hint}` : item.hint;
               const link = (
                 <Link
@@ -34,11 +37,12 @@ function NavList({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: (
                   className={cn(
                     "flex items-center gap-3 rounded-control px-3 py-2.5 text-sm font-medium transition-colors",
                     active ? "bg-brand-gradient text-white shadow-[var(--shadow-1)]" : "hover:bg-surface-raised",
-                    collapsed && "justify-center px-0",
+                    collapsed && "relative justify-center px-0",
                   )}
                 >
                   <item.icon className="size-5 shrink-0" aria-hidden />
-                  {collapsed ? <span className="sr-only">{item.label}</span> : item.label}
+                  {collapsed ? <span className="sr-only">{item.label}</span> : <span className="flex-1">{item.label}</span>}
+                  <NavBadge count={count} className={collapsed ? "absolute right-1 top-1 min-w-4 px-1 text-[10px]" : undefined} />
                 </Link>
               );
               return (
@@ -56,7 +60,8 @@ function NavList({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: (
   );
 }
 
-export function AdminShell({ userName, children }: { userName: string; children: React.ReactNode }) {
+export function AdminShell({ userName, uid, children }: { userName: string; uid: string; children: React.ReactNode }) {
+  const badges = useNavBadges({ uid, role: "admin" });
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -72,7 +77,7 @@ export function AdminShell({ userName, children }: { userName: string; children:
           <Brand compact={collapsed} />
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          <NavList collapsed={collapsed} />
+          <NavList collapsed={collapsed} badges={badges} />
         </div>
         <Tooltip label={collapsed ? "Expand sidebar" : "Collapse sidebar"} side="right">
           <Button
@@ -112,7 +117,7 @@ export function AdminShell({ userName, children }: { userName: string; children:
           <DialogTitle className="mb-6">
             <Brand />
           </DialogTitle>
-          <NavList collapsed={false} onNavigate={() => setDrawerOpen(false)} />
+          <NavList collapsed={false} badges={badges} onNavigate={() => setDrawerOpen(false)} />
         </DialogContent>
       </Dialog>
     </div>

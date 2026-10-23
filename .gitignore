@@ -17,3 +17,5 @@ coverage
 /dev.log
 /emu.log
 /real-dev.log
+
+.vercel

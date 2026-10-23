@@ -1,4 +1,5 @@
-import { USERNAME_EMAIL_DOMAIN } from "@/lib/auth-identifier";
+import { employeeEmail } from "@/lib/auth-identifier";
+import { MAX_EMPLOYEES_PER_WORKSPACE } from "@/lib/domain/org";
 import type { CreateEmployeeInput, UpdateEmployeeInput } from "@/lib/domain/schemas";
 import { ServiceError } from "@/lib/server/service-error";
 import type { UserDoc, UserStatus } from "@/types/models";
@@ -8,11 +9,13 @@ export type AuthPort = {
   createUser(p: { email: string; password: string; displayName: string }): Promise<{ uid: string }>;
   updateUser(uid: string, p: { displayName?: string; password?: string; disabled?: boolean }): Promise<void>;
   deleteUser(uid: string): Promise<void>;
-  setCustomUserClaims(uid: string, claims: { role: "employee"; businessId: string }): Promise<void>;
+  setCustomUserClaims(uid: string, claims: { role: "employee"; orgId: string; businessId: string }): Promise<void>;
   revokeRefreshTokens(uid: string): Promise<void>;
 };
 
 export type StorePort = {
+  /** How many employees the workspace has now (turned-off people count: they still use a seat). */
+  countEmployees(): Promise<number>;
   businessExists(id: string): Promise<boolean>;
   getUser(uid: string): Promise<Pick<UserDoc, "role" | "businessId" | "status"> | null>;
   /** Creates the user document (the adapter stamps `createdAt`). */
@@ -20,7 +23,8 @@ export type StorePort = {
   updateUser(uid: string, data: Partial<UserDoc>): Promise<void>;
 };
 
-export type Deps = { auth: AuthPort; store: StorePort };
+/** `org` is the workspace this service works inside: its id goes into every login's claims and its code into every sign-in email. */
+export type Deps = { auth: AuthPort; store: StorePort; org: { id: string; code: string } };
 
 const isCode = (error: unknown, code: string) => typeof error === "object" && error !== null && (error as { code?: string }).code === code;
 
@@ -33,7 +37,11 @@ async function requireEmployee(deps: Deps, uid: string) {
 export async function createEmployee(deps: Deps, input: CreateEmployeeInput): Promise<{ uid: string }> {
   if (!(await deps.store.businessExists(input.businessId))) throw new ServiceError("That business doesn't exist.", 400);
 
-  const email = `${input.username}@${USERNAME_EMAIL_DOMAIN}`;
+  if ((await deps.store.countEmployees()) >= MAX_EMPLOYEES_PER_WORKSPACE) {
+    throw new ServiceError(`A workspace can have up to ${MAX_EMPLOYEES_PER_WORKSPACE} team members. Remove someone you no longer need, or contact us to raise the limit.`, 409);
+  }
+
+  const email = employeeEmail(input.username, deps.org.code);
   let uid: string;
   try {
     ({ uid } = await deps.auth.createUser({ email, password: input.password, displayName: input.name }));
@@ -43,7 +51,7 @@ export async function createEmployee(deps: Deps, input: CreateEmployeeInput): Pr
   }
 
   try {
-    await deps.auth.setCustomUserClaims(uid, { role: "employee", businessId: input.businessId });
+    await deps.auth.setCustomUserClaims(uid, { role: "employee", orgId: deps.org.id, businessId: input.businessId });
     await deps.store.createUser(uid, {
       role: "employee",
       name: input.name,
@@ -74,7 +82,7 @@ export async function updateEmployee(deps: Deps, uid: string, input: UpdateEmplo
   const businessChanged = current.businessId !== input.businessId;
   await deps.auth.updateUser(uid, { displayName: input.name });
   if (businessChanged) {
-    await deps.auth.setCustomUserClaims(uid, { role: "employee", businessId: input.businessId });
+    await deps.auth.setCustomUserClaims(uid, { role: "employee", orgId: deps.org.id, businessId: input.businessId });
     // Force a fresh token so the new businessId claim applies everywhere.
     await deps.auth.revokeRefreshTokens(uid);
   }

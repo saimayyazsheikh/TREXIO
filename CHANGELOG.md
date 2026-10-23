@@ -91,3 +91,9 @@ pm run seed:admin), custom claims, username to email login.
 - Removed the Meta WhatsApp Cloud API integration (service, send route, templates, logs, admin number and weekly-summary-to-WhatsApp settings, rules and index).
 - "Nudge on WhatsApp" now opens WhatsApp on the person's chat with the message ready. Automation has a per-person "briefing on WhatsApp" list, and AI summaries have "Share on WhatsApp".
 - The 9:00 AM briefing and the late-task second alert are now in-app notifications only.
+
+## Multi-tenant workspaces
+- Every customer is now a private workspace: all data under `orgs/{orgId}`, rules requiring the login token's workspace to match, and server and browser code scoped to the signed-in workspace.
+- Owners sign up with Google and get their own workspace; they add businesses and team and share the workspace code. Team members sign in with workspace code + username + password.
+- Cron jobs, notifications, presence, analytics and AI summaries run per workspace. Workspace team size is capped at 25.
+- 47 new rules tests try to read, list, write, delete and sweep across workspaces (as admin, employee, no-workspace and signed-out), plus live presence; the demo seed includes a second customer to see it yourself.

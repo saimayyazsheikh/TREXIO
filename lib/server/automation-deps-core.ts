@@ -1,4 +1,4 @@
-import type { Firestore } from "firebase-admin/firestore";
+import type { OrgDb } from "@/lib/server/org-scope";
 import { resolveSettings, SETTINGS_PATH } from "@/lib/domain/automation";
 import { queueNotification } from "@/lib/server/notify";
 import type { AutomationDeps } from "@/lib/server/automation";
@@ -10,7 +10,7 @@ import type { UserDoc } from "@/types/models";
 const ALREADY_EXISTS = 6;
 
 /** The automation jobs wired to a Firestore instance (the real project or the emulator). */
-export function createAutomationDeps(db: Firestore, push: (n: Notice) => Promise<void>): AutomationDeps {
+export function createAutomationDeps(db: OrgDb, push: (orgId: string, n: Notice) => Promise<void>): AutomationDeps {
   const docDb = createDocDb(db, push);
   const person = (u: Partial<UserDoc>) => ({ name: String(u.name ?? ""), status: (u.status ?? "disabled") as "active" | "disabled", businessId: u.businessId ?? null });
   return {

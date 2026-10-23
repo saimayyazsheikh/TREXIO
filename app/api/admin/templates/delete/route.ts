@@ -5,7 +5,7 @@ import { realTaskDb } from "@/lib/server/task-db";
 
 export function POST(req: Request) {
   return adminRoute(req, deleteTemplateSchema, async ({ templateId }, session) => {
-    await deleteTemplate(realTaskDb(), session, templateId);
+    await deleteTemplate(realTaskDb(session.orgId), session, templateId);
     return { ok: true };
   });
 }

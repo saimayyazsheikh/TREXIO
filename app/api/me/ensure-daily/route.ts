@@ -7,6 +7,6 @@ import { pktDateString } from "@/lib/time";
 /** Lazy safety net: an employee opening their dashboard makes sure today's routines exist (idempotent). */
 export function POST(req: Request) {
   return employeeRoute(req, z.object({}), (_input, session) =>
-    generateDailyTasks(realGenerationDeps(), { date: pktDateString(), employeeId: session.uid }),
+    generateDailyTasks(realGenerationDeps(session.orgId), { date: pktDateString(), employeeId: session.uid }),
   );
 }

@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CircleCheck, CircleHelp, Lock, LockOpen, MessageSquareReply, Send } from "lucide-react";
-import { collection, orderBy, query } from "firebase/firestore";
+import { orderBy, query } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCollection } from "@/hooks/use-collection";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import type { Role } from "@/lib/domain/constants";
 import { formatPkt } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -34,7 +35,7 @@ export function QuestionStatusBadge({ status }: { status: QuestionStatus }) {
 export function QuestionThread({ question, viewer }: { question: WithId<QuestionDoc>; viewer: { uid: string; role: Role } }) {
   const { db } = getFirebase();
   const isAdmin = viewer.role === "admin";
-  const q = useMemo(() => query(collection(db, "questions", question.id, "messages"), orderBy("createdAt", "asc")), [db, question.id]);
+  const q = useMemo(() => query(orgCollection(db, "questions", question.id, "messages"), orderBy("createdAt", "asc")), [db, question.id]);
   const messages = useCollection<QuestionMessageDoc>(q);
 
   const [body, setBody] = useState("");

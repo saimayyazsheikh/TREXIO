@@ -2,20 +2,21 @@
 
 import { useMemo } from "react";
 import { CalendarOff, PartyPopper } from "lucide-react";
-import { collection, doc, query, where } from "firebase/firestore";
+import { query, where } from "firebase/firestore";
 import { GlassCard } from "@/components/features/glass-card";
 import { useCollection } from "@/hooks/use-collection";
 import { useDocument } from "@/hooks/use-document";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection, orgDocument } from "@/lib/firebase/org";
 import { isClosedFor, leaveCoversDate } from "@/lib/domain/timeoff";
 import type { CalendarDoc, LeaveRequestDoc, UserDoc } from "@/types/models";
 
 /** Tells an employee when today is a holiday, their business is closed, or they are on approved leave. */
 export function DayNotice({ uid, today }: { uid: string; today: string }) {
   const { db } = getFirebase();
-  const meRef = useMemo(() => doc(db, "users", uid), [db, uid]);
-  const calQ = useMemo(() => query(collection(db, "calendar"), where("date", "==", today)), [db, today]);
-  const leaveQ = useMemo(() => query(collection(db, "leaveRequests"), where("employeeId", "==", uid)), [db, uid]);
+  const meRef = useMemo(() => orgDocument(db, "users", uid), [db, uid]);
+  const calQ = useMemo(() => query(orgCollection(db, "calendar"), where("date", "==", today)), [db, today]);
+  const leaveQ = useMemo(() => query(orgCollection(db, "leaveRequests"), where("employeeId", "==", uid)), [db, uid]);
   const me = useDocument<UserDoc>(meRef);
   const cal = useCollection<CalendarDoc>(calQ);
   const leave = useCollection<LeaveRequestDoc>(leaveQ);

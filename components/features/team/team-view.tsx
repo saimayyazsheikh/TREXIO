@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { CircleCheck, CircleSlash, ClipboardList, KeyRound, Pencil, Plus, Search, UserCheck, UserX, Users } from "lucide-react";
-import { collection, orderBy, query, where } from "firebase/firestore";
+import { orderBy, query, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -18,17 +18,19 @@ import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
 import { PageHeader } from "@/components/features/page-header";
 import { EmployeeSheet } from "@/components/features/team/employee-sheet";
+import { WorkspaceCodeCard } from "@/components/features/team/workspace-code-card";
 import { ResetPasswordDialog } from "@/components/features/team/reset-password-dialog";
 import { useCollection } from "@/hooks/use-collection";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { businessColorVar } from "@/lib/domain/business-colors";
 import { cn } from "@/lib/utils";
 import type { BusinessDoc, UserDoc, WithId } from "@/types/models";
 
 export function TeamView() {
-  const usersQ = useMemo(() => query(collection(getFirebase().db, "users"), where("role", "==", "employee")), []);
-  const businessesQ = useMemo(() => query(collection(getFirebase().db, "businesses"), orderBy("createdAt", "asc")), []);
+  const usersQ = useMemo(() => query(orgCollection(getFirebase().db, "users"), where("role", "==", "employee")), []);
+  const businessesQ = useMemo(() => query(orgCollection(getFirebase().db, "businesses"), orderBy("createdAt", "asc")), []);
   const users = useCollection<UserDoc>(usersQ);
   const businesses = useCollection<BusinessDoc>(businessesQ);
 
@@ -77,6 +79,7 @@ export function TeamView() {
   return (
     <>
       <PageHeader title="Team" subtitle="Everyone who signs in to Traxio, across all your businesses." actions={addButton} />
+      <WorkspaceCodeCard />
 
       {error ? (
         <ErrorState

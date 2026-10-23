@@ -1,4 +1,4 @@
-import type { Firestore } from "firebase-admin/firestore";
+import type { OrgDb } from "@/lib/server/org-scope";
 import type { AnalyticsInput } from "@/lib/domain/analytics";
 import { pktDayBounds } from "@/lib/time";
 import { taskFromFirestore } from "@/lib/server/task-mapper";
@@ -7,7 +7,7 @@ import type { UserDoc } from "@/types/models";
 const CAP = 5000;
 
 /** Everything the analytics maths needs for [from, to], across all businesses (the page and the weekly summary share it). */
-export async function loadAnalyticsInput(db: Firestore, from: string, to: string, nowMs = Date.now()): Promise<AnalyticsInput> {
+export async function loadAnalyticsInput(db: OrgDb, from: string, to: string, nowMs = Date.now()): Promise<AnalyticsInput> {
   const start = pktDayBounds(from).start;
   const end = pktDayBounds(to).end;
   const inDates = (name: string) => db.collection(name).where("date", ">=", from).where("date", "<=", to).limit(CAP);

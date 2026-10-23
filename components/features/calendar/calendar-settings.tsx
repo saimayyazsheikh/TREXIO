@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CalendarDays, Plus, Trash2 } from "lucide-react";
-import { collection, deleteDoc, doc, orderBy, query, setDoc } from "firebase/firestore";
+import { deleteDoc, orderBy, query, setDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -17,14 +17,15 @@ import { GlassCard } from "@/components/features/glass-card";
 import { PageHeader } from "@/components/features/page-header";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection, orgDocument } from "@/lib/firebase/org";
 import { calendarEntrySchema, calendarId, fixedHolidays } from "@/lib/domain/timeoff";
 import { formatPkt, pktDateString, pktInstant } from "@/lib/time";
 import type { BusinessDoc, CalendarDoc } from "@/types/models";
 
 export function CalendarSettings() {
   const { db } = getFirebase();
-  const entriesQ = useMemo(() => query(collection(db, "calendar"), orderBy("date", "asc")), [db]);
-  const businessesQ = useMemo(() => query(collection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
+  const entriesQ = useMemo(() => query(orgCollection(db, "calendar"), orderBy("date", "asc")), [db]);
+  const businessesQ = useMemo(() => query(orgCollection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
   const entries = useCollection<CalendarDoc>(entriesQ);
   const businesses = useCollection<BusinessDoc>(businessesQ);
 
@@ -43,7 +44,7 @@ export function CalendarSettings() {
     const parsed = calendarEntrySchema.safeParse(input);
     if (!parsed.success) throw new Error(parsed.error.issues[0]?.message ?? "Check the form and try again.");
     const { date: d, name: n, businessId: b } = parsed.data;
-    await setDoc(doc(db, "calendar", calendarId(d, b)), { date: d, name: n, type: b === null ? "holiday" : "closure", businessId: b });
+    await setDoc(orgDocument(db, "calendar", calendarId(d, b)), { date: d, name: n, type: b === null ? "holiday" : "closure", businessId: b });
   }
 
   async function add(e: React.FormEvent) {
@@ -76,7 +77,7 @@ export function CalendarSettings() {
 
   async function remove(e: CalendarDoc & { id: string }) {
     try {
-      await deleteDoc(doc(db, "calendar", e.id));
+      await deleteDoc(orgDocument(db, "calendar", e.id));
       toast.success(`${e.name} removed.`);
     } catch {
       toast.error("Couldn't remove that. Try again.");

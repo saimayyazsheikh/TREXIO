@@ -8,8 +8,8 @@ type Ctx = { params: Promise<{ uid: string }> };
 /** Disables or re-enables a login and ends any live sessions. */
 export async function POST(req: Request, { params }: Ctx) {
   const { uid } = await params;
-  return adminRoute(req, employeeStatusSchema, async ({ status }) => {
-    await setEmployeeStatus(realEmployeeDeps(), uid, status);
+  return adminRoute(req, employeeStatusSchema, async ({ status }, session) => {
+    await setEmployeeStatus(await realEmployeeDeps(session.orgId), uid, status);
     return { ok: true };
   });
 }

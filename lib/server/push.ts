@@ -3,15 +3,16 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import type { Notice } from "@/lib/server/communication";
 import { adminDb } from "@/lib/server/admin";
+import { scopeDb } from "@/lib/server/org-scope";
 import { initAdminApp } from "@/lib/server/admin-config";
 
 const DEAD_TOKEN = new Set(["messaging/registration-token-not-registered", "messaging/invalid-registration-token"]);
 
 /** Browser push for a saved notice: the same words as the bell. Never throws; the bell is the source of truth. */
-export async function pushNotice(n: Notice): Promise<void> {
+export async function pushNotice(orgId: string, n: Notice): Promise<void> {
   if (process.env.NEXT_PUBLIC_USE_EMULATORS === "true") return;
   try {
-    const db = adminDb();
+    const db = scopeDb(adminDb(), orgId);
     const tokens =
       n.toUid === "admin"
         ? (await db.collection("users").where("role", "==", "admin").get()).docs.flatMap((d) => (d.get("fcmTokens") as string[] | undefined) ?? [])

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CalendarCheck, Check, X } from "lucide-react";
-import { collection, limit, orderBy, query } from "firebase/firestore";
+import { limit, orderBy, query } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -17,6 +17,7 @@ import { fmtDay } from "@/components/features/leave/my-leave-view";
 import { useCollection } from "@/hooks/use-collection";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { daysBetween } from "@/lib/domain/timeoff";
 import { formatPkt } from "@/lib/time";
 import type { LeaveRequestDoc, WithId } from "@/types/models";
@@ -57,7 +58,7 @@ function RequestCard({ r, onDecide }: { r: WithId<LeaveRequestDoc>; onDecide?: (
 
 export function LeaveApprovals() {
   const { db } = getFirebase();
-  const q = useMemo(() => query(collection(db, "leaveRequests"), orderBy("createdAt", "desc"), limit(200)), [db]);
+  const q = useMemo(() => query(orgCollection(db, "leaveRequests"), orderBy("createdAt", "desc"), limit(200)), [db]);
   const requests = useCollection<LeaveRequestDoc>(q);
   const [pending, setPending] = useState<Decision | null>(null);
   const [note, setNote] = useState("");

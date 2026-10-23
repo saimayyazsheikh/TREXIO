@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ExternalLink, MessageCircleMore } from "lucide-react";
-import { doc } from "firebase/firestore";
+
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
 import { useDocument } from "@/hooks/use-document";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgDocument } from "@/lib/firebase/org";
 import { nudgeDefault } from "@/lib/domain/automation";
 import { TASK_STATUS_LABEL } from "@/lib/domain/constants";
 import { waLink } from "@/lib/domain/whatsapp-link";
@@ -33,7 +34,7 @@ export function NudgeDialog({ task, open, onOpenChange, defaultUid }: { task: Wi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, defaultUid, task.id]);
 
-  const userRef = useMemo(() => (open && uid ? doc(getFirebase().db, "users", uid) : null), [open, uid]);
+  const userRef = useMemo(() => (open && uid ? orgDocument(getFirebase().db, "users", uid) : null), [open, uid]);
   const person = useDocument<UserDoc>(userRef);
   const name = task.assigneeNames[uid] ?? "them";
   const link = message.trim().length >= 3 ? waLink(person.data?.phone, message) : null;

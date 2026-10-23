@@ -1,23 +1,38 @@
 rules_version = '2';
 
-// Rules v1 (Phase 1): users + businesses. Everything else stays denied until its phase opens it.
-// Roles come from custom claims set by server routes, never from client-supplied data.
+// Multi-tenant rules: every workspace's data lives under /orgs/{orgId}, and access needs a login token naming that workspace.
+// Roles and the workspace come from custom claims set by server routes, never from client-supplied data.
 service cloud.firestore {
   match /databases/{database}/documents {
 
     function signedIn() {
       return request.auth != null;
     }
+    // The workspace named in the signed login token (set by server routes only, never by the browser).
+    function tokenOrg() {
+      return request.auth.token.get('orgId', '');
+    }
+
+    // EVERYTHING a workspace owns lives under /orgs/{orgId}. A person can only reach the workspace their signed token names,
+    // so one customer can never read or write another's data, whatever the browser asks for.
+    match /orgs/{orgId} {
+    function member() {
+      return signedIn() && tokenOrg() == orgId;
+    }
     function isAdmin() {
-      return signedIn() && request.auth.token.get('role', '') == 'admin';
+      return member() && request.auth.token.get('role', '') == 'admin';
     }
     function isEmployee() {
-      return signedIn() && request.auth.token.get('role', '') == 'employee';
+      return member() && request.auth.token.get('role', '') == 'employee';
     }
+
+    // The workspace's own record (name, code). Members may read it; only server routes write it.
+    allow get: if member();
+    allow list, write: if false;
 
     // Profiles are created and changed only by server routes (Admin SDK bypasses rules). Browsers never write them.
     match /users/{uid} {
-      allow get: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow get: if isAdmin() || (member() && request.auth.uid == uid);
       allow list: if isAdmin();
       allow write: if false;
     }
@@ -74,7 +89,7 @@ service cloud.firestore {
 
       match /messages/{messageId} {
         allow read: if isAdmin()
-          || (isEmployee() && get(/databases/$(database)/documents/questions/$(questionId)).data.employeeId == request.auth.uid);
+          || (isEmployee() && get(/databases/$(database)/documents/orgs/$(orgId)/questions/$(questionId)).data.employeeId == request.auth.uid);
         allow write: if false;
       }
     }
@@ -254,7 +269,7 @@ service cloud.firestore {
     // Automation settings: every signed-in person reads them (idle time and the journal prompt minute apply to everyone);
     // only the admin changes them, and every value is range-checked here as well as in the form.
     match /settings/{settingId} {
-      allow get: if signedIn() && settingId == 'global';
+      allow get: if (isAdmin() || isEmployee()) && settingId == 'global';
       allow list: if false;
       allow create, update: if isAdmin() && settingId == 'global'
         && request.resource.data.keys().hasOnly(['escalationL1Min', 'escalationL2Min', 'briefingEnabled', 'promptMinute', 'idleMin'])
@@ -272,6 +287,13 @@ service cloud.firestore {
     match /aiSummaries/{summaryId} {
       allow read: if isAdmin();
       allow write: if false;
+    }
+
+    }
+
+    // Workspace code to workspace id, used only by server routes.
+    match /orgCodes/{code} {
+      allow read, write: if false;
     }
 
     match /{document=**} {

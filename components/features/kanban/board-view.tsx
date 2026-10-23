@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Columns3, ListPlus, Search, SearchX } from "lucide-react";
-import { collection, limit, orderBy, query, where } from "firebase/firestore";
+import { limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -19,6 +19,7 @@ import { useCollection } from "@/hooks/use-collection";
 import { useNow } from "@/hooks/use-now";
 import { useTaskActions } from "@/hooks/use-task-actions";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { businessColorVar } from "@/lib/domain/business-colors";
 import { DATE_PRESETS, NO_FILTERS, filterTasks, groupLanes, rangeFor, type BoardFilters, type DatePreset, type GroupBy } from "@/lib/domain/board";
 import { PRIORITIES, PRIORITY_LABEL, type Role, type TaskStatus } from "@/lib/domain/constants";
@@ -38,7 +39,7 @@ export function BoardView({ viewer }: { viewer: { uid: string; role: Role } }) {
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
   const { start, end } = rangeFor(preset, today);
 
-  const tasksCol = useMemo(() => collection(db, "tasks"), [db]);
+  const tasksCol = useMemo(() => orgCollection(db, "tasks"), [db]);
   const rangeQ = useMemo(
     () =>
       isAdmin
@@ -53,8 +54,8 @@ export function BoardView({ viewer }: { viewer: { uid: string; role: Role } }) {
         : query(tasksCol, where("assigneeIds", "array-contains", viewer.uid), where("kind", "==", "oneoff"), where("date", "<", start), orderBy("date", "desc"), limit(100)),
     [tasksCol, isAdmin, viewer.uid, start],
   );
-  const usersQ = useMemo(() => (isAdmin ? query(collection(db, "users"), where("role", "==", "employee")) : null), [db, isAdmin]);
-  const businessesQ = useMemo(() => (isAdmin ? query(collection(db, "businesses"), orderBy("createdAt", "asc")) : null), [db, isAdmin]);
+  const usersQ = useMemo(() => (isAdmin ? query(orgCollection(db, "users"), where("role", "==", "employee")) : null), [db, isAdmin]);
+  const businessesQ = useMemo(() => (isAdmin ? query(orgCollection(db, "businesses"), orderBy("createdAt", "asc")) : null), [db, isAdmin]);
 
   const inRange = useCollection<TaskDoc>(rangeQ);
   const carried = useCollection<TaskDoc>(carryQ);

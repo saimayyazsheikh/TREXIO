@@ -6,7 +6,7 @@ import { DomainError } from "@/lib/domain/errors";
 import { getSession, type Session } from "@/lib/server/session";
 
 /** Same-origin check for state-changing requests (defence in depth on top of SameSite=Lax cookies). */
-function sameOrigin(req: Request): boolean {
+export function isSameOrigin(req: Request): boolean {
   const origin = req.headers.get("origin");
   if (!origin) return true;
   try {
@@ -23,7 +23,7 @@ export async function apiRoute<S extends z.ZodTypeAny>(
   schema: S,
   handler: (input: z.infer<S>, session: Session) => Promise<unknown>,
 ): Promise<NextResponse> {
-  if (!sameOrigin(req)) return NextResponse.json({ error: "Request blocked." }, { status: 403 });
+  if (!isSameOrigin(req)) return NextResponse.json({ error: "Request blocked." }, { status: 403 });
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
   if (!roles.includes(session.role)) return NextResponse.json({ error: "You don't have access to that." }, { status: 403 });

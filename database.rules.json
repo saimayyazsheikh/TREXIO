@@ -1,16 +1,32 @@
 {
   "rules": {
-    "presence": {
-      ".read": "auth != null && auth.token.role === 'admin'",
-      "$uid": {
-        ".write": "auth != null && auth.token.role === 'employee' && auth.uid === $uid",
-        ".validate": "newData.hasChildren(['state', 'since', 'lastBeat']) && newData.child('lastBeat').val() == now && newData.child('since').isNumber() && newData.child('since').val() <= now",
-        "state": { ".validate": "newData.isString() && newData.val().matches(/^(online|idle|break|offline)$/)" },
-        "since": { ".validate": "newData.isNumber()" },
-        "lastBeat": { ".validate": "newData.isNumber()" },
-        "breakType": { ".validate": "newData.isString() && newData.val().matches(/^(namaz|lunch|other)$/)" },
-        "breakNote": { ".validate": "newData.isString() && newData.val().length <= 200" },
-        "$other": { ".validate": false }
+    "orgs": {
+      "$orgId": {
+        "presence": {
+          ".read": "auth != null && auth.token.orgId === $orgId && auth.token.role === 'admin'",
+          "$uid": {
+            ".write": "auth != null && auth.token.orgId === $orgId && auth.token.role === 'employee' && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['state', 'since', 'lastBeat']) && newData.child('lastBeat').val() == now && newData.child('since').isNumber() && newData.child('since').val() <= now",
+            "state": {
+              ".validate": "newData.isString() && newData.val().matches(/^(online|idle|break|offline)$/)"
+            },
+            "since": {
+              ".validate": "newData.isNumber()"
+            },
+            "lastBeat": {
+              ".validate": "newData.isNumber()"
+            },
+            "breakType": {
+              ".validate": "newData.isString() && newData.val().matches(/^(namaz|lunch|other)$/)"
+            },
+            "breakNote": {
+              ".validate": "newData.isString() && newData.val().length <= 200"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
       }
     }
   }

@@ -3,7 +3,7 @@
 Read this file first, every session. Then read the docs in `/docs` in numeric order.
 
 ## What Traxio is
-A task-management and team-monitoring web app for ONE admin (the business owner) who runs 4–5 separate businesses (A, B, C, D…), each with its own employees. Admin assigns daily (repetitive) tasks and one-off tasks, sends reminders, chats, tracks hourly journals, idle/break status, leave, and gets analytics + AI weekly summaries. Employees see their own dashboard, complete tasks, write hourly journals, ask questions, and chat.
+A multi-tenant task-management and team-monitoring web app. Each customer is a **workspace**: ONE admin (the owner, who signs up with Google) running several of their own businesses, each with its own employees. Workspaces never see each other. Admin assigns daily (repetitive) tasks and one-off tasks, sends reminders, chats, tracks hourly journals, idle/break status, leave, and gets analytics + AI weekly summaries. Employees see their own dashboard, complete tasks, write hourly journals, ask questions, and chat.
 
 ## Hard constraints
 - **Next.js (App Router, TypeScript) only. No separate backend server.** Deployed on Vercel.
@@ -11,6 +11,8 @@ A task-management and team-monitoring web app for ONE admin (the business owner)
 - Firebase: Auth, Firestore (primary DB), Realtime Database (presence only), Cloud Messaging (FCM). **No Storage: Traxio is text only (no file uploads, no photos or logos), so it runs on the free Spark plan.**
 - Timezone: Asia/Karachi (PKT, UTC+5) everywhere. Store timestamps in UTC, compute "day" boundaries in PKT.
 - Two roles only: `admin`, `employee`. Security is enforced by Firestore and database rules, never only by UI.
+- **Multi-tenant:** all data lives under `orgs/{orgId}/…` (Firestore and Realtime Database). The login token's custom claims carry `role` and `orgId`; the rules require the token's `orgId` to equal the path's. Server code reaches data only through `scopeDb(db, orgId)` (`lib/server/org-scope.ts`), and browser code through `orgCollection/orgDocument/orgRtdbRef` (`lib/firebase/org.ts`). Never build a raw top-level path. Cron jobs loop over all workspaces with `forEachOrg`.
+- Employees sign in as `username@<workspace-code>.traxio.app` behind the scenes (workspace code + username + password on the form).
 
 ## Stack
 Next.js 15 + React + TypeScript, Tailwind CSS, shadcn/ui (Radix), Framer Motion, lucide-react, @dnd-kit (drag & drop), Recharts, TanStack Query where useful, Zod + React Hook Form, date-fns + date-fns-tz, Firebase JS SDK (client) + firebase-admin (server routes), Anthropic SDK or Gemini SDK (server only).
@@ -36,4 +38,4 @@ Next.js 15 + React + TypeScript, Tailwind CSS, shadcn/ui (Radix), Framer Motion,
 - When a requirement is ambiguous, pick the sensible default, note it in `DECISIONS.md`, and continue.
 
 ## Env vars (see `.env.example`)
-NEXT_PUBLIC_FIREBASE_* (web config), NEXT_PUBLIC_FIREBASE_VAPID_KEY, FIREBASE_ADMIN_PROJECT_ID / CLIENT_EMAIL / PRIVATE_KEY, FIREBASE_DATABASE_URL, CRON_SECRET, WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_TEMPLATE_* names, ANTHROPIC_API_KEY or GEMINI_API_KEY, APP_TIMEZONE=Asia/Karachi
+NEXT_PUBLIC_FIREBASE_* (web config), NEXT_PUBLIC_FIREBASE_VAPID_KEY, FIREBASE_ADMIN_PROJECT_ID / CLIENT_EMAIL / PRIVATE_KEY, FIREBASE_DATABASE_URL, CRON_SECRET, ANTHROPIC_API_KEY or GEMINI_API_KEY (AI_PROVIDER / AI_MODEL optional), APP_TIMEZONE=Asia/Karachi

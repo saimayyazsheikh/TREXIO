@@ -7,8 +7,8 @@ type Ctx = { params: Promise<{ uid: string }> };
 
 export async function POST(req: Request, { params }: Ctx) {
   const { uid } = await params;
-  return adminRoute(req, resetPasswordSchema, async ({ password }) => {
-    await resetEmployeePassword(realEmployeeDeps(), uid, password);
+  return adminRoute(req, resetPasswordSchema, async ({ password }, session) => {
+    await resetEmployeePassword(await realEmployeeDeps(session.orgId), uid, password);
     return { ok: true };
   });
 }

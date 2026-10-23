@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Activity, Coffee, Moon, Radio, WifiOff } from "lucide-react";
-import { collection, orderBy, query, where } from "firebase/firestore";
+import { orderBy, query, where } from "firebase/firestore";
 import { Avatar } from "@/components/ui/avatar";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,6 +18,7 @@ import { useAllPresence } from "@/hooks/use-all-presence";
 import { useCollection } from "@/hooks/use-collection";
 import { useNow } from "@/hooks/use-now";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { effectiveStatus, formatDuration, statusLabel, type PresenceState } from "@/lib/domain/presence";
 import { formatPkt, pktDateString, pktInstant } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -34,9 +35,9 @@ export function PresenceBoard() {
   const [date, setDate] = useState(today);
 
   const live = useAllPresence();
-  const usersQ = useMemo(() => query(collection(db, "users"), where("role", "==", "employee")), [db]);
-  const businessesQ = useMemo(() => query(collection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
-  const totalsQ = useMemo(() => query(collection(db, "presenceDaily"), where("date", "==", date)), [db, date]);
+  const usersQ = useMemo(() => query(orgCollection(db, "users"), where("role", "==", "employee")), [db]);
+  const businessesQ = useMemo(() => query(orgCollection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
+  const totalsQ = useMemo(() => query(orgCollection(db, "presenceDaily"), where("date", "==", date)), [db, date]);
   const users = useCollection<UserDoc>(usersQ);
   const businesses = useCollection<BusinessDoc>(businessesQ);
   const totals = useCollection<PresenceDailyDoc>(totalsQ);

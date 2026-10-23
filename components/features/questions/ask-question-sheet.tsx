@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, limit, orderBy, query, where } from "firebase/firestore";
+import { limit, orderBy, query, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -11,12 +11,13 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useCollection } from "@/hooks/use-collection";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import type { TaskDoc } from "@/types/models";
 
 /** A formal help request. Quick chat belongs in Chat; this creates a tracked thread the admin can answer and close. */
 export function AskQuestionSheet({ open, onOpenChange, uid, defaultTaskId }: { open: boolean; onOpenChange: (open: boolean) => void; uid: string; defaultTaskId?: string }) {
   const { db } = getFirebase();
-  const tasksQ = useMemo(() => (open ? query(collection(db, "tasks"), where("assigneeIds", "array-contains", uid), orderBy("date", "desc"), limit(40)) : null), [db, uid, open]);
+  const tasksQ = useMemo(() => (open ? query(orgCollection(db, "tasks"), where("assigneeIds", "array-contains", uid), orderBy("date", "desc"), limit(40)) : null), [db, uid, open]);
   const tasks = useCollection<TaskDoc>(tasksQ);
 
   const [subject, setSubject] = useState("");

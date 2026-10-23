@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { BellRing, ChevronLeft, ChevronRight, Lock, NotebookPen } from "lucide-react";
-import { collection, query, where } from "firebase/firestore";
+import { query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -17,6 +17,7 @@ import { useJournalEditor } from "@/hooks/use-journal-editor";
 import { useMyHours } from "@/hooks/use-my-hours";
 import { useNow } from "@/hooks/use-now";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { addTaskToSlot, fillStats, isWorkingDay } from "@/lib/domain/journal";
 import { dateStringFromDayIndex, dayIndexFromDateString, formatPkt, pktDateString } from "@/lib/time";
 import type { TaskDoc, WithId } from "@/types/models";
@@ -34,7 +35,7 @@ export function JournalView({ uid }: { uid: string }) {
   const hours = useMyHours(uid);
   const journal = useJournalEditor(uid, date, editable);
   const { db } = getFirebase();
-  const tasksQ = useMemo(() => query(collection(db, "tasks"), where("assigneeIds", "array-contains", uid), where("date", "==", date)), [db, uid, date]);
+  const tasksQ = useMemo(() => query(orgCollection(db, "tasks"), where("assigneeIds", "array-contains", uid), where("date", "==", date)), [db, uid, date]);
   const tasks = useCollection<TaskDoc>(tasksQ);
 
   const [dragging, setDragging] = useState<WithId<TaskDoc> | null>(null);

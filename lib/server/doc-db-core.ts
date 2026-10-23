@@ -1,12 +1,12 @@
-import type { Firestore } from "firebase-admin/firestore";
+import type { OrgDb } from "@/lib/server/org-scope";
 import type { DocDb, Notice } from "@/lib/server/communication";
 
 /** Wires the communication services to a Firestore instance (the real project or the emulator). */
-export function createDocDb(db: Firestore, push: (notice: Notice) => Promise<void> = async () => undefined): DocDb {
+export function createDocDb(db: OrgDb, push: (orgId: string, notice: Notice) => Promise<void> = async () => undefined): DocDb {
   return {
     now: () => new Date(),
     newId: () => db.collection("_ids").doc().id,
-    push,
+    push: (notice) => push(db.orgId, notice),
     transaction: async (fn) => {
       // Each attempt gets a fresh list, so only the attempt that committed runs its follow-ups.
       let deferred: (() => Promise<void> | void)[] = [];

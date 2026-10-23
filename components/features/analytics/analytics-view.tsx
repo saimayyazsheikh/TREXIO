@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { collection, orderBy, query } from "firebase/firestore";
+import { orderBy, query } from "firebase/firestore";
 import { BarChart3, CircleCheck, Clock3, Download, NotebookPen, OctagonAlert, Printer, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { shiftDate } from "@/components/features/journal/date-nav";
 import { useAnalyticsData } from "@/hooks/use-analytics-data";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import type { BusinessDoc } from "@/types/models";
 import { useNow } from "@/hooks/use-now";
 import { computeAnalytics, employeesCsv, toHours, WEEKDAY_LABELS } from "@/lib/domain/analytics";
@@ -39,7 +40,7 @@ export function AnalyticsView() {
   const [businessId, setBusinessId] = useState("");
   const range = { from: shiftDate(today, -(days - 1)), to: today };
   const { db } = getFirebase();
-  const businessesQ = useMemo(() => query(collection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
+  const businessesQ = useMemo(() => query(orgCollection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
   const businesses = useCollection<BusinessDoc>(businessesQ);
 
   return (

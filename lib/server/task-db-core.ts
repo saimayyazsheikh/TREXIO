@@ -1,4 +1,5 @@
-import type { DocumentReference, Firestore } from "firebase-admin/firestore";
+import type { DocumentReference } from "firebase-admin/firestore";
+import type { OrgDb } from "@/lib/server/org-scope";
 import type { GenerationDeps } from "@/lib/server/daily-generation";
 import { taskFromFirestore, templateFromFirestore } from "@/lib/server/task-mapper";
 import type { AssigneeRecord, TaskDb } from "@/lib/server/task-store";
@@ -10,7 +11,7 @@ const ALREADY_EXISTS = 6;
 const BATCH_SIZE = 400;
 
 /** Wires the shared task writer to a Firestore instance (the real project or the emulator): all writes in one transaction. */
-export function createTaskDb(db: Firestore): TaskDb {
+export function createTaskDb(db: OrgDb): TaskDb {
   return {
     now: () => new Date(),
     newId: () => db.collection("tasks").doc().id,
@@ -53,13 +54,13 @@ export function createTaskDb(db: Firestore): TaskDb {
   };
 }
 
-async function getAllByIds(db: Firestore, collection: string, ids: string[]) {
+async function getAllByIds(db: OrgDb, collection: string, ids: string[]) {
   if (ids.length === 0) return [];
   const refs: DocumentReference[] = ids.map((id) => db.doc(`${collection}/${id}`));
   return db.getAll(...refs);
 }
 
-export function createGenerationDeps(db: Firestore): GenerationDeps {
+export function createGenerationDeps(db: OrgDb): GenerationDeps {
   return {
     now: () => new Date(),
     loadTemplates: async (employeeId) => {

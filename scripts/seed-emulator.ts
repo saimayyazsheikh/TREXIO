@@ -16,15 +16,18 @@ import { createEmployeeSchema } from "../lib/domain/schemas";
 import { createEmployee } from "../lib/server/employees";
 import { employeeDepsFor } from "../lib/server/employees-adapter";
 import { generateDailyTasks } from "../lib/server/daily-generation";
+import { scopeDb, type OrgDb } from "../lib/server/org-scope";
 import { createGenerationDeps, createTaskDb } from "../lib/server/task-db-core";
 import { createOneOffTask, transitionTask } from "../lib/server/task-store";
 import { createTemplate } from "../lib/server/templates";
 import { dateStringFromDayIndex, dayIndexFromDateString, isoWeekdayOfDate, pktDateString } from "../lib/time";
-import { upsertAdmin } from "./lib/admin-account";
+import { upsertOwner } from "./lib/admin-account";
 
 /** Demo logins for the emulators only. These accounts do not exist anywhere else. */
 export const DEMO = {
-  admin: { email: "admin@traxio.test", name: "Demo Owner" },
+  admin: { email: "admin@traxio.test", name: "Demo Owner", workspace: "Alpha Group", code: "alpha-group" },
+  /** A second, unrelated customer, so you can see for yourself that workspaces never mix. */
+  other: { email: "owner2@traxio.test", name: "Zoya Owner", workspace: "Zeta Mart", code: "zeta-mart", employee: { username: "zoya.khan", name: "Zoya Khan" } },
   password: "Traxio-demo-2026!",
   employees: [
     { username: "ali.khan", name: "Ali Khan", designation: "Cashier", business: "Alpha Traders", phone: "+923001234567" },
@@ -65,8 +68,10 @@ async function main() {
     if ((error as { code?: string }).code !== "auth/user-not-found") throw error;
   }
 
-  const { uid: adminUid } = await upsertAdmin(auth, db, { ...DEMO.admin, password: DEMO.password });
-  const admin = { uid: adminUid, name: DEMO.admin.name, role: "admin" as const };
+  const owner = await upsertOwner(auth, db, { email: DEMO.admin.email, name: DEMO.admin.name, password: DEMO.password, workspaceName: DEMO.admin.workspace, code: DEMO.admin.code });
+  const org = { id: owner.orgId, code: owner.code };
+  const s = scopeDb(db, owner.orgId);
+  const admin = { uid: owner.uid, name: DEMO.admin.name, role: "admin" as const };
 
   const businessIds: Record<string, string> = {};
   const businesses = [
@@ -74,12 +79,12 @@ async function main() {
     { name: "Beta Foods", color: "emerald", workStart: "08:00", workEnd: "17:00", workDays: [1, 2, 3, 4, 5] },
   ];
   for (const b of businesses) {
-    const ref = db.collection("businesses").doc();
+    const ref = s.collection("businesses").doc();
     await ref.set({ ...b, active: true, createdAt: new Date() });
     businessIds[b.name] = ref.id;
   }
 
-  const empDeps = employeeDepsFor(auth, db);
+  const empDeps = employeeDepsFor(auth, s, org);
   const ids: Record<string, string> = {};
   for (const e of DEMO.employees) {
     const input = createEmployeeSchema.parse({
@@ -89,7 +94,7 @@ async function main() {
     ids[e.username] = (await createEmployee(empDeps, input)).uid;
   }
 
-  const taskDb = createTaskDb(db);
+  const taskDb = createTaskDb(s);
   const routine = (employeeId: string, title: string, dueTime: string, steps: string[], activeDays = [1, 2, 3, 4, 5, 6]) =>
     createTemplate(
       taskDb,
@@ -101,7 +106,7 @@ async function main() {
   await routine(ids["sara.ahmed"], "Reconcile yesterday's sales", "11:00", []);
   await routine(ids["omar.farooq"], "Cold-room temperature log", "10:00", ["Freezer reading", "Chiller reading"], [1, 2, 3, 4, 5]);
   const today = pktDateString();
-  const generated = await generateDailyTasks(createGenerationDeps(db), { date: today });
+  const generated = await generateDailyTasks(createGenerationDeps(s), { date: today });
 
   const oneOff = (over: Record<string, unknown>) => createOneOffTask(taskDb, admin, createTaskSchema.parse({ priority: "medium", date: today, dueTime: "", description: "", ...over }));
   const count = await oneOff({ title: "Count stock on shelves A to D", priority: "high", dueTime: "17:00", assigneeIds: [ids["ali.khan"]], subtasks: ["Shelf A", "Shelf B", "Shelf C", "Shelf D"] });
@@ -114,12 +119,15 @@ async function main() {
   await transitionTask(taskDb, as("ali.khan", "Ali Khan"), { taskId: count.taskId, status: "in_progress" });
   await transitionTask(taskDb, as("omar.farooq", "Omar Farooq"), { taskId: alarm.taskId, status: "blocked", reason: "Waiting for the technician to bring a spare sensor" });
 
-  await seedHistory(db, ids, today);
+  await seedHistory(s, ids, today);
+  await seedOtherWorkspace(auth, db);
 
   console.log(`\nSeeded: 2 businesses, 3 team members, 4 routines (${generated.created} daily tasks for ${today}), 5 one-off tasks.\n`);
   console.log("Sign in at http://localhost:3000/login with:");
-  console.log(`  Admin     ${DEMO.admin.email}`);
-  for (const e of DEMO.employees) console.log(`  Employee  ${e.username.padEnd(12)} (${e.name}, ${e.business})`);
+  console.log(`  Owner     ${DEMO.admin.email}   (workspace "${DEMO.admin.workspace}")`);
+  console.log(`  Team      workspace code ${org.code}, then a username:`);
+  for (const e of DEMO.employees) console.log(`            ${e.username.padEnd(12)} (${e.name}, ${e.business})`);
+  console.log(`  Owner 2   ${DEMO.other.email}   (a separate workspace "${DEMO.other.workspace}", code ${DEMO.other.code}, employee ${DEMO.other.employee.username})`);
   console.log(`  Password  ${DEMO.password}  (same for everyone)\n`);
 }
 
@@ -128,7 +136,7 @@ async function main() {
  * straight into the emulator (past days can't be lived through), so it is for the emulator only and never touches the audit
  * rules: blocked tasks get audit entries like real ones would.
  */
-async function seedHistory(db: FirebaseFirestore.Firestore, ids: Record<string, string>, today: string) {
+async function seedHistory(db: OrgDb, ids: Record<string, string>, today: string) {
   const reasons = ["Waiting for supplier", "Printer is down", "Waiting for the technician", "waiting for supplier", "Need approval from admin"];
   const hash = (text: string) => [...text].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
   const people = Object.entries(ids);
@@ -177,6 +185,22 @@ async function seedHistory(db: FirebaseFirestore.Firestore, ids: Record<string, 
     }
     await batch.commit();
   }
+}
+
+/** A tiny second customer. Its data lives in its own workspace, so the first owner never sees any of it (and vice versa). */
+async function seedOtherWorkspace(auth: ReturnType<typeof getAuth>, db: FirebaseFirestore.Firestore) {
+  const o = DEMO.other;
+  const owner = await upsertOwner(auth, db, { email: o.email, name: o.name, password: DEMO.password, workspaceName: o.workspace, code: o.code });
+  const s = scopeDb(db, owner.orgId);
+  const biz = s.collection("businesses").doc();
+  await biz.set({ name: "Zeta Mart", color: "rose", workStart: "10:00", workEnd: "19:00", workDays: [1, 2, 3, 4, 5, 6], active: true, createdAt: new Date() });
+  const { uid } = await createEmployee(
+    employeeDepsFor(auth, s, { id: owner.orgId, code: owner.code }),
+    createEmployeeSchema.parse({ name: o.employee.name, username: o.employee.username, password: DEMO.password, businessId: biz.id, designation: "Manager", phone: "+923451234567", contactEmail: "", workStart: "", workEnd: "" }),
+  );
+  const taskDb = createTaskDb(s);
+  const admin = { uid: owner.uid, name: o.name, role: "admin" as const };
+  await createOneOffTask(taskDb, admin, createTaskSchema.parse({ title: "Zeta stock take", priority: "high", date: pktDateString(), dueTime: "", description: "Only Zeta Mart can see this.", assigneeIds: [uid] }));
 }
 
 main().catch((error) => {

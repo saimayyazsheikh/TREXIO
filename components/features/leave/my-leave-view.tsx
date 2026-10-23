@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CalendarOff, Coffee, Plus } from "lucide-react";
-import { collection, query, where } from "firebase/firestore";
+import { query, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +16,7 @@ import { LeaveStatusBadge, describeRequest } from "@/components/features/leave/l
 import { useCollection } from "@/hooks/use-collection";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { daysBetween } from "@/lib/domain/timeoff";
 import { BREAK_LABEL, formatDuration } from "@/lib/domain/presence";
 import { formatPkt, pktDateString, pktInstant } from "@/lib/time";
@@ -26,8 +27,8 @@ export const fmtDay = (date: string) => formatPkt(pktInstant(date, "12:00"), "EE
 export function MyLeaveView({ uid }: { uid: string }) {
   const { db } = getFirebase();
   const today = pktDateString();
-  const requestsQ = useMemo(() => query(collection(db, "leaveRequests"), where("employeeId", "==", uid)), [db, uid]);
-  const breaksQ = useMemo(() => query(collection(db, "breaks"), where("employeeId", "==", uid), where("date", "==", today)), [db, uid, today]);
+  const requestsQ = useMemo(() => query(orgCollection(db, "leaveRequests"), where("employeeId", "==", uid)), [db, uid]);
+  const breaksQ = useMemo(() => query(orgCollection(db, "breaks"), where("employeeId", "==", uid), where("date", "==", today)), [db, uid, today]);
   const requests = useCollection<LeaveRequestDoc>(requestsQ);
   const breaks = useCollection<BreakDoc>(breaksQ);
   const [sheetOpen, setSheetOpen] = useState(false);

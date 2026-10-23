@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Download, ScrollText, Search } from "lucide-react";
-import { Timestamp, collection, limit, orderBy, query, where } from "firebase/firestore";
+import { Timestamp, limit, orderBy, query, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/features/page-header";
 import { useCollection } from "@/hooks/use-collection";
 import { useNow } from "@/hooks/use-now";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { ACTION_GROUPS, NO_FILTERS, auditCsv, auditSentence, dayStartMs, filterAudit, type ActionGroupId, type AuditRow } from "@/lib/domain/audit-log";
 import { formatPkt, pktDateString, pktDayBounds } from "@/lib/time";
 import type { BusinessDoc, WithId } from "@/types/models";
@@ -39,8 +40,8 @@ export function AuditLogView() {
   const [filters, setFilters] = useState(NO_FILTERS);
 
   const since = useMemo(() => Timestamp.fromMillis(dayStartMs(pktDayBounds(today).start.getTime(), rangeDays)), [today, rangeDays]);
-  const logQ = useMemo(() => query(collection(db, "auditLogs"), where("createdAt", ">=", since), orderBy("createdAt", "desc"), limit(size)), [db, since, size]);
-  const businessesQ = useMemo(() => query(collection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
+  const logQ = useMemo(() => query(orgCollection(db, "auditLogs"), where("createdAt", ">=", since), orderBy("createdAt", "desc"), limit(size)), [db, since, size]);
+  const businessesQ = useMemo(() => query(orgCollection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
   const log = useCollection<AuditDoc>(logQ);
   const businesses = useCollection<BusinessDoc>(businessesQ);
 

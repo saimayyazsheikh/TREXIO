@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { MessageCircle, Search, Users } from "lucide-react";
-import { collection, doc, orderBy, query, where } from "firebase/firestore";
+import { orderBy, query, where } from "firebase/firestore";
 import { Avatar } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +13,7 @@ import { MessagePane } from "@/components/features/chat/message-pane";
 import { useCollection } from "@/hooks/use-collection";
 import { useDocument } from "@/hooks/use-document";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection, orgDocument } from "@/lib/firebase/org";
 import { EVERYONE_CHAT, dmChatId, unreadKey } from "@/lib/domain/communication";
 import type { Role } from "@/lib/domain/constants";
 import { formatPkt } from "@/lib/time";
@@ -27,10 +28,10 @@ export function ChatView({ viewer }: { viewer: { uid: string; name: string; role
   const isAdmin = viewer.role === "admin";
   const key = unreadKey(viewer);
 
-  const usersQ = useMemo(() => (isAdmin ? query(collection(db, "users"), where("role", "==", "employee")) : null), [db, isAdmin]);
-  const chatsQ = useMemo(() => (isAdmin ? query(collection(db, "chats"), orderBy("lastAt", "desc")) : null), [db, isAdmin]);
-  const everyoneRef = useMemo(() => (isAdmin ? null : doc(db, "chats", EVERYONE_CHAT)), [db, isAdmin]);
-  const dmRef = useMemo(() => (isAdmin ? null : doc(db, "chats", dmChatId(viewer.uid))), [db, isAdmin, viewer.uid]);
+  const usersQ = useMemo(() => (isAdmin ? query(orgCollection(db, "users"), where("role", "==", "employee")) : null), [db, isAdmin]);
+  const chatsQ = useMemo(() => (isAdmin ? query(orgCollection(db, "chats"), orderBy("lastAt", "desc")) : null), [db, isAdmin]);
+  const everyoneRef = useMemo(() => (isAdmin ? null : orgDocument(db, "chats", EVERYONE_CHAT)), [db, isAdmin]);
+  const dmRef = useMemo(() => (isAdmin ? null : orgDocument(db, "chats", dmChatId(viewer.uid))), [db, isAdmin, viewer.uid]);
   const users = useCollection<UserDoc>(usersQ);
   const chats = useCollection<ChatDoc>(chatsQ);
   const everyone = useDocument<ChatDoc>(everyoneRef);

@@ -5,11 +5,12 @@ import type { UserDoc } from "@/types/models";
 
 type Calls = string[];
 
-function makeDeps(opts: { failStoreCreate?: boolean; emailTaken?: boolean } = {}) {
+function makeDeps(opts: { failStoreCreate?: boolean; emailTaken?: boolean; employees?: number } = {}) {
   const calls: Calls = [];
   const users = new Map<string, Pick<UserDoc, "role" | "businessId" | "status">>();
   const created: Record<string, unknown>[] = [];
   const deps: Deps = {
+    org: { id: "org1234567890", code: "acme" },
     auth: {
       async createUser(p) {
         if (opts.emailTaken) throw Object.assign(new Error("exists"), { code: "auth/email-already-exists" });
@@ -23,13 +24,16 @@ function makeDeps(opts: { failStoreCreate?: boolean; emailTaken?: boolean } = {}
         calls.push(`auth.delete:${uid}`);
       },
       async setCustomUserClaims(uid, claims) {
-        calls.push(`auth.claims:${uid}:${claims.role}:${claims.businessId}`);
+        calls.push(`auth.claims:${uid}:${claims.role}:${claims.orgId}:${claims.businessId}`);
       },
       async revokeRefreshTokens(uid) {
         calls.push(`auth.revoke:${uid}`);
       },
     },
     store: {
+      async countEmployees() {
+        return opts.employees ?? 0;
+      },
       async businessExists(id) {
         return id === "b1" || id === "b2";
       },
@@ -59,9 +63,17 @@ describe("createEmployee", () => {
   it("creates login with synthetic email, claims and profile", async () => {
     const { deps, calls, created } = makeDeps();
     await expect(createEmployee(deps, input)).resolves.toEqual({ uid: "u1" });
-    expect(calls).toContain("auth.create:ali@traxio.app");
-    expect(calls).toContain("auth.claims:u1:employee:b1");
-    expect(created[0]).toMatchObject({ role: "employee", status: "active", email: "ali@traxio.app", businessId: "b1" });
+    expect(calls).toContain("auth.create:ali@acme.traxio.app");
+    expect(calls).toContain("auth.claims:u1:employee:org1234567890:b1");
+    expect(created[0]).toMatchObject({ role: "employee", status: "active", email: "ali@acme.traxio.app", businessId: "b1" });
+  });
+
+  it("stops at the workspace team limit before creating anything", async () => {
+    const { deps, calls } = makeDeps({ employees: 25 });
+    await expect(createEmployee(deps, input)).rejects.toMatchObject({ status: 409, message: expect.stringContaining("up to 25") });
+    expect(calls).toHaveLength(0);
+    const { deps: roomy } = makeDeps({ employees: 24 });
+    await expect(createEmployee(roomy, input)).resolves.toEqual({ uid: "u1" });
   });
 
   it("rejects an unknown business before creating anything", async () => {
@@ -102,7 +114,7 @@ describe("existing employee operations", () => {
     expect(ctx.calls.some((c) => c.startsWith("auth.claims"))).toBe(false);
     ctx.calls.length = 0;
     await updateEmployee(ctx.deps, "u1", { ...update, businessId: "b2" });
-    expect(ctx.calls).toContain("auth.claims:u1:employee:b2");
+    expect(ctx.calls).toContain("auth.claims:u1:employee:org1234567890:b2");
     expect(ctx.calls).toContain("auth.revoke:u1");
   });
 

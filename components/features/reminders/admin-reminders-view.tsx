@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Bell, ChevronDown, CircleCheck, Clock, Link2, Send } from "lucide-react";
-import { collection, limit, orderBy, query, where } from "firebase/firestore";
+import { limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/features/empty-state";
@@ -12,15 +12,16 @@ import { PageHeader } from "@/components/features/page-header";
 import { ReminderSheet } from "@/components/features/reminders/reminder-sheet";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { formatPkt } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import type { BusinessDoc, ReminderDoc, UserDoc } from "@/types/models";
 
 export function AdminRemindersView() {
   const { db } = getFirebase();
-  const remindersQ = useMemo(() => query(collection(db, "reminders"), orderBy("createdAt", "desc"), limit(100)), [db]);
-  const usersQ = useMemo(() => query(collection(db, "users"), where("role", "==", "employee")), [db]);
-  const businessesQ = useMemo(() => query(collection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
+  const remindersQ = useMemo(() => query(orgCollection(db, "reminders"), orderBy("createdAt", "desc"), limit(100)), [db]);
+  const usersQ = useMemo(() => query(orgCollection(db, "users"), where("role", "==", "employee")), [db]);
+  const businessesQ = useMemo(() => query(orgCollection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
   const reminders = useCollection<ReminderDoc>(remindersQ);
   const users = useCollection<UserDoc>(usersQ);
   const businesses = useCollection<BusinessDoc>(businessesQ);

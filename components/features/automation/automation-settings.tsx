@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BellRing, CalendarClock, MessageCircleMore, Play } from "lucide-react";
-import { doc, setDoc } from "firebase/firestore";
+import { setDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/features/page-header";
 import { useGlobalSettings } from "@/hooks/use-global-settings";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgDocument } from "@/lib/firebase/org";
 import { DEFAULT_SETTINGS, SETTINGS_PATH, settingsSchema, type AutomationSettings } from "@/lib/domain/automation";
 
 type Draft = Omit<Record<keyof AutomationSettings, string>, "briefingEnabled"> & { briefingEnabled: boolean };
@@ -59,7 +60,7 @@ export function AutomationSettingsView() {
     setErrors({});
     setBusy(true);
     try {
-      await setDoc(doc(db, SETTINGS_PATH), parsed.data);
+      await setDoc(orgDocument(db, SETTINGS_PATH), parsed.data);
       toast.success("Settings saved.");
     } catch {
       toast.error("Couldn't save the settings. Try again.");

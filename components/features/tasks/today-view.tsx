@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ListChecks, PartyPopper } from "lucide-react";
-import { collection, limit, orderBy, query, where } from "firebase/firestore";
+import { limit, orderBy, query, where } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
@@ -16,6 +16,7 @@ import { useNow } from "@/hooks/use-now";
 import { useTaskActions } from "@/hooks/use-task-actions";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { compareTasks } from "@/lib/domain/task-sort";
 import { formatPkt, pktDateString } from "@/lib/time";
 import type { TaskDoc, WithId } from "@/types/models";
@@ -27,9 +28,9 @@ export function TodayView({ uid }: { uid: string }) {
   const now = useNow();
   const today = pktDateString(now);
 
-  const todayQ = useMemo(() => query(collection(getFirebase().db, "tasks"), where("assigneeIds", "array-contains", uid), where("date", "==", today)), [uid, today]);
+  const todayQ = useMemo(() => query(orgCollection(getFirebase().db, "tasks"), where("assigneeIds", "array-contains", uid), where("date", "==", today)), [uid, today]);
   const carryQ = useMemo(
-    () => query(collection(getFirebase().db, "tasks"), where("assigneeIds", "array-contains", uid), where("kind", "==", "oneoff"), where("date", "<", today), orderBy("date", "desc"), limit(50)),
+    () => query(orgCollection(getFirebase().db, "tasks"), where("assigneeIds", "array-contains", uid), where("kind", "==", "oneoff"), where("date", "<", today), orderBy("date", "desc"), limit(50)),
     [uid, today],
   );
   const todays = useCollection<TaskDoc>(todayQ);

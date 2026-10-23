@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Check, Hand, Link2, MessageCircleMore, Pencil, Repeat } from "lucide-react";
-import { collection, limit, orderBy, query, where } from "firebase/firestore";
+import { limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -12,6 +12,7 @@ import { DueChip } from "@/components/features/tasks/due-chip";
 import { NudgeDialog } from "@/components/features/tasks/nudge-dialog";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { describeAudit } from "@/lib/domain/audit-text";
 import { TASK_STATUS_LABEL, type Role, type TaskStatus } from "@/lib/domain/constants";
 import { availableMoves } from "@/lib/domain/task-moves";
@@ -32,7 +33,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function Timeline({ taskId }: { taskId: string }) {
-  const q = useMemo(() => query(collection(getFirebase().db, "auditLogs"), where("entityId", "==", taskId), orderBy("createdAt", "desc"), limit(30)), [taskId]);
+  const q = useMemo(() => query(orgCollection(getFirebase().db, "auditLogs"), where("entityId", "==", taskId), orderBy("createdAt", "desc"), limit(30)), [taskId]);
   const log = useCollection<AuditDoc>(q);
   if (log.loading) return <Skeleton className="h-20 rounded-control" />;
   if (log.error) return <p className="text-sm text-danger">Couldn&apos;t load the history.</p>;

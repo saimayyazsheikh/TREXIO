@@ -6,8 +6,8 @@ import { pktDateString } from "@/lib/time";
 
 let env: RulesTestEnvironment;
 
-const admin = () => env.authenticatedContext("admin1", { role: "admin" }).firestore();
-const emp = (uid: string) => env.authenticatedContext(uid, { role: "employee", businessId: "b1" }).firestore();
+const admin = () => env.authenticatedContext("admin1", { role: "admin", orgId: "o1" }).firestore();
+const emp = (uid: string) => env.authenticatedContext(uid, { role: "employee", orgId: "o1", businessId: "b1" }).firestore();
 const stranger = () => env.authenticatedContext("nobody").firestore();
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -25,64 +25,64 @@ beforeEach(async () => {
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
-    await setDoc(doc(db, "leaveRequests/l_ali"), { employeeId: "ali", status: "pending" });
-    await setDoc(doc(db, "leaveRequests/l_sara"), { employeeId: "sara", status: "pending" });
-    await setDoc(doc(db, "breaks/b_ali"), { employeeId: "ali", date: today, endAt: null });
-    await setDoc(doc(db, "breaks/b_sara"), { employeeId: "sara", date: today, endAt: null });
+    await setDoc(doc(db, "orgs/o1/leaveRequests/l_ali"), { employeeId: "ali", status: "pending" });
+    await setDoc(doc(db, "orgs/o1/leaveRequests/l_sara"), { employeeId: "sara", status: "pending" });
+    await setDoc(doc(db, "orgs/o1/breaks/b_ali"), { employeeId: "ali", date: today, endAt: null });
+    await setDoc(doc(db, "orgs/o1/breaks/b_sara"), { employeeId: "sara", date: today, endAt: null });
     // Ali has a presence record for today, last written a minute ago, and one from yesterday.
-    await setDoc(doc(db, `presenceDaily/ali_${today}`), { employeeId: "ali", date: today, activeSec: 600, idleSec: 60, breakSec: 0, firstSeenAt: Timestamp.fromMillis(Date.now() - 3600_000), lastSeenAt: Timestamp.fromMillis(Date.now() - 60_000) });
-    await setDoc(doc(db, `presenceDaily/ali_${yesterday}`), { employeeId: "ali", date: yesterday, activeSec: 7200, idleSec: 0, breakSec: 0, firstSeenAt: Timestamp.now(), lastSeenAt: Timestamp.now() });
+    await setDoc(doc(db, `orgs/o1/presenceDaily/ali_${today}`), { employeeId: "ali", date: today, activeSec: 600, idleSec: 60, breakSec: 0, firstSeenAt: Timestamp.fromMillis(Date.now() - 3600_000), lastSeenAt: Timestamp.fromMillis(Date.now() - 60_000) });
+    await setDoc(doc(db, `orgs/o1/presenceDaily/ali_${yesterday}`), { employeeId: "ali", date: yesterday, activeSec: 7200, idleSec: 0, breakSec: 0, firstSeenAt: Timestamp.now(), lastSeenAt: Timestamp.now() });
   });
 });
 
 describe("leave requests and breaks", () => {
   it("employees read only their own; the admin reads all", async () => {
-    await assertSucceeds(getDoc(doc(emp("ali"), "leaveRequests/l_ali")));
-    await assertFails(getDoc(doc(emp("ali"), "leaveRequests/l_sara")));
-    await assertSucceeds(getDocs(query(collection(emp("ali"), "leaveRequests"), where("employeeId", "==", "ali"))));
-    await assertFails(getDocs(collection(emp("ali"), "leaveRequests")));
-    await assertSucceeds(getDocs(collection(admin(), "leaveRequests")));
-    await assertSucceeds(getDoc(doc(emp("ali"), "breaks/b_ali")));
-    await assertFails(getDoc(doc(emp("ali"), "breaks/b_sara")));
-    await assertFails(getDoc(doc(stranger(), "breaks/b_ali")));
+    await assertSucceeds(getDoc(doc(emp("ali"), "orgs/o1/leaveRequests/l_ali")));
+    await assertFails(getDoc(doc(emp("ali"), "orgs/o1/leaveRequests/l_sara")));
+    await assertSucceeds(getDocs(query(collection(emp("ali"), "orgs/o1/leaveRequests"), where("employeeId", "==", "ali"))));
+    await assertFails(getDocs(collection(emp("ali"), "orgs/o1/leaveRequests")));
+    await assertSucceeds(getDocs(collection(admin(), "orgs/o1/leaveRequests")));
+    await assertSucceeds(getDoc(doc(emp("ali"), "orgs/o1/breaks/b_ali")));
+    await assertFails(getDoc(doc(emp("ali"), "orgs/o1/breaks/b_sara")));
+    await assertFails(getDoc(doc(stranger(), "orgs/o1/breaks/b_ali")));
   });
   it("nobody writes them from the client, not even to approve their own leave", async () => {
-    await assertFails(updateDoc(doc(emp("ali"), "leaveRequests/l_ali"), { status: "approved" }));
-    await assertFails(setDoc(doc(emp("ali"), "leaveRequests/new"), { employeeId: "ali", status: "approved" }));
-    await assertFails(deleteDoc(doc(emp("ali"), "leaveRequests/l_ali")));
-    await assertFails(updateDoc(doc(admin(), "leaveRequests/l_ali"), { status: "approved" }));
-    await assertFails(updateDoc(doc(emp("ali"), "breaks/b_ali"), { endAt: serverTimestamp() }));
-    await assertFails(setDoc(doc(emp("ali"), "breaks/new"), { employeeId: "ali" }));
+    await assertFails(updateDoc(doc(emp("ali"), "orgs/o1/leaveRequests/l_ali"), { status: "approved" }));
+    await assertFails(setDoc(doc(emp("ali"), "orgs/o1/leaveRequests/new"), { employeeId: "ali", status: "approved" }));
+    await assertFails(deleteDoc(doc(emp("ali"), "orgs/o1/leaveRequests/l_ali")));
+    await assertFails(updateDoc(doc(admin(), "orgs/o1/leaveRequests/l_ali"), { status: "approved" }));
+    await assertFails(updateDoc(doc(emp("ali"), "orgs/o1/breaks/b_ali"), { endAt: serverTimestamp() }));
+    await assertFails(setDoc(doc(emp("ali"), "orgs/o1/breaks/new"), { employeeId: "ali" }));
   });
 });
 
 describe("holiday and closure calendar", () => {
   const entry = (over: Record<string, unknown> = {}) => ({ date: "2026-08-14", name: "Independence Day", type: "holiday", businessId: null, ...over });
   it("the admin creates holidays and closures with the right id and type", async () => {
-    await assertSucceeds(setDoc(doc(admin(), "calendar/2026-08-14_all"), entry()));
-    await assertSucceeds(setDoc(doc(admin(), "calendar/2026-10-30_b1"), entry({ date: "2026-10-30", name: "Stocktake", type: "closure", businessId: "b1" })));
-    await assertSucceeds(deleteDoc(doc(admin(), "calendar/2026-08-14_all")));
+    await assertSucceeds(setDoc(doc(admin(), "orgs/o1/calendar/2026-08-14_all"), entry()));
+    await assertSucceeds(setDoc(doc(admin(), "orgs/o1/calendar/2026-10-30_b1"), entry({ date: "2026-10-30", name: "Stocktake", type: "closure", businessId: "b1" })));
+    await assertSucceeds(deleteDoc(doc(admin(), "orgs/o1/calendar/2026-08-14_all")));
   });
   it("rejects mismatched ids and types, extra fields and malformed data", async () => {
-    await assertFails(setDoc(doc(admin(), "calendar/whatever"), entry()));
-    await assertFails(setDoc(doc(admin(), "calendar/2026-08-14_b1"), entry())); // id says business, body says everyone
-    await assertFails(setDoc(doc(admin(), "calendar/2026-08-14_all"), entry({ type: "closure" })));
-    await assertFails(setDoc(doc(admin(), "calendar/2026-08-14_all"), entry({ extra: true })));
-    await assertFails(setDoc(doc(admin(), "calendar/14-08-2026_all"), entry({ date: "14-08-2026" })));
-    await assertFails(setDoc(doc(admin(), "calendar/2026-08-14_all"), entry({ name: "x" })));
+    await assertFails(setDoc(doc(admin(), "orgs/o1/calendar/whatever"), entry()));
+    await assertFails(setDoc(doc(admin(), "orgs/o1/calendar/2026-08-14_b1"), entry())); // id says business, body says everyone
+    await assertFails(setDoc(doc(admin(), "orgs/o1/calendar/2026-08-14_all"), entry({ type: "closure" })));
+    await assertFails(setDoc(doc(admin(), "orgs/o1/calendar/2026-08-14_all"), entry({ extra: true })));
+    await assertFails(setDoc(doc(admin(), "orgs/o1/calendar/14-08-2026_all"), entry({ date: "14-08-2026" })));
+    await assertFails(setDoc(doc(admin(), "orgs/o1/calendar/2026-08-14_all"), entry({ name: "x" })));
   });
   it("employees can read it but never change it", async () => {
-    await env.withSecurityRulesDisabled(async (ctx) => void (await setDoc(doc(ctx.firestore(), "calendar/2026-08-14_all"), entry())));
-    await assertSucceeds(getDoc(doc(emp("ali"), "calendar/2026-08-14_all")));
-    await assertSucceeds(getDocs(collection(emp("ali"), "calendar")));
-    await assertFails(setDoc(doc(emp("ali"), "calendar/2026-08-15_all"), entry({ date: "2026-08-15" })));
-    await assertFails(deleteDoc(doc(emp("ali"), "calendar/2026-08-14_all")));
-    await assertFails(getDoc(doc(stranger(), "calendar/2026-08-14_all")));
+    await env.withSecurityRulesDisabled(async (ctx) => void (await setDoc(doc(ctx.firestore(), "orgs/o1/calendar/2026-08-14_all"), entry())));
+    await assertSucceeds(getDoc(doc(emp("ali"), "orgs/o1/calendar/2026-08-14_all")));
+    await assertSucceeds(getDocs(collection(emp("ali"), "orgs/o1/calendar")));
+    await assertFails(setDoc(doc(emp("ali"), "orgs/o1/calendar/2026-08-15_all"), entry({ date: "2026-08-15" })));
+    await assertFails(deleteDoc(doc(emp("ali"), "orgs/o1/calendar/2026-08-14_all")));
+    await assertFails(getDoc(doc(stranger(), "orgs/o1/calendar/2026-08-14_all")));
   });
 });
 
 describe("daily time totals", () => {
-  const ref = (uid: string, date = today, db = emp(uid)) => doc(db, "presenceDaily", `${uid}_${date}`);
+  const ref = (uid: string, date = today, db = emp(uid)) => doc(db, "orgs/o1/presenceDaily", `${uid}_${date}`);
   const fresh = (uid: string, over: Record<string, unknown> = {}) => ({
     employeeId: uid, date: today, activeSec: 30, idleSec: 0, breakSec: 0, firstSeenAt: serverTimestamp(), lastSeenAt: serverTimestamp(), ...over,
   });
@@ -128,12 +128,12 @@ describe("daily time totals", () => {
     await assertFails(updateDoc(ref("ali", today, admin()), { activeSec: increment(10), lastSeenAt: serverTimestamp() }));
     await assertFails(updateDoc(ref("ali", today, emp("sara")), { activeSec: increment(10), lastSeenAt: serverTimestamp() }));
     await assertSucceeds(getDoc(ref("ali", today, admin())));
-    await assertSucceeds(getDocs(query(collection(admin(), "presenceDaily"), where("date", "==", today))));
+    await assertSucceeds(getDocs(query(collection(admin(), "orgs/o1/presenceDaily"), where("date", "==", today))));
     await assertSucceeds(getDoc(ref("ali")));
     await assertSucceeds(getDoc(ref("sara"))); // no record yet is fine to read
     await assertFails(getDoc(ref("ali", today, emp("sara"))));
-    await assertSucceeds(getDocs(query(collection(emp("ali"), "presenceDaily"), where("employeeId", "==", "ali"))));
-    await assertFails(getDocs(collection(emp("ali"), "presenceDaily")));
+    await assertSucceeds(getDocs(query(collection(emp("ali"), "orgs/o1/presenceDaily"), where("employeeId", "==", "ali"))));
+    await assertFails(getDocs(collection(emp("ali"), "orgs/o1/presenceDaily")));
     await assertFails(getDoc(ref("ali", today, stranger())));
   });
 });

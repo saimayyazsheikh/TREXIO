@@ -5,7 +5,7 @@ import { realTaskDb } from "@/lib/server/task-db";
 
 export function POST(req: Request) {
   return anyRoleRoute(req, subtaskToggleSchema, async (input, session) => {
-    await toggleSubtask(realTaskDb(), session, input);
+    await toggleSubtask(realTaskDb(session.orgId), session, input);
     return { ok: true };
   });
 }

@@ -19,13 +19,13 @@ afterAll(async () => {
 describe("baseline firestore rules", () => {
   it("deny anonymous reads and writes", async () => {
     const db = env.unauthenticatedContext().firestore();
-    await assertFails(getDoc(doc(db, "users/x")));
-    await assertFails(setDoc(doc(db, "users/x"), { a: 1 }));
+    await assertFails(getDoc(doc(db, "orgs/o1/users/x")));
+    await assertFails(setDoc(doc(db, "orgs/o1/users/x"), { a: 1 }));
   });
 
   it("deny signed-in users on collections no phase has opened yet", async () => {
-    const db = env.authenticatedContext("u1", { role: "admin" }).firestore();
-    await assertFails(getDoc(doc(db, "futureThings/x")));
-    await assertFails(setDoc(doc(db, "futureThings/x"), { a: 1 }));
+    const db = env.authenticatedContext("u1", { role: "admin", orgId: "o1" }).firestore();
+    await assertFails(getDoc(doc(db, "orgs/o1/futureThings/x")));
+    await assertFails(setDoc(doc(db, "orgs/o1/futureThings/x"), { a: 1 }));
   });
 });

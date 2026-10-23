@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { onDisconnect, onValue, ref, serverTimestamp as rtdbTimestamp, set, update } from "firebase/database";
-import { collection, doc, getDoc, increment, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
+import { getDoc, increment, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection, orgDocument, orgRtdbRef } from "@/lib/firebase/org";
 import { DEFAULT_IDLE_MIN, accrue, computeState, type BreakType, type Totals } from "@/lib/domain/presence";
 import { pktDateString } from "@/lib/time";
 
@@ -18,7 +19,7 @@ export type MyPresence = { state: "online" | "idle" | "break"; idleSinceMs: numb
 
 /** Marks you offline right now. Call before signing out, so the admin doesn't see a ghost "Online". */
 export async function goOffline(uid: string) {
-  const node = ref(getFirebase().rtdb, `presence/${uid}`);
+  const node = orgRtdbRef(getFirebase().rtdb, `presence/${uid}`);
   await set(node, { state: "offline", since: rtdbTimestamp(), lastBeat: rtdbTimestamp() }).catch(() => undefined);
 }
 
@@ -29,7 +30,7 @@ export async function goOffline(uid: string) {
 export function usePresence(uid: string, name: string, idleMin: number | null): MyPresence {
   const { db, rtdb } = getFirebase();
 
-  const openQ = useMemo(() => query(collection(db, "breaks"), where("employeeId", "==", uid), where("endAt", "==", null)), [db, uid]);
+  const openQ = useMemo(() => query(orgCollection(db, "breaks"), where("employeeId", "==", uid), where("endAt", "==", null)), [db, uid]);
   const open = useCollection<{ type: BreakType; note: string; date: string; startAt: { toMillis(): number } }>(openQ);
   const today = pktDateString();
   const openBreak: OpenBreak = useMemo(() => {
@@ -45,8 +46,8 @@ export function usePresence(uid: string, name: string, idleMin: number | null): 
   idleMinRef.current = idleMin ?? DEFAULT_IDLE_MIN;
 
   useEffect(() => {
-    const node = ref(rtdb, `presence/${uid}`);
-    const totalsDoc = () => doc(db, "presenceDaily", `${uid}_${pktDateString()}`);
+    const node = orgRtdbRef(rtdb, `presence/${uid}`);
+    const totalsDoc = () => orgDocument(db, "presenceDaily", `${uid}_${pktDateString()}`);
     let pending: Totals = ZERO;
     let pendingDate = pktDateString();
     let published: { state: string; breakId: string | null } | null = null;

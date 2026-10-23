@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Bell, CheckCheck, Link2 } from "lucide-react";
-import { collection, doc, limit, orderBy, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
+import { limit, orderBy, query, serverTimestamp, updateDoc, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,13 +12,14 @@ import { GlassCard } from "@/components/features/glass-card";
 import { PageHeader } from "@/components/features/page-header";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection, orgDocument } from "@/lib/firebase/org";
 import { formatPkt } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import type { ReminderDoc } from "@/types/models";
 
 export function MyRemindersView({ uid }: { uid: string }) {
   const { db } = getFirebase();
-  const q = useMemo(() => query(collection(db, "reminders"), where("toUids", "array-contains", uid), orderBy("createdAt", "desc"), limit(50)), [db, uid]);
+  const q = useMemo(() => query(orgCollection(db, "reminders"), where("toUids", "array-contains", uid), orderBy("createdAt", "desc"), limit(50)), [db, uid]);
   const reminders = useCollection<ReminderDoc>(q);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -27,7 +28,7 @@ export function MyRemindersView({ uid }: { uid: string }) {
   async function markRead(ids: string[]) {
     setBusy(ids.length === 1 ? ids[0] : "all");
     try {
-      await Promise.all(ids.map((id) => updateDoc(doc(db, "reminders", id), { [`readBy.${uid}`]: serverTimestamp() })));
+      await Promise.all(ids.map((id) => updateDoc(orgDocument(db, "reminders", id), { [`readBy.${uid}`]: serverTimestamp() })));
     } catch {
       toast.error("Couldn't mark that as read. Try again.");
     } finally {

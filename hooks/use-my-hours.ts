@@ -1,19 +1,20 @@
 "use client";
 
 import { useMemo } from "react";
-import { doc } from "firebase/firestore";
+
 import { useDocument } from "@/hooks/use-document";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgDocument } from "@/lib/firebase/org";
 import { effectiveHours, workSlots } from "@/lib/domain/journal";
 import type { BusinessDoc, UserDoc } from "@/types/models";
 
 /** The signed-in employee's working hours (their own, else their business's) as journal slot keys. */
 export function useMyHours(uid: string) {
   const { db } = getFirebase();
-  const userRef = useMemo(() => doc(db, "users", uid), [db, uid]);
+  const userRef = useMemo(() => orgDocument(db, "users", uid), [db, uid]);
   const user = useDocument<UserDoc>(userRef);
   const businessId = user.data?.businessId ?? null;
-  const businessRef = useMemo(() => (businessId ? doc(db, "businesses", businessId) : null), [db, businessId]);
+  const businessRef = useMemo(() => (businessId ? orgDocument(db, "businesses", businessId) : null), [db, businessId]);
   const business = useDocument<BusinessDoc>(businessRef);
 
   const ready = !!user.data && (!businessId || !!business.data);

@@ -1,6 +1,12 @@
 # Traxio
 
-Task management and team monitoring for one owner running several businesses. Next.js 15 + Firebase. See `CLAUDE.md` and `/docs`.
+Task management and team monitoring for business owners, as a multi-tenant web app. Next.js 15 + Firebase. See `CLAUDE.md` and `/docs`.
+
+## How accounts work
+- **Owners** sign up with Google ("Continue with Google" on the login page). Their first sign-in creates their own private **workspace** and makes them its admin. They add their businesses and team from there.
+- **Team members** are created by their admin with a username and password. They sign in with the **workspace code** (shown on the Team page, like `acme-traders`), their username and their password.
+- Every workspace is walled off: its data lives under `orgs/<workspace id>/` and the database rules only let a login token that names that workspace reach it. Two customers can even use the same username.
+- A workspace holds up to 25 team members (one constant, `MAX_EMPLOYEES_PER_WORKSPACE`).
 
 ## Run it locally
 ```bash
@@ -8,27 +14,25 @@ npm install
 cp .env.example .env.local   # then fill in the values below
 npm run dev
 ```
+Secrets live only in `.env.local`, which git ignores (`.env*` is ignored except the blank `.env.example` and the emulator file). Never paste keys into code, docs or chat.
 
 ## Try it locally without Firebase (demo mode)
 Everything runs against Firebase's local emulators with fake accounts. Needs Java 21+ (`winget install Microsoft.OpenJDK.21`).
 ```bash
 npm run emulators        # terminal 1: Auth, Firestore and Realtime DB on your machine
-npm run seed:emulator    # terminal 2, once: demo businesses, team, routines and tasks (add -- --reset to start over)
+npm run seed:emulator    # terminal 2, once: two demo workspaces with businesses, team, routines and tasks (add -- --reset to start over)
 npm run dev:emulated     # terminal 2: the app at http://localhost:3000
 ```
-The seed prints the demo logins (they are also at the top of `scripts/seed-emulator.ts`). The admin signs in with an email, employees with just a username. The emulator data is wiped when you stop `npm run emulators`; run the seed again next time.
+The seed prints the demo logins (also at the top of `scripts/seed-emulator.ts`): an owner who signs in with email and password, a team who sign in with workspace code `alpha-group` plus a username, and a second owner in a separate workspace so you can check that workspaces never mix. "Continue with Google" works in demo mode too, through the emulator's fake Google. The emulator data is wiped when you stop `npm run emulators`; run the seed again next time.
+
 ## Firebase setup (once)
 1. Create a Firebase project. The free **Spark** plan is enough: Traxio uses no Storage and no Cloud Functions.
-2. Build > **Authentication** > enable Email/Password.
+2. Build > **Authentication** > Sign-in method: enable **Email/Password** (team members) and **Google** (owners). Under Settings > Authorized domains, add the address you deploy on (`localhost` is there already).
 3. Build > **Firestore Database** > create in production mode. Build > **Realtime Database** > create.
-4. Project settings > Your apps > add a **Web app**, and copy its config into the `NEXT_PUBLIC_FIREBASE_*` values in `.env.local` (`NEXT_PUBLIC_FIREBASE_DATABASE_URL` is the Realtime Database URL).
-5. Project settings > Service accounts > **Generate new private key**. Put `project_id`, `client_email` and `private_key` into `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY` (keep the key on one line with literal `\n`). Set `FIREBASE_DATABASE_URL` to the same Realtime Database URL.
+4. Project settings > Your apps > add a **Web app**, and copy its config into the `NEXT_PUBLIC_FIREBASE_*` values in `.env.local` (`NEXT_PUBLIC_FIREBASE_DATABASE_URL` is the Realtime Database URL). Under Cloud Messaging > Web Push certificates, generate a key pair and put it in `NEXT_PUBLIC_FIREBASE_VAPID_KEY`.
+5. Project settings > Service accounts > **Generate new private key**. Put `project_id`, `client_email` and `private_key` into `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY` (keep the key on one line with literal `\n`). Set `FIREBASE_DATABASE_URL` to the same Realtime Database URL. Keep the downloaded JSON file out of the project folder.
 6. Deploy the rules and indexes: `npx firebase-tools deploy --only firestore,database --project <your-project-id>`.
-7. Create your admin account:
-   ```bash
-   npm run seed:admin -- --email you@example.com --password "a long password" --name "Your Name"
-   ```
-8. Open http://localhost:3000 and sign in with that email and password.
+7. Open the app and press **Continue with Google**. Your first sign-in creates your workspace. (Emergency alternative for an email-and-password owner: `npm run seed:admin -- --email you@example.com --password "a long password" --name "Your Name" --workspace "Your Company"`.)
 
 ## Scheduled jobs
 Set `CRON_SECRET` in Vercel (a long random string). Every job checks it as `Authorization: Bearer <secret>`.

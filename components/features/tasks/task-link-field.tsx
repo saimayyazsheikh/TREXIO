@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Check, Link2, Plus, Search, X } from "lucide-react";
-import { collection, limit, orderBy, query } from "firebase/firestore";
+import { limit, orderBy, query } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/features/badges";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { cn } from "@/lib/utils";
 import type { TaskDoc } from "@/types/models";
 
@@ -36,7 +37,7 @@ export function TaskLinkField({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const q = useMemo(() => (open ? query(collection(getFirebase().db, "tasks"), orderBy("date", "desc"), limit(300)) : null), [open]);
+  const q = useMemo(() => (open ? query(orgCollection(getFirebase().db, "tasks"), orderBy("date", "desc"), limit(300)) : null), [open]);
   const tasks = useCollection<TaskDoc>(q);
 
   const candidates = useMemo(() => {

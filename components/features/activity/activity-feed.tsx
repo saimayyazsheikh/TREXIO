@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Activity } from "lucide-react";
-import { collection, limit, orderBy, query, type Timestamp } from "firebase/firestore";
+import { limit, orderBy, query, type Timestamp } from "firebase/firestore";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/features/empty-state";
@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { ACTION_GROUPS, groupOf, timeAgo } from "@/lib/domain/audit-log";
 import { formatPkt } from "@/lib/time";
 import type { BusinessDoc, UserDoc, WithId } from "@/types/models";
@@ -21,7 +22,7 @@ const FEED_SIZE = 100;
 
 /** Live "who did what" stream: the last 100 task events, filterable by business, person and kind of change. */
 export function ActivityFeed({ businesses, employees, now }: { businesses: WithId<BusinessDoc>[]; employees: WithId<UserDoc>[]; now: Date }) {
-  const q = useMemo(() => query(collection(getFirebase().db, "activity"), orderBy("createdAt", "desc"), limit(FEED_SIZE)), []);
+  const q = useMemo(() => query(orgCollection(getFirebase().db, "activity"), orderBy("createdAt", "desc"), limit(FEED_SIZE)), []);
   const feed = useCollection<ActivityDoc>(q);
   const [businessId, setBusinessId] = useState("");
   const [actorId, setActorId] = useState("");

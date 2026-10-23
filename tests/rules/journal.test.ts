@@ -6,8 +6,8 @@ import { pktDateString, pktDayIndex } from "@/lib/time";
 
 let env: RulesTestEnvironment;
 
-const admin = () => env.authenticatedContext("admin1", { role: "admin" }).firestore();
-const emp = (uid: string) => env.authenticatedContext(uid, { role: "employee", businessId: "b1" }).firestore();
+const admin = () => env.authenticatedContext("admin1", { role: "admin", orgId: "o1" }).firestore();
+const emp = (uid: string) => env.authenticatedContext(uid, { role: "employee", orgId: "o1", businessId: "b1" }).firestore();
 const stranger = () => env.authenticatedContext("nobody").firestore();
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -20,7 +20,7 @@ const slot = (over: Record<string, unknown> = {}) => ({ text: "Opened the shop",
 const journal = (uid: string, over: Record<string, unknown> = {}) => ({
   employeeId: uid, date: today, dayIndex: idx, slots: { "10": slot() }, updatedAt: serverTimestamp(), ...over,
 });
-const ref = (db: ReturnType<typeof emp>, uid: string, date = today) => doc(db, "journals", `${uid}_${date}`);
+const ref = (db: ReturnType<typeof emp>, uid: string, date = today) => doc(db, "orgs/o1/journals", `${uid}_${date}`);
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
@@ -33,8 +33,8 @@ beforeEach(async () => {
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
-    await setDoc(doc(db, `journals/ali_${yesterday}`), { employeeId: "ali", date: yesterday, dayIndex: idx - 1, slots: { "10": { text: "Old entry", taskIds: [], updatedAt: Timestamp.now() } }, updatedAt: Timestamp.now() });
-    await setDoc(doc(db, `journals/sara_${today}`), { employeeId: "sara", date: today, dayIndex: idx, slots: {}, updatedAt: Timestamp.now() });
+    await setDoc(doc(db, `orgs/o1/journals/ali_${yesterday}`), { employeeId: "ali", date: yesterday, dayIndex: idx - 1, slots: { "10": { text: "Old entry", taskIds: [], updatedAt: Timestamp.now() } }, updatedAt: Timestamp.now() });
+    await setDoc(doc(db, `orgs/o1/journals/sara_${today}`), { employeeId: "sara", date: today, dayIndex: idx, slots: {}, updatedAt: Timestamp.now() });
   });
 });
 
@@ -93,7 +93,7 @@ describe("whose journal", () => {
   });
   it("the admin can read but never write journals", async () => {
     await assertSucceeds(getDoc(ref(admin(), "ali", yesterday)));
-    await assertSucceeds(getDocs(query(collection(admin(), "journals"), where("date", "==", today))));
+    await assertSucceeds(getDocs(query(collection(admin(), "orgs/o1/journals"), where("date", "==", today))));
     await assertFails(setDoc(ref(admin(), "ali"), journal("ali")));
     await assertFails(updateDoc(ref(admin(), "sara"), { "slots.10": slot(), updatedAt: serverTimestamp() }));
     await assertFails(deleteDoc(ref(admin(), "sara")));
@@ -101,9 +101,9 @@ describe("whose journal", () => {
   it("employees read only their own", async () => {
     await assertSucceeds(getDoc(ref(emp("sara"), "sara")));
     await assertFails(getDoc(ref(emp("ali"), "sara")));
-    await assertSucceeds(getDocs(query(collection(emp("ali"), "journals"), where("employeeId", "==", "ali"))));
-    await assertFails(getDocs(query(collection(emp("ali"), "journals"), where("employeeId", "==", "sara"))));
-    await assertFails(getDocs(collection(emp("ali"), "journals")));
+    await assertSucceeds(getDocs(query(collection(emp("ali"), "orgs/o1/journals"), where("employeeId", "==", "ali"))));
+    await assertFails(getDocs(query(collection(emp("ali"), "orgs/o1/journals"), where("employeeId", "==", "sara"))));
+    await assertFails(getDocs(collection(emp("ali"), "orgs/o1/journals")));
   });
   it("a signed-in user with no role has no access", async () => {
     await assertFails(getDoc(ref(stranger(), "nobody")));

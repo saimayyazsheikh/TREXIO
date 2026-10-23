@@ -13,7 +13,7 @@ import { PasswordInput } from "@/components/features/team/password-input";
 import { apiFetch } from "@/lib/api-client";
 import { generatePassword } from "@/lib/password";
 import { createEmployeeSchema, updateEmployeeSchema } from "@/lib/domain/schemas";
-import { USERNAME_EMAIL_DOMAIN } from "@/lib/auth-identifier";
+import { useWorkspace } from "@/hooks/use-workspace";
 import type { BusinessDoc, UserDoc, WithId } from "@/types/models";
 
 type FormValues = {
@@ -43,6 +43,7 @@ export function EmployeeSheet({
   businesses: WithId<BusinessDoc>[];
 }) {
   const editing = !!employee;
+  const workspace = useWorkspace();
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -86,7 +87,7 @@ export function EmployeeSheet({
     try {
       if (employee) await apiFetch(`/api/admin/employees/${employee.id}`, "PATCH", common);
       else await apiFetch("/api/admin/employees", "POST", { ...common, username: raw.username, password: raw.password });
-      toast.success(editing ? "Changes saved" : `${raw.name} can now sign in as ${raw.username}`);
+      toast.success(editing ? "Changes saved" : `${raw.name} can now sign in${workspace.code ? ` with workspace code ${workspace.code}` : ""} and username ${raw.username}`);
       onOpenChange(false);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Something went wrong. Please try again.");
@@ -100,7 +101,7 @@ export function EmployeeSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         title={editing ? `Edit ${employee.name}` : "Add a team member"}
-        description={editing ? "Update their details. Changing business moves their tasks view to the new business." : "They sign in with the username and password you set here."}
+        description={editing ? "Update their details. Changing business moves their tasks view to the new business." : "They sign in with your workspace code, plus the username and password you set here."}
         footer={
           <>
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
@@ -126,7 +127,7 @@ export function EmployeeSheet({
             </div>
           ) : (
             <>
-              <Field id="emp-username" label="Username" required hint={`They sign in with this, no email needed. Behind the scenes it becomes ${watch("username") || "username"}@${USERNAME_EMAIL_DOMAIN}.`} error={errors.username?.message}>
+              <Field id="emp-username" label="Username" required hint={`They type this with the workspace code${workspace.code ? ` (${workspace.code})` : ""}. No email needed, and the same username can exist in another workspace.`} error={errors.username?.message}>
                 {(aria) => <Input {...aria} autoComplete="off" autoCapitalize="none" {...register("username")} />}
               </Field>
               <Field id="emp-password" label="Password" required hint="At least 8 characters. Copy it to share with them." error={errors.password?.message}>

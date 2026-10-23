@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { collection, doc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { doc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ColorPicker } from "@/components/features/color-picker";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection, orgDocument } from "@/lib/firebase/org";
 import { businessInputSchema, type BusinessInput } from "@/lib/domain/schemas";
 import { WEEKDAYS } from "@/lib/domain/work-days";
 import { cn } from "@/lib/utils";
@@ -51,7 +52,7 @@ export function BusinessSheet({
     setFormError(null);
     try {
       const { db } = getFirebase();
-      const ref = business ? doc(db, "businesses", business.id) : doc(collection(db, "businesses"));
+      const ref = business ? orgDocument(db, "businesses", business.id) : doc(orgCollection(db, "businesses"));
       if (business) await updateDoc(ref, values);
       else await setDoc(ref, { ...values, createdAt: serverTimestamp() });
       toast.success(business ? "Business updated" : `${values.name} added`);

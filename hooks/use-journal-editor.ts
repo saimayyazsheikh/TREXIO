@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
+import { serverTimestamp, setDoc } from "firebase/firestore";
 import { useDocument } from "@/hooks/use-document";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgDocument } from "@/lib/firebase/org";
 import { journalId, type Slot, type Slots } from "@/lib/domain/journal";
 import { pktDayIndex } from "@/lib/time";
 import type { JournalDoc } from "@/types/models";
@@ -17,7 +18,7 @@ export type SaveState = { status: "idle" | "saving" | "saved" | "error"; message
  */
 export function useJournalEditor(uid: string, date: string, editable: boolean) {
   const { db } = getFirebase();
-  const ref = useMemo(() => doc(db, "journals", journalId(uid, date)), [db, uid, date]);
+  const ref = useMemo(() => orgDocument(db, "journals", journalId(uid, date)), [db, uid, date]);
   const remote = useDocument<JournalDoc>(ref);
 
   const [local, setLocal] = useState<Record<string, Slot>>({});

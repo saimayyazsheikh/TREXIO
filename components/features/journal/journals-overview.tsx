@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ChevronDown, NotebookPen } from "lucide-react";
-import { collection, limit, orderBy, query, where } from "firebase/firestore";
+import { limit, orderBy, query, where } from "firebase/firestore";
 import { Avatar } from "@/components/ui/avatar";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +16,7 @@ import { JournalTimeline } from "@/components/features/journal/journal-timeline"
 import { useCollection } from "@/hooks/use-collection";
 import { useNow } from "@/hooks/use-now";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { effectiveHours, fillStats, isWorkingDay, workSlots, type Slots } from "@/lib/domain/journal";
 import { formatPkt, pktDateString } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -29,10 +30,10 @@ export function JournalsOverview() {
   const [openId, setOpenId] = useState<string | null>(null);
   const { db } = getFirebase();
 
-  const usersQ = useMemo(() => query(collection(db, "users"), where("role", "==", "employee")), [db]);
-  const businessesQ = useMemo(() => query(collection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
-  const journalsQ = useMemo(() => query(collection(db, "journals"), where("date", "==", date)), [db, date]);
-  const tasksQ = useMemo(() => query(collection(db, "tasks"), where("date", "==", date), limit(600)), [db, date]);
+  const usersQ = useMemo(() => query(orgCollection(db, "users"), where("role", "==", "employee")), [db]);
+  const businessesQ = useMemo(() => query(orgCollection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
+  const journalsQ = useMemo(() => query(orgCollection(db, "journals"), where("date", "==", date)), [db, date]);
+  const tasksQ = useMemo(() => query(orgCollection(db, "tasks"), where("date", "==", date), limit(600)), [db, date]);
   const users = useCollection<UserDoc>(usersQ);
   const businesses = useCollection<BusinessDoc>(businessesQ);
   const journals = useCollection<JournalDoc>(journalsQ);

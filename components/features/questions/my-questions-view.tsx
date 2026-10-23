@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CircleHelp, Plus } from "lucide-react";
-import { collection, orderBy, query, where } from "firebase/firestore";
+import { orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,13 +14,14 @@ import { AskQuestionSheet } from "@/components/features/questions/ask-question-s
 import { QuestionStatusBadge, QuestionThread } from "@/components/features/questions/question-thread";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { formatPkt } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import type { QuestionDoc } from "@/types/models";
 
 export function MyQuestionsView({ uid }: { uid: string }) {
   const { db } = getFirebase();
-  const q = useMemo(() => query(collection(db, "questions"), where("employeeId", "==", uid), orderBy("lastMessageAt", "desc")), [db, uid]);
+  const q = useMemo(() => query(orgCollection(db, "questions"), where("employeeId", "==", uid), orderBy("lastMessageAt", "desc")), [db, uid]);
   const questions = useCollection<QuestionDoc>(q);
   const [asking, setAsking] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);

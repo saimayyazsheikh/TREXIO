@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { AlarmClock, Building2, CircleCheck, Eye, OctagonAlert, Radio, Sparkles, Users, ListChecks } from "lucide-react";
-import { collection, limit, orderBy, query, where } from "firebase/firestore";
+import { limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { ActivityFeed } from "@/components/features/activity/activity-feed";
 import { EmptyState } from "@/components/features/empty-state";
@@ -14,6 +14,7 @@ import { useAllPresence } from "@/hooks/use-all-presence";
 import { useCollection } from "@/hooks/use-collection";
 import { useNow } from "@/hooks/use-now";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { dashboardStats } from "@/lib/domain/dashboard";
 import { effectiveStatus } from "@/lib/domain/presence";
 import { pktDateString } from "@/lib/time";
@@ -26,10 +27,10 @@ export function AdminDashboard({ firstName }: { firstName: string }) {
   const today = pktDateString(now);
   const { db } = getFirebase();
 
-  const businessesQ = useMemo(() => query(collection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
-  const employeesQ = useMemo(() => query(collection(db, "users"), where("role", "==", "employee")), [db]);
-  const todayQ = useMemo(() => query(collection(db, "tasks"), where("date", "==", today), limit(600)), [db, today]);
-  const carryQ = useMemo(() => query(collection(db, "tasks"), where("kind", "==", "oneoff"), where("date", "<", today), orderBy("date", "desc"), limit(200)), [db, today]);
+  const businessesQ = useMemo(() => query(orgCollection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
+  const employeesQ = useMemo(() => query(orgCollection(db, "users"), where("role", "==", "employee")), [db]);
+  const todayQ = useMemo(() => query(orgCollection(db, "tasks"), where("date", "==", today), limit(600)), [db, today]);
+  const carryQ = useMemo(() => query(orgCollection(db, "tasks"), where("kind", "==", "oneoff"), where("date", "<", today), orderBy("date", "desc"), limit(200)), [db, today]);
   const businesses = useCollection<BusinessDoc>(businessesQ);
   const employees = useCollection<UserDoc>(employeesQ);
   const todays = useCollection<TaskDoc>(todayQ);

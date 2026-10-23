@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { NotebookPen } from "lucide-react";
-import { collection, doc, query, where } from "firebase/firestore";
+import { query, where } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
@@ -13,6 +13,7 @@ import { useCollection } from "@/hooks/use-collection";
 import { useDocument } from "@/hooks/use-document";
 import { useNow } from "@/hooks/use-now";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection, orgDocument } from "@/lib/firebase/org";
 import { effectiveHours, fillStats, isWorkingDay, journalId, workSlots, type Slots } from "@/lib/domain/journal";
 import { formatPkt, pktDateString } from "@/lib/time";
 import type { BusinessDoc, JournalDoc, TaskDoc, UserDoc, WithId } from "@/types/models";
@@ -24,9 +25,9 @@ export function EmployeeJournalTab({ employee, business }: { employee: WithId<Us
   const [date, setDate] = useState(today);
   const { db } = getFirebase();
 
-  const ref = useMemo(() => doc(db, "journals", journalId(employee.id, date)), [db, employee.id, date]);
+  const ref = useMemo(() => orgDocument(db, "journals", journalId(employee.id, date)), [db, employee.id, date]);
   const journal = useDocument<JournalDoc>(ref);
-  const tasksQ = useMemo(() => query(collection(db, "tasks"), where("assigneeIds", "array-contains", employee.id), where("date", "==", date)), [db, employee.id, date]);
+  const tasksQ = useMemo(() => query(orgCollection(db, "tasks"), where("assigneeIds", "array-contains", employee.id), where("date", "==", date)), [db, employee.id, date]);
   const tasks = useCollection<TaskDoc>(tasksQ);
 
   const expected = useMemo(() => {

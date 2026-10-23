@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CalendarRange, ExternalLink, Info, MessageCircleMore, Sparkles } from "lucide-react";
-import { collection, limit, orderBy, query, type Timestamp } from "firebase/firestore";
+import { limit, orderBy, query, type Timestamp } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/features/page-header";
 import { useCollection } from "@/hooks/use-collection";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { condense, parseSummary, type SummaryStats } from "@/lib/domain/ai-summary";
 import { shareLink } from "@/lib/domain/whatsapp-link";
 import { formatPkt, pktInstant } from "@/lib/time";
@@ -88,7 +89,7 @@ function Meta({ s }: { s: SummaryDoc }) {
 
 export function AiSummariesView() {
   const { db } = getFirebase();
-  const q = useMemo(() => query(collection(db, "aiSummaries"), orderBy("createdAt", "desc"), limit(20)), [db]);
+  const q = useMemo(() => query(orgCollection(db, "aiSummaries"), orderBy("createdAt", "desc"), limit(20)), [db]);
   const list = useCollection<SummaryDoc>(q);
   const [busy, setBusy] = useState<"last-week" | "this-week" | null>(null);
 

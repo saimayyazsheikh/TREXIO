@@ -19,8 +19,8 @@ function Readout({ title, rows }: { title: string; rows: Row[] }) {
   return (
     <div className="viz rounded-control border border-border-solid bg-surface-solid px-3 py-2 text-sm shadow-[var(--shadow-2)]">
       <p className="mb-1 text-xs text-muted">{title}</p>
-      {rows.map((r) => (
-        <p key={r.name} className="flex items-center gap-2">
+      {rows.map((r, i) => (
+        <p key={`${r.name}-${i}`} className="flex items-center gap-2">
           <span aria-hidden className="h-0.5 w-3 rounded-full" style={{ background: r.color }} />
           <span className="num font-semibold">{r.value}</span>
           <span className="text-muted">{r.name}</span>

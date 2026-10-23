@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { ExternalLink, MessageCircleMore } from "lucide-react";
-import { collection, query, where } from "firebase/firestore";
+import { query, where } from "firebase/firestore";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,6 +12,7 @@ import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { briefingText } from "@/lib/domain/automation";
 import { waLink } from "@/lib/domain/whatsapp-link";
 import { pktDateString } from "@/lib/time";
@@ -24,8 +25,8 @@ import type { TaskDoc, UserDoc } from "@/types/models";
 export function ManualBriefing() {
   const { db } = getFirebase();
   const today = pktDateString();
-  const usersQ = useMemo(() => query(collection(db, "users"), where("role", "==", "employee")), [db]);
-  const tasksQ = useMemo(() => query(collection(db, "tasks"), where("date", "==", today)), [db, today]);
+  const usersQ = useMemo(() => query(orgCollection(db, "users"), where("role", "==", "employee")), [db]);
+  const tasksQ = useMemo(() => query(orgCollection(db, "tasks"), where("date", "==", today)), [db, today]);
   const users = useCollection<UserDoc>(usersQ);
   const tasks = useCollection<TaskDoc>(tasksQ);
 

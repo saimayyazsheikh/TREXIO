@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Building2, Clock, Pencil, Plus, Trash2, Users } from "lucide-react";
-import { collection, deleteDoc, doc, orderBy, query, where } from "firebase/firestore";
+import { deleteDoc, orderBy, query, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,13 +16,14 @@ import { PageHeader } from "@/components/features/page-header";
 import { BusinessSheet } from "@/components/features/businesses/business-sheet";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection, orgDocument } from "@/lib/firebase/org";
 import { businessColorVar } from "@/lib/domain/business-colors";
 import { describeWorkDays } from "@/lib/domain/work-days";
 import type { BusinessDoc, UserDoc, WithId } from "@/types/models";
 
 export function BusinessesView() {
-  const q = useMemo(() => query(collection(getFirebase().db, "businesses"), orderBy("createdAt", "asc")), []);
-  const employeesQ = useMemo(() => query(collection(getFirebase().db, "users"), where("role", "==", "employee")), []);
+  const q = useMemo(() => query(orgCollection(getFirebase().db, "businesses"), orderBy("createdAt", "asc")), []);
+  const employeesQ = useMemo(() => query(orgCollection(getFirebase().db, "users"), where("role", "==", "employee")), []);
   const businesses = useCollection<BusinessDoc>(q);
   const employees = useCollection<UserDoc>(employeesQ);
 
@@ -44,7 +45,7 @@ export function BusinessesView() {
   async function confirmDelete() {
     if (!deleting) return;
     try {
-      await deleteDoc(doc(getFirebase().db, "businesses", deleting.id));
+      await deleteDoc(orgDocument(getFirebase().db, "businesses", deleting.id));
       toast.success(`${deleting.name} deleted`);
     } catch {
       toast.error("Couldn't delete that business. Try again.");

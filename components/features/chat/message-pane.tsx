@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Loader2, RotateCcw, Send, TriangleAlert } from "lucide-react";
-import { collection, deleteDoc, doc, limit, orderBy, query, serverTimestamp, setDoc, type Timestamp } from "firebase/firestore";
+import { deleteDoc, limit, orderBy, query, serverTimestamp, setDoc, type Timestamp } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/features/error-state";
@@ -11,6 +11,7 @@ import { useCollection } from "@/hooks/use-collection";
 import { useTick } from "@/hooks/use-tick";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection, orgDocument } from "@/lib/firebase/org";
 import type { Role } from "@/lib/domain/constants";
 import { formatPkt, pktDateString } from "@/lib/time";
 import type { ChatMessageDoc } from "@/types/models";
@@ -40,8 +41,8 @@ export function MessagePane({
 }) {
   const { db } = getFirebase();
   const [limitN, setLimitN] = useState(PAGE);
-  const messagesQ = useMemo(() => query(collection(db, "chats", chatId, "messages"), orderBy("createdAt", "desc"), limit(limitN)), [db, chatId, limitN]);
-  const typingCol = useMemo(() => collection(db, "chats", chatId, "typing"), [db, chatId]);
+  const messagesQ = useMemo(() => query(orgCollection(db, "chats", chatId, "messages"), orderBy("createdAt", "desc"), limit(limitN)), [db, chatId, limitN]);
+  const typingCol = useMemo(() => orgCollection(db, "chats", chatId, "typing"), [db, chatId]);
   const result = useCollection<ChatMessageDoc>(messagesQ);
   const typing = useCollection<Typing>(typingCol);
   useTick(2000);
@@ -54,7 +55,7 @@ export function MessagePane({
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const lastTypingWrite = useRef(0);
-  const typingRef = useMemo(() => doc(db, "chats", chatId, "typing", viewer.uid), [db, chatId, viewer.uid]);
+  const typingRef = useMemo(() => orgDocument(db, "chats", chatId, "typing", viewer.uid), [db, chatId, viewer.uid]);
 
   // Keep the view pinned to the newest message unless the reader scrolled up.
   useEffect(() => {

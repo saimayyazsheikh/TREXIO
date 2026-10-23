@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Inbox } from "lucide-react";
-import { collection, limit, orderBy, query } from "firebase/firestore";
+import { limit, orderBy, query } from "firebase/firestore";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/features/empty-state";
@@ -12,6 +12,7 @@ import { PageHeader } from "@/components/features/page-header";
 import { QuestionStatusBadge, QuestionThread } from "@/components/features/questions/question-thread";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import { formatPkt } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import type { QuestionDoc, QuestionStatus } from "@/types/models";
@@ -25,7 +26,7 @@ const FILTERS: { id: QuestionStatus | "all"; label: string }[] = [
 
 export function InboxView({ adminUid }: { adminUid: string }) {
   const { db } = getFirebase();
-  const q = useMemo(() => query(collection(db, "questions"), orderBy("lastMessageAt", "desc"), limit(200)), [db]);
+  const q = useMemo(() => query(orgCollection(db, "questions"), orderBy("lastMessageAt", "desc"), limit(200)), [db]);
   const questions = useCollection<QuestionDoc>(q);
   const [filter, setFilter] = useState<QuestionStatus | "all">("open");
   const [openId, setOpenId] = useState<string | null>(null);

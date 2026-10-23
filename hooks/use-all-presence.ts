@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { onValue, ref } from "firebase/database";
+import { onValue } from "firebase/database";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgRtdbRef } from "@/lib/firebase/org";
 import type { PresenceNode } from "@/lib/domain/presence";
 
 type State = { nodes: Record<string, PresenceNode>; ready: boolean; error: Error | null };
@@ -15,7 +16,7 @@ export function useAllPresence(): State & { retry: () => void } {
 
   useEffect(() => {
     return onValue(
-      ref(rtdb, "presence"),
+      orgRtdbRef(rtdb, "presence"),
       (snap) => setState({ nodes: (snap.val() ?? {}) as Record<string, PresenceNode>, ready: true, error: null }),
       (error) => setState({ nodes: {}, ready: true, error }),
     );

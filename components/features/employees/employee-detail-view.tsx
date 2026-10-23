@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, CalendarCheck, CircleCheck, CircleSlash, ClipboardList, ListPlus, Pause, Pencil, Play, Plus, Repeat, ThumbsDown, ThumbsUp, Trash2, UserX } from "lucide-react";
-import { collection, doc, limit, orderBy, query, where } from "firebase/firestore";
+import { limit, orderBy, query, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ import { useDocument } from "@/hooks/use-document";
 import { useNow } from "@/hooks/use-now";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection, orgDocument } from "@/lib/firebase/org";
 import { businessColorVar } from "@/lib/domain/business-colors";
 import { compareTasks } from "@/lib/domain/task-sort";
 import { describeWorkDays } from "@/lib/domain/work-days";
@@ -45,12 +46,12 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
   const today = pktDateString(now);
   const { db } = getFirebase();
 
-  const userRef = useMemo(() => doc(db, "users", employeeId), [db, employeeId]);
+  const userRef = useMemo(() => orgDocument(db, "users", employeeId), [db, employeeId]);
   const employee = useDocument<UserDoc>(userRef);
-  const businessesQ = useMemo(() => query(collection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
-  const employeesQ = useMemo(() => query(collection(db, "users"), where("role", "==", "employee")), [db]);
-  const templatesQ = useMemo(() => query(collection(db, "taskTemplates"), where("employeeId", "==", employeeId)), [db, employeeId]);
-  const tasksQ = useMemo(() => query(collection(db, "tasks"), where("assigneeIds", "array-contains", employeeId), orderBy("date", "desc"), limit(100)), [db, employeeId]);
+  const businessesQ = useMemo(() => query(orgCollection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
+  const employeesQ = useMemo(() => query(orgCollection(db, "users"), where("role", "==", "employee")), [db]);
+  const templatesQ = useMemo(() => query(orgCollection(db, "taskTemplates"), where("employeeId", "==", employeeId)), [db, employeeId]);
+  const tasksQ = useMemo(() => query(orgCollection(db, "tasks"), where("assigneeIds", "array-contains", employeeId), orderBy("date", "desc"), limit(100)), [db, employeeId]);
   const businesses = useCollection<BusinessDoc>(businessesQ);
   const employees = useCollection<UserDoc>(employeesQ);
   const templates = useCollection<TemplateDoc>(templatesQ);

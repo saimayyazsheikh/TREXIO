@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo } from "react";
-import { collection, limit, orderBy, query, Timestamp, where } from "firebase/firestore";
+import { limit, orderBy, query, Timestamp, where } from "firebase/firestore";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
+import { orgCollection } from "@/lib/firebase/org";
 import type { AnalyticsInput } from "@/lib/domain/analytics";
 import { pktDayBounds } from "@/lib/time";
 import type { BusinessDoc, CalendarDoc, JournalDoc, PresenceDailyDoc, TaskDoc, UserDoc } from "@/types/models";
@@ -21,13 +22,13 @@ export function useAnalyticsData(range: { from: string; to: string }, businessId
   const since = useMemo(() => Timestamp.fromDate(pktDayBounds(from).start), [from]);
   const until = useMemo(() => Timestamp.fromDate(pktDayBounds(to).end), [to]);
 
-  const tasksQ = useMemo(() => query(collection(db, "tasks"), where("date", ">=", from), where("date", "<=", to), orderBy("date", "asc"), limit(CAP)), [db, from, to]);
-  const presenceQ = useMemo(() => query(collection(db, "presenceDaily"), where("date", ">=", from), where("date", "<=", to), limit(CAP)), [db, from, to]);
-  const journalsQ = useMemo(() => query(collection(db, "journals"), where("date", ">=", from), where("date", "<=", to), limit(CAP)), [db, from, to]);
-  const auditQ = useMemo(() => query(collection(db, "auditLogs"), where("createdAt", ">=", since), where("createdAt", "<", until), orderBy("createdAt", "desc"), limit(CAP)), [db, since, until]);
-  const calendarQ = useMemo(() => query(collection(db, "calendar"), where("date", ">=", from), where("date", "<=", to)), [db, from, to]);
-  const usersQ = useMemo(() => query(collection(db, "users"), where("role", "==", "employee")), [db]);
-  const businessesQ = useMemo(() => query(collection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
+  const tasksQ = useMemo(() => query(orgCollection(db, "tasks"), where("date", ">=", from), where("date", "<=", to), orderBy("date", "asc"), limit(CAP)), [db, from, to]);
+  const presenceQ = useMemo(() => query(orgCollection(db, "presenceDaily"), where("date", ">=", from), where("date", "<=", to), limit(CAP)), [db, from, to]);
+  const journalsQ = useMemo(() => query(orgCollection(db, "journals"), where("date", ">=", from), where("date", "<=", to), limit(CAP)), [db, from, to]);
+  const auditQ = useMemo(() => query(orgCollection(db, "auditLogs"), where("createdAt", ">=", since), where("createdAt", "<", until), orderBy("createdAt", "desc"), limit(CAP)), [db, since, until]);
+  const calendarQ = useMemo(() => query(orgCollection(db, "calendar"), where("date", ">=", from), where("date", "<=", to)), [db, from, to]);
+  const usersQ = useMemo(() => query(orgCollection(db, "users"), where("role", "==", "employee")), [db]);
+  const businessesQ = useMemo(() => query(orgCollection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
 
   const tasks = useCollection<TaskDoc>(tasksQ);
   const presence = useCollection<PresenceDailyDoc>(presenceQ);

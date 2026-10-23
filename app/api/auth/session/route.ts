@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   try {
     const auth = adminAuth();
     const decoded = await auth.verifyIdToken(body.data.idToken, true);
-    if (decoded.role !== "admin" && decoded.role !== "employee") {
+    if ((decoded.role !== "admin" && decoded.role !== "employee") || typeof decoded.orgId !== "string" || decoded.orgId === "") {
       return NextResponse.json({ error: "This account has no access yet. Ask your admin." }, { status: 403 });
     }
     // Only accept tokens minted in the last 5 minutes: the cookie must follow a real sign-in.

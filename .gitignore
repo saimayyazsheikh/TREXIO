@@ -12,3 +12,7 @@ firestore-debug.log
 database-debug.log
 ui-debug.log
 coverage
+
+# local dev logs
+/dev.log
+/emu.log

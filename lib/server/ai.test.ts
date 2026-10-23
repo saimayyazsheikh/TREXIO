@@ -57,6 +57,8 @@ describe("geminiProvider", () => {
     await expect(respond(500, {}).generate(req)).rejects.toMatchObject({ status: 502 });
     await expect(respond(200, { candidates: [] }).generate(req)).rejects.toThrow(/empty answer/);
     await expect(geminiProvider({ apiKey: "k", fetchImpl: (async () => Promise.reject(new Error("net"))) as unknown as typeof fetch }).generate(req)).rejects.toThrow(/Couldn't reach/);
+    const slow = new DOMException("The operation timed out.", "TimeoutError");
+    await expect(geminiProvider({ apiKey: "k", fetchImpl: (async () => Promise.reject(slow)) as unknown as typeof fetch }).generate(req)).rejects.toThrow(/took too long/);
   });
 });
 

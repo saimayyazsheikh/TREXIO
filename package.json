@@ -63,6 +63,7 @@
         "emulators": "firebase emulators:start --project demo-traxio",
         "dev:emulated": "node --env-file=.env.emulator ./node_modules/next/dist/bin/next dev --turbopack",
         "seed:emulator": "node --env-file=.env.emulator ./node_modules/tsx/dist/cli.mjs scripts/seed-emulator.ts",
-        "seed:admin": "tsx scripts/seed-admin.ts"
+        "seed:admin": "tsx scripts/seed-admin.ts",
+        "deploy:firebase": "tsx scripts/deploy-firebase.ts"
     }
 }

@@ -82,9 +82,9 @@ export function createGenerationDeps(db: OrgDb): GenerationDeps {
       return snap.docs.map((d) => ({ date: String(d.get("date")), businessId: (d.get("businessId") as string | null) ?? null }));
     },
     loadEmployeesOnLeave: async (date) => {
-      // Approved leave that has started by `date`; the end date is checked here (one inequality per query).
-      const snap = await db.collection("leaveRequests").where("status", "==", "approved").where("fromDate", "<=", date).get();
-      return new Set(snap.docs.filter((d) => d.get("kind") === "leave" && String(d.get("toDate")) >= date).map((d) => String(d.get("employeeId"))));
+      // Only leave that has not ended yet comes back (one inequality, so no composite index is needed); the rest is checked here.
+      const snap = await db.collection("leaveRequests").where("toDate", ">=", date).get();
+      return new Set(snap.docs.filter((d) => d.get("status") === "approved" && d.get("kind") === "leave" && String(d.get("fromDate")) <= date).map((d) => String(d.get("employeeId"))));
     },
     existingTaskIds: async (ids) => new Set((await getAllByIds(db, "tasks", ids)).filter((d) => d.exists).map((d) => d.id)),
     createTasks: async (items: { id: string; data: TaskData }[]) => {

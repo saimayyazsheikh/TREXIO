@@ -29,8 +29,9 @@ export function createAutomationDeps(db: OrgDb, push: (orgId: string, n: Notice)
       return snap.docs.map((d) => ({ date: String(d.get("date")), businessId: (d.get("businessId") as string | null) ?? null }));
     },
     loadEmployeesOnLeave: async (date) => {
-      const snap = await db.collection("leaveRequests").where("status", "==", "approved").where("fromDate", "<=", date).get();
-      return new Set(snap.docs.filter((d) => d.get("kind") === "leave" && String(d.get("toDate")) >= date).map((d) => String(d.get("employeeId"))));
+      // Only leave that has not ended yet comes back (one inequality, so no composite index is needed); the rest is checked here.
+      const snap = await db.collection("leaveRequests").where("toDate", ">=", date).get();
+      return new Set(snap.docs.filter((d) => d.get("status") === "approved" && d.get("kind") === "leave" && String(d.get("fromDate")) <= date).map((d) => String(d.get("employeeId"))));
     },
     loadPeople: async (ids) => {
       if (ids.length === 0) return new Map();

@@ -97,3 +97,8 @@ pm run seed:admin), custom claims, username to email login.
 - Owners sign up with Google and get their own workspace; they add businesses and team and share the workspace code. Team members sign in with workspace code + username + password.
 - Cron jobs, notifications, presence, analytics and AI summaries run per workspace. Workspace team size is capped at 25.
 - 47 new rules tests try to read, list, write, delete and sweep across workspaces (as admin, employee, no-workspace and signed-out), plus live presence; the demo seed includes a second customer to see it yourself.
+
+## Real Firebase project connected
+- Connected the real project (Auth with Email/Password and Google, Firestore, Realtime Database) through `.env.local` only; nothing secret is in git. Added `npm run deploy:firebase` and published both rule sets.
+- Gemini is the AI provider: default model gemini-3.5-flash, 60 s timeouts on both providers.
+- Checked end to end on the live project with two throwaway workspaces (sign-in, employees, tasks, presence, cross-workspace denial, the daily job across workspaces, a real AI summary), then deleted them.

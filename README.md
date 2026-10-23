@@ -31,7 +31,7 @@ The seed prints the demo logins (also at the top of `scripts/seed-emulator.ts`):
 3. Build > **Firestore Database** > create in production mode. Build > **Realtime Database** > create.
 4. Project settings > Your apps > add a **Web app**, and copy its config into the `NEXT_PUBLIC_FIREBASE_*` values in `.env.local` (`NEXT_PUBLIC_FIREBASE_DATABASE_URL` is the Realtime Database URL). Under Cloud Messaging > Web Push certificates, generate a key pair and put it in `NEXT_PUBLIC_FIREBASE_VAPID_KEY`.
 5. Project settings > Service accounts > **Generate new private key**. Put `project_id`, `client_email` and `private_key` into `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY` (keep the key on one line with literal `\n`). Set `FIREBASE_DATABASE_URL` to the same Realtime Database URL. Keep the downloaded JSON file out of the project folder.
-6. Deploy the rules and indexes: `npx firebase-tools deploy --only firestore,database --project <your-project-id>`.
+6. Deploy the rules and indexes: `npm run deploy:firebase` (uses the Admin credentials in `.env.local`; no `firebase login` needed). Creating indexes needs the service account to have the **Cloud Datastore Index Admin** role (Google Cloud console > IAM > edit the `firebase-adminsdk-…` account > add that role); without it, run `npx firebase-tools login` and `npx firebase-tools deploy --only firestore:indexes --project <your-project-id>` once as the project owner. Indexes take a few minutes to build.
 7. Open the app and press **Continue with Google**. Your first sign-in creates your workspace. (Emergency alternative for an email-and-password owner: `npm run seed:admin -- --email you@example.com --password "a long password" --name "Your Name" --workspace "Your Company"`.)
 
 ## Scheduled jobs
@@ -63,7 +63,7 @@ Every Monday the morning job writes last week's summary (highlights, bottlenecks
 | Env var | Meaning |
 |---|---|
 | `ANTHROPIC_API_KEY` | Uses Claude (model `claude-opus-5-5` unless `AI_MODEL` says otherwise) |
-| `GEMINI_API_KEY` | Uses Gemini (`gemini-2.5-flash` unless `AI_MODEL` or `GEMINI_MODEL` says otherwise) |
+| `GEMINI_API_KEY` | Uses Gemini (`gemini-3.5-flash` unless `AI_MODEL` or `GEMINI_MODEL` says otherwise) |
 | `AI_PROVIDER` | Optional: `anthropic`, `gemini` or `mock` to force one. Naming a provider with no key is an error. |
 
 With no key, a built-in template writes the summary from the same figures (no AI, no cost), and the page says so. Only totals and per-person or per-business figures are sent to the model: never journal text, chat or attachments. Blocked-reason text typed by employees is included, clipped to 80 characters. To pass it on, press "Share on WhatsApp" on the page.

@@ -16,3 +16,4 @@ coverage
 # local dev logs
 /dev.log
 /emu.log
+/real-dev.log

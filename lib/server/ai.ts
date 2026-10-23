@@ -10,7 +10,11 @@ export type AiProvider = {
 };
 
 export const DEFAULT_CLAUDE_MODEL = "claude-opus-5-5";
-export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+/** Gemini 2.5 Flash is closed to new accounts and the "-latest" alias answered far too slowly in testing, so the default is 3.5 Flash. Override with AI_MODEL. */
+export const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash";
+
+/** A summary should take seconds. Past this the request is given up on, so a stuck provider can never hold a job open. */
+export const AI_TIMEOUT_MS = 60_000;
 
 const clean = (text: string) => text.trim().slice(0, SUMMARY_MAX_CHARS);
 const empty = () => new DomainError("The AI service returned an empty answer. Try again.", 502);
@@ -24,7 +28,7 @@ export type ClaudeClient = Pick<Anthropic, "messages">;
  */
 export function anthropicProvider(o: { apiKey?: string; model?: string; client?: ClaudeClient }): AiProvider {
   const model = o.model || DEFAULT_CLAUDE_MODEL;
-  const client = o.client ?? new Anthropic({ apiKey: o.apiKey });
+  const client = o.client ?? new Anthropic({ apiKey: o.apiKey, timeout: AI_TIMEOUT_MS, maxRetries: 1 });
   return {
     name: "anthropic",
     model,
@@ -60,15 +64,17 @@ export function geminiProvider(o: { apiKey: string; model?: string; fetchImpl?: 
       try {
         res = await doFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
           method: "POST",
+          signal: AbortSignal.timeout(AI_TIMEOUT_MS),
           headers: { "Content-Type": "application/json", "x-goog-api-key": o.apiKey },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: system }] },
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 2000, temperature: 0.3 },
+            generationConfig: { maxOutputTokens: 8192, temperature: 0.3 },
           }),
         });
-      } catch {
-        throw new DomainError("Couldn't reach the AI service. Try again.", 502);
+      } catch (error) {
+        const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+        throw new DomainError(timedOut ? "The AI service took too long to answer. Try again." : "Couldn't reach the AI service. Try again.", 502);
       }
       const body = (await res.json().catch(() => ({}))) as GeminiResponse;
       if (!res.ok) throw new DomainError(res.status === 401 || res.status === 403 ? "The Gemini API key was rejected. Check GEMINI_API_KEY." : "The AI service couldn't write the summary. Try again.", 502);

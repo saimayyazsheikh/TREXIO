@@ -4,6 +4,7 @@ import { assertValidLeave, type BreakAction, type LeaveAction } from "@/lib/doma
 import type { Actor } from "@/lib/domain/tasks";
 import { pktDateString, pktDayBounds } from "@/lib/time";
 import type { DocDb, DocTx } from "@/lib/server/communication";
+import { ADMIN_MAILBOX, queueNotification } from "@/lib/server/notify";
 
 type Doc = Record<string, unknown>;
 const MAX_PENDING_REQUESTS = 20;
@@ -62,7 +63,7 @@ export function finalizeStaleBreaks(db: DocDb): Promise<{ closed: number }> {
 
 /* ------------------------------------ Leave ----------------------------------- */
 
-type RequestDoc = { employeeId: string; status: "pending" | "approved" | "rejected" | "cancelled" };
+type RequestDoc = { employeeId: string; fromDate: string; toDate: string; status: "pending" | "approved" | "rejected" | "cancelled" };
 
 export function handleLeave(db: DocDb, actor: Actor, input: LeaveAction): Promise<{ requestId?: string }> {
   return db.transaction(async (tx) => {
@@ -81,6 +82,12 @@ export function handleLeave(db: DocDb, actor: Actor, input: LeaveAction): Promis
         kind: input.kind, fromDate: input.fromDate, toDate: input.toDate, fromTime: input.fromTime, toTime: input.toTime,
         reason: input.reason, attachments: input.attachments, status: "pending",
         decidedBy: null, decidedByName: null, decisionNote: "", decidedAt: null, createdAt: now,
+      });
+      queueNotification(db, tx, {
+        toUid: ADMIN_MAILBOX,
+        title: `${actor.name} asked for ${input.kind === "leave" ? "time off" : "a short excuse"}`,
+        body: input.fromDate === input.toDate ? input.fromDate : `${input.fromDate} to ${input.toDate}`,
+        link: "/admin/leave",
       });
       return { requestId };
     }
@@ -101,6 +108,12 @@ export function handleLeave(db: DocDb, actor: Actor, input: LeaveAction): Promis
     if (input.decision === "reject" && input.note.length < 3) throw new DomainError("Tell them why (a few words is enough).", 400);
     tx.update(`leaveRequests/${input.requestId}`, {
       status: input.decision === "approve" ? "approved" : "rejected", decidedBy: actor.uid, decidedByName: actor.name, decisionNote: input.note, decidedAt: now,
+    });
+    queueNotification(db, tx, {
+      toUid: request.employeeId,
+      title: input.decision === "approve" ? "Your request was approved" : "Your request wasn't approved",
+      body: input.note || (request.fromDate === request.toDate ? request.fromDate : `${request.fromDate} to ${request.toDate}`),
+      link: "/me/leave",
     });
     return {};
   });

@@ -1,16 +1,19 @@
-import type { DocDb } from "@/lib/server/communication";
+import type { DocDb, Notice } from "@/lib/server/communication";
 
 type Doc = Record<string, unknown>;
 
 /** In-memory documents addressed by path. Transactions buffer writes and apply them only on success, like Firestore. */
-export function makeDocDb(docs: Map<string, Doc>, now: Date): DocDb {
+export function makeDocDb(docs: Map<string, Doc>, now: Date, pushed: Notice[] = []): DocDb {
   let seq = 0;
   return {
     now: () => now,
     newId: () => `id${String(++seq).padStart(4, "0")}`,
+    push: async (n) => void pushed.push(n),
     async transaction(fn) {
       const writes: (() => void)[] = [];
+      const after: (() => Promise<void> | void)[] = [];
       const result = await fn({
+        afterCommit: (cb) => void after.push(cb),
         get: async (path) => docs.get(path) ?? null,
         create: (path, data) => writes.push(() => docs.set(path, data)),
         update: (path, patch) => writes.push(() => docs.set(path, { ...docs.get(path), ...patch })),
@@ -23,6 +26,7 @@ export function makeDocDb(docs: Map<string, Doc>, now: Date): DocDb {
           [...docs].filter(([p, d]) => /^users\/[^/]+$/.test(p) && d.role === "employee" && d.status === "active").map(([p, d]) => ({ id: p.slice(6), name: String(d.name) })),
       });
       writes.forEach((w) => w());
+      await Promise.allSettled(after.map(async (cb) => cb()));
       return result;
     },
   };

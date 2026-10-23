@@ -1,4 +1,5 @@
 import { DomainError } from "@/lib/domain/errors";
+import { ADMIN_MAILBOX, queueNotification } from "@/lib/server/notify";
 import type { Actor } from "@/lib/domain/tasks";
 import {
   EVERYONE_CHAT, assertCanUseChat, attachmentsInFolder, dmChatId, questionStatusAfterReply, toggleReaction, unreadKey,
@@ -18,12 +19,19 @@ export type DocTx = {
   /** Documents of a top-level collection whose fields all equal the given values (null matches a null field). */
   find(collection: string, filters: [field: string, value: string | number | boolean | null][], limit?: number): Promise<{ id: string; data: Doc }[]>;
   activeEmployees(): Promise<{ id: string; name: string }[]>;
+  /** Runs once the transaction has committed (never for a failed or retried attempt). Failures are swallowed. */
+  afterCommit(fn: () => Promise<void> | void): void;
 };
+
+/** What a person sees in the bell. `toUid` is a user id, or "admin" for the admin's shared mailbox. */
+export type Notice = { toUid: string; title: string; body: string; link: string };
 
 export type DocDb = {
   transaction<T>(fn: (tx: DocTx) => Promise<T>): Promise<T>;
   now(): Date;
   newId(): string;
+  /** Sends a browser push for a notice that was saved. Best effort. */
+  push(notice: Notice): Promise<void>;
 };
 
 const requireAdmin = (a: Actor, what: string) => {
@@ -69,6 +77,7 @@ export function sendReminder(db: DocDb, actor: Actor, input: ReminderInput): Pro
       fromUid: actor.uid, fromName: actor.name, toUids, toNames: names, body: input.body, attachments: input.attachments,
       taskId: input.taskId, taskTitle, readBy: {}, createdAt: db.now(),
     });
+    for (const uid of toUids) queueNotification(db, tx, { toUid: uid, title: `Reminder from ${actor.name}`, body: input.body, link: "/me/reminders" });
     return { id: input.id, recipients: toUids.length };
   });
 }
@@ -106,6 +115,7 @@ export function handleQuestion(db: DocDb, actor: Actor, input: QuestionAction): 
         status: "open", urgent: input.urgent, unreadForAdmin: true, unreadForEmployee: false, lastMessageAt: now, lastAuthorRole: "employee", createdAt: now,
       });
       tx.create(`questions/${questionId}/messages/${db.newId()}`, { authorId: actor.uid, authorName: actor.name, authorRole: "employee", body: input.body, attachments: input.attachments, createdAt: now });
+      queueNotification(db, tx, { toUid: ADMIN_MAILBOX, title: `${input.urgent ? "Urgent question" : "Question"} from ${actor.name}`, body: input.subject, link: "/admin/inbox" });
       return { questionId };
     }
 
@@ -119,6 +129,13 @@ export function handleQuestion(db: DocDb, actor: Actor, input: QuestionAction): 
       const fromAdmin = actor.role === "admin";
       tx.update(`questions/${input.questionId}`, { status, lastMessageAt: now, lastAuthorRole: actor.role, unreadForAdmin: !fromAdmin, unreadForEmployee: fromAdmin });
       tx.create(`questions/${input.questionId}/messages/${db.newId()}`, { authorId: actor.uid, authorName: actor.name, authorRole: actor.role, body: input.body, attachments: input.attachments, createdAt: now });
+      queueNotification(
+        db,
+        tx,
+        fromAdmin
+          ? { toUid: q.employeeId, title: "Your admin replied", body: input.body || "Sent an attachment", link: "/me/ask" }
+          : { toUid: ADMIN_MAILBOX, title: `${actor.name} replied`, body: input.body || "Sent an attachment", link: "/admin/inbox" },
+      );
       return { ok: true };
     }
 

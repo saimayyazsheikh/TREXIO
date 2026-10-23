@@ -1,14 +1,20 @@
 import type { Firestore } from "firebase-admin/firestore";
-import type { DocDb } from "@/lib/server/communication";
+import type { DocDb, Notice } from "@/lib/server/communication";
 
 /** Wires the communication services to a Firestore instance (the real project or the emulator). */
-export function createDocDb(db: Firestore): DocDb {
+export function createDocDb(db: Firestore, push: (notice: Notice) => Promise<void> = async () => undefined): DocDb {
   return {
     now: () => new Date(),
     newId: () => db.collection("_ids").doc().id,
-    transaction: (fn) =>
-      db.runTransaction((t) =>
-        fn({
+    push,
+    transaction: async (fn) => {
+      // Each attempt gets a fresh list, so only the attempt that committed runs its follow-ups.
+      let deferred: (() => Promise<void> | void)[] = [];
+      const result = await db.runTransaction((t) => {
+        deferred = [];
+        const mine = deferred;
+        return fn({
+          afterCommit: (cb) => void mine.push(cb),
           get: async (path) => {
             const snap = await t.get(db.doc(path));
             return snap.exists ? (snap.data() as Record<string, unknown>) : null;
@@ -26,7 +32,10 @@ export function createDocDb(db: Firestore): DocDb {
             const snap = await t.get(db.collection("users").where("role", "==", "employee").where("status", "==", "active"));
             return snap.docs.map((d) => ({ id: d.id, name: String(d.get("name")) }));
           },
-        }),
-      ),
+        });
+      });
+      await Promise.allSettled(deferred.map(async (cb) => cb()));
+      return result;
+    },
   };
 }

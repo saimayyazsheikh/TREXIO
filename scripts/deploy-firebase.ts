@@ -112,6 +112,12 @@ async function main() {
       `${base}/collectionGroups/${f.collectionGroup}/fields/${f.fieldPath}?updateMask=ttlConfig`,
       { ttlConfig: {} },
     );
+    if (r.status === 403 && /billing/i.test(r.body.error?.message ?? "")) {
+      console.log(
+        `WARN No automatic cleanup on ${f.collectionGroup}.${f.fieldPath}: Firestore TTL needs billing (the Blaze plan). Optional: old activity entries just stay (the feed only shows the latest 100).`,
+      );
+      continue;
+    }
     if (r.status !== 200 && r.status !== 409)
       throw new Error(
         `TTL on ${f.collectionGroup}.${f.fieldPath} failed: ${r.status} ${r.body.error?.message ?? ""}`,

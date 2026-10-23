@@ -7,6 +7,7 @@ import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { NotificationBell } from "@/components/features/notifications/notification-bell";
 import { ThemeToggle } from "@/components/features/theme-toggle";
 import { Brand } from "@/components/shell/brand";
 import { NavBadge } from "@/components/shell/nav-badge";
@@ -103,6 +104,7 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
             <Brand compact />
           </div>
           <div className="ml-auto flex items-center gap-1">
+            <NotificationBell uid={uid} role="admin" />
             <ThemeToggle />
             <UserMenu name={userName} roleLabel="Admin" />
           </div>

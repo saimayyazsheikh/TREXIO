@@ -1,4 +1,4 @@
-import { Activity, Bell, Building2, CalendarDays, CalendarOff, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, NotebookPen, ScrollText, Sun, Users, type LucideIcon } from "lucide-react";
+import { Activity, Bell, BellRing, Building2, CalendarDays, CalendarOff, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, NotebookPen, ScrollText, Sun, Users, type LucideIcon } from "lucide-react";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; hint: string; /** Shown as a tab on phones; the rest live under "More". */ primary?: boolean };
 export type NavGroup = { label: string; items: NavItem[]; /** Rendered at the bottom of the sidebar. */ pinned?: boolean };
@@ -42,6 +42,7 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: "/admin/settings/team", label: "Team", icon: Users, hint: "Add and manage employees" },
       { href: "/admin/settings/businesses", label: "Businesses", icon: Building2, hint: "Your businesses, colours and hours" },
       { href: "/admin/settings/calendar", label: "Holidays", icon: CalendarDays, hint: "Holidays and closures when no tasks are created" },
+      { href: "/admin/settings/automation", label: "Automation", icon: BellRing, hint: "Late-task alerts, the morning briefing and idle time" },
     ],
   },
 ];

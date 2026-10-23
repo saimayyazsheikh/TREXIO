@@ -89,7 +89,8 @@ describe("settings/global", () => {
   });
   it("no extra or missing fields", async () => {
     await assertFails(setDoc(doc(admin(), "settings/global"), { ...settings(), sneaky: true }));
-    const { adminPhone: _drop, ...missing } = settings();
+    const missing: Record<string, unknown> = settings();
+    delete missing.adminPhone;
     await assertFails(setDoc(doc(admin(), "settings/global"), missing));
     await assertFails(deleteDoc(doc(admin(), "settings/global")));
   });

@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { Check, Hand, Link2, Paperclip, Pencil, Repeat } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Check, Hand, Link2, MessageCircleMore, Paperclip, Pencil, Repeat } from "lucide-react";
 import { collection, limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,6 +9,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tooltip } from "@/components/ui/tooltip";
 import { BusinessChip, PriorityBadge, StatusBadge } from "@/components/features/badges";
 import { DueChip } from "@/components/features/tasks/due-chip";
+import { NudgeDialog } from "@/components/features/tasks/nudge-dialog";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
 import { describeAudit } from "@/lib/domain/audit-text";
@@ -80,6 +81,7 @@ export function TaskDrawer({
   const moves = task ? availableMoves({ ...task, status }, viewer) : [];
   const locked = status === "completed" || status === "under_review";
   const waiting = task?.waitingOnIds ?? [];
+  const [nudgeUid, setNudgeUid] = useState<string | null>(null);
 
   return (
     <Sheet open={!!task} onOpenChange={(o) => !o && onClose()}>
@@ -160,6 +162,13 @@ export function TaskDrawer({
                     </span>
                     {task.assigneeNames[uid] ?? "Teammate"}
                     {task.completion[uid]?.done ? <span className="text-muted">finished their part</span> : null}
+                    {viewer.role === "admin" && status !== "completed" && !task.completion[uid]?.done ? (
+                      <Tooltip label="Send a WhatsApp nudge">
+                        <Button variant="ghost" size="icon" className="ml-auto size-9" aria-label={`Send ${task.assigneeNames[uid] ?? "them"} a WhatsApp nudge`} onClick={() => setNudgeUid(uid)}>
+                          <MessageCircleMore aria-hidden />
+                        </Button>
+                      </Tooltip>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -236,6 +245,7 @@ export function TaskDrawer({
           </div>
         </SheetContent>
       ) : null}
+      {task && viewer.role === "admin" ? <NudgeDialog task={task} open={nudgeUid !== null} onOpenChange={(o) => !o && setNudgeUid(null)} defaultUid={nudgeUid ?? undefined} /> : null}
     </Sheet>
   );
 }

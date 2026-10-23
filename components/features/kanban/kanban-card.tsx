@@ -1,13 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import { CalendarCheck, Check, Link2, MoreHorizontal, Paperclip, Repeat, Users } from "lucide-react";
+import { CalendarCheck, Check, Link2, MessageCircleMore, MoreHorizontal, Paperclip, Repeat, Users } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PriorityBadge } from "@/components/features/badges";
 import { DueChip } from "@/components/features/tasks/due-chip";
+import { NudgeDialog } from "@/components/features/tasks/nudge-dialog";
 import { TASK_STATUS_LABEL, type Role, type TaskStatus } from "@/lib/domain/constants";
 import { availableMoves } from "@/lib/domain/task-moves";
 import { cn } from "@/lib/utils";
@@ -34,6 +36,8 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
   const moves = availableMoves({ ...task, status }, viewer);
   const done = task.assigneeIds.filter((uid) => task.completion[uid]?.done).length;
   const waiting = task.waitingOnIds.map((id) => task.linkTitles[id] ?? "another task");
+  const [nudging, setNudging] = useState(false);
+  const canNudge = viewer.role === "admin" && status !== "completed" && task.assigneeIds.length > 0;
 
   return (
     <div
@@ -44,7 +48,17 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
         <p className="line-clamp-2 min-w-0 flex-1 text-sm font-semibold leading-snug">{task.title}</p>
         {task.kind === "daily" ? <Repeat className="mt-0.5 size-3.5 shrink-0 text-muted" aria-label="Daily routine" /> : null}
         {/* Keyboard- and touch-friendly alternative to dragging. */}
-        <span onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+        <span className="flex items-start" onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+          {canNudge ? (
+            <>
+              <Tooltip label="Send a WhatsApp nudge">
+                <Button variant="ghost" size="icon" className="-mt-1.5 size-9" aria-label={`Send a WhatsApp nudge about “${task.title}”`} onClick={() => setNudging(true)}>
+                  <MessageCircleMore aria-hidden />
+                </Button>
+              </Tooltip>
+              <NudgeDialog task={task} open={nudging} onOpenChange={setNudging} />
+            </>
+          ) : null}
           <DropdownMenu>
             <Tooltip label="Move to…">
               <DropdownMenuTrigger asChild>

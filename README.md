@@ -31,11 +31,33 @@ The seed prints the demo logins (they are also at the top of `scripts/seed-emula
 8. Open http://localhost:3000 and sign in with that email and password.
 
 ## Scheduled jobs
-`vercel.json` runs `/api/cron/generate-daily-tasks` daily at 19:05 UTC (00:05 PKT). Set `CRON_SECRET` in Vercel (a long random string): Vercel sends it as `Authorization: Bearer <secret>`. To trigger it by hand:
+Set `CRON_SECRET` in Vercel (a long random string). Every job checks it as `Authorization: Bearer <secret>`.
+
+| Job | Route | When | Where it runs |
+|---|---|---|---|
+| Daily tasks + close forgotten breaks | `/api/cron/daily` | 19:05 UTC (00:05 PKT) | `vercel.json` |
+| 9:00 AM WhatsApp briefing | `/api/cron/morning-briefing` | 04:00 UTC (09:00 PKT) | `vercel.json` |
+| Late-task alerts | `/api/cron/escalations` | every 10 to 15 minutes | an external pinger |
+
+Vercel Hobby allows two cron entries, once a day each, so the two daily jobs live in `vercel.json` and the escalation check needs a free pinger such as cron-job.org: a GET to `https://your-app.vercel.app/api/cron/escalations` every 10 minutes with the header `Authorization: Bearer <CRON_SECRET>`. On Vercel Pro you can add it to `vercel.json` instead. Every job is safe to run twice. Admin > Settings > Automation also has "Run now" buttons. To trigger one by hand:
 ```bash
-curl -H "Authorization: Bearer $CRON_SECRET" https://your-app.vercel.app/api/cron/generate-daily-tasks
+curl -H "Authorization: Bearer $CRON_SECRET" https://your-app.vercel.app/api/cron/escalations
 ```
-Employees also get today's routines the moment they open their dashboard, so a missed run is harmless.
+Employees also get today's routines the moment they open their dashboard, so a missed daily run is harmless.
+
+## WhatsApp
+`WHATSAPP_PROVIDER=mock` (the default) records every message in Admin > Settings > Automation > WhatsApp log without sending anything, so the whole flow works before Meta approves your templates. To go live set `WHATSAPP_PROVIDER=cloud`, `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` and the three template names. Create these message templates in Meta Business Manager (category Utility, language English) and put their names in the env vars:
+
+| Env var | Body |
+|---|---|
+| `WHATSAPP_TEMPLATE_TASK_NUDGE` | `Hi {{1}}, {{2}}` |
+| `WHATSAPP_TEMPLATE_MORNING_BRIEFING` | `Good morning {{1}}! Your tasks today: {{2}}` |
+| `WHATSAPP_TEMPLATE_ESCALATION_ALERT` | `{{1}}` |
+
+Employee numbers are set in Team (international format, like +923001234567); your own number for late-task alerts is in Automation.
+
+## Browser notifications
+The bell works everywhere. For alerts while Traxio is closed, set `NEXT_PUBLIC_FIREBASE_VAPID_KEY` (Firebase console > Project settings > Cloud Messaging > Web Push certificates) and each person taps "Get alerts on this device" in the bell. Not available under the emulators.
 
 After pulling new code, redeploy rules and indexes: `npx firebase-tools deploy --only firestore,storage,database --project <your-project-id>`. In the Firebase console, check Firestore > Indexes finishes building before first use.
 

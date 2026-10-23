@@ -69,3 +69,10 @@ pm run seed:admin), custom claims, username to email login.
 - Admin dashboard: live activity stream (last 100 task events) with business, person and kind-of-change filters.
 - Audit log page: time range, search, filters, load-older paging and CSV export (spreadsheet-formula safe).
 - Pure logic in lib/domain/audit-log.ts with tests. No rules changes: both collections were already admin-read, no client writes.
+
+## Phase 8 - Notifications and automation
+- Notification bell for both roles (live, mark read, per-device browser alerts through FCM). Reminders, question replies, leave requests and decisions, and late-task alerts all notify, saved in the same transaction as the change.
+- WhatsApp service with a mock provider behind WHATSAPP_PROVIDER, a "Send WhatsApp nudge" button on every Kanban card and per person in the task drawer, and a WhatsApp log.
+- 9:00 AM briefing and late-task escalation jobs (first alert in the app at +1h, second to the admin in the app and on WhatsApp at +3h), each fires once, paused by holidays, closures and leave.
+- Settings > Automation: alert thresholds, briefing on/off, journal prompt minute, idle minutes, admin WhatsApp number, "Run now" buttons. Idle time and the prompt minute now follow these settings.
+- One daily cron (/api/cron/daily) replaces two so Vercel Hobby's two-job limit leaves room for the briefing; escalations use an external pinger.

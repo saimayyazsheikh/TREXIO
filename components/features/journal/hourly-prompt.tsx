@@ -15,7 +15,7 @@ import { pktDateString } from "@/lib/time";
  * The smart hourly prompt: at :55 of a working hour with an empty journal entry, ask what you did. Fill it in
  * right here, snooze for 3 minutes, or skip the hour. When the tab is hidden and you allowed it, also a browser notification.
  */
-export function HourlyPrompt({ uid }: { uid: string }) {
+export function HourlyPrompt({ uid, promptMinute }: { uid: string; promptMinute?: number }) {
   const now = useNow();
   const today = pktDateString(now);
   const hours = useMyHours(uid);
@@ -29,7 +29,7 @@ export function HourlyPrompt({ uid }: { uid: string }) {
   // Decide whether to prompt (re-checked every 30 s by the clock, and whenever the journal changes).
   useEffect(() => {
     if (activeKey || hours.loading || journal.loading) return;
-    const key = promptDue(now, { expected: hours.expected, slots: journal.slots, handled: handled.current, snoozedUntilMs: snoozedUntil.current });
+    const key = promptDue(now, { expected: hours.expected, slots: journal.slots, handled: handled.current, snoozedUntilMs: snoozedUntil.current, promptMinute });
     if (!key) return;
     setActiveKey(key);
     setText("");
@@ -40,7 +40,7 @@ export function HourlyPrompt({ uid }: { uid: string }) {
         n.close();
       };
     }
-  }, [now, activeKey, hours.expected, hours.loading, journal.loading, journal.slots, today]);
+  }, [now, activeKey, hours.expected, hours.loading, journal.loading, journal.slots, today, promptMinute]);
 
   // If the hour got filled somewhere else (another tab, the journal page), the prompt goes away.
   useEffect(() => {

@@ -36,10 +36,10 @@ Order is chosen so each phase is testable and later phases reuse earlier foundat
 ## Phase 7 — Live Feed & Audit UI (M16, M18)
 - [x] Activity stream widget on admin dashboard; Audit log page (filter, search, CSV export)
 ## Phase 8 — Notifications & Automation (M17)
-- [ ] Notification center + FCM (service worker, token mgmt)
-- [ ] WhatsApp service (`lib/server/whatsapp.ts`), button on every task card, logs
-- [ ] 09:00 morning briefing cron; escalation cron (L1 in-app at +1h, L2 WhatsApp admin at +3h; idempotent flags; pauses on holidays/leave)
-- [ ] Settings → Automation thresholds
+- [x] Notification center + FCM (service worker, token mgmt)
+- [x] WhatsApp service (`lib/server/whatsapp.ts`), button on every task card, logs
+- [x] 09:00 morning briefing cron; escalation cron (L1 in-app at +1h, L2 WhatsApp admin at +3h; idempotent flags; pauses on holidays/leave)
+- [x] Settings → Automation thresholds
 ## Phase 9 — Analytics & AI (M19, M20)
 - [ ] Analytics dashboards (Recharts), filters, exports
 - [ ] AI weekly summary service (provider abstraction: Claude/Gemini), cron + "Generate now", history page

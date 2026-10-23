@@ -254,3 +254,41 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Chart palette (docs: validated categorical slots 1-3, sequential blue ramp). Light and dark are separate selections. */
+.viz {
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-ink-muted: #6b6963;
+  --viz-seq-1: #cde2fb;
+  --viz-seq-2: #86b6ef;
+  --viz-seq-3: #3987e5;
+  --viz-seq-4: #1c5cab;
+  --viz-seq-5: #0d366b;
+  --viz-seq-ink-1: #0b0b0b;
+  --viz-seq-ink-2: #0b0b0b;
+  --viz-seq-ink-3: #ffffff;
+  --viz-seq-ink-4: #ffffff;
+  --viz-seq-ink-5: #ffffff;
+}
+.dark .viz {
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-grid: #26304a;
+  --viz-axis: #38435f;
+  --viz-ink-muted: #a5b1cc;
+  --viz-seq-1: #0d366b;
+  --viz-seq-2: #184f95;
+  --viz-seq-3: #256abf;
+  --viz-seq-4: #3987e5;
+  --viz-seq-5: #6da7ec;
+  --viz-seq-ink-1: #ffffff;
+  --viz-seq-ink-2: #ffffff;
+  --viz-seq-ink-3: #ffffff;
+  --viz-seq-ink-4: #ffffff;
+  --viz-seq-ink-5: #0b0b0b;
+}

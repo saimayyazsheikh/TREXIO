@@ -1,0 +1,73 @@
+"use client";
+
+import { useMemo } from "react";
+import { collection, limit, orderBy, query, Timestamp, where } from "firebase/firestore";
+import { useCollection } from "@/hooks/use-collection";
+import { getFirebase } from "@/lib/firebase/client";
+import type { AnalyticsInput } from "@/lib/domain/analytics";
+import { pktDayBounds } from "@/lib/time";
+import type { BusinessDoc, CalendarDoc, JournalDoc, PresenceDailyDoc, TaskDoc, UserDoc } from "@/types/models";
+
+const CAP = 3000;
+type AuditRow = { action: string; to: string | null; businessId: string; meta: Record<string, unknown> };
+
+/**
+ * Everything the analytics page needs for one period, as live queries scoped by date. While a new period loads, the
+ * previous numbers stay on screen (`fetching`) instead of flashing a skeleton.
+ */
+export function useAnalyticsData(range: { from: string; to: string }, businessId: string) {
+  const { db } = getFirebase();
+  const { from, to } = range;
+  const since = useMemo(() => Timestamp.fromDate(pktDayBounds(from).start), [from]);
+  const until = useMemo(() => Timestamp.fromDate(pktDayBounds(to).end), [to]);
+
+  const tasksQ = useMemo(() => query(collection(db, "tasks"), where("date", ">=", from), where("date", "<=", to), orderBy("date", "asc"), limit(CAP)), [db, from, to]);
+  const presenceQ = useMemo(() => query(collection(db, "presenceDaily"), where("date", ">=", from), where("date", "<=", to), limit(CAP)), [db, from, to]);
+  const journalsQ = useMemo(() => query(collection(db, "journals"), where("date", ">=", from), where("date", "<=", to), limit(CAP)), [db, from, to]);
+  const auditQ = useMemo(() => query(collection(db, "auditLogs"), where("createdAt", ">=", since), where("createdAt", "<", until), orderBy("createdAt", "desc"), limit(CAP)), [db, since, until]);
+  const calendarQ = useMemo(() => query(collection(db, "calendar"), where("date", ">=", from), where("date", "<=", to)), [db, from, to]);
+  const usersQ = useMemo(() => query(collection(db, "users"), where("role", "==", "employee")), [db]);
+  const businessesQ = useMemo(() => query(collection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
+
+  const tasks = useCollection<TaskDoc>(tasksQ);
+  const presence = useCollection<PresenceDailyDoc>(presenceQ);
+  const journals = useCollection<JournalDoc>(journalsQ);
+  const audit = useCollection<AuditRow>(auditQ);
+  const calendar = useCollection<CalendarDoc>(calendarQ);
+  const users = useCollection<UserDoc>(usersQ);
+  const businesses = useCollection<BusinessDoc>(businessesQ);
+
+  const all = [tasks, presence, journals, audit, calendar, users, businesses];
+  const error = all.find((c) => c.error)?.error ?? null;
+  const loading = all.some((c) => c.loading);
+
+  const input = useMemo<AnalyticsInput | null>(() => {
+    if (all.some((c) => c.data === null)) return null;
+    return {
+      from,
+      to,
+      businessId,
+      nowMs: Date.now(),
+      people: users.data!.filter((u) => u.status === "active").map((u) => ({ id: u.id, name: u.name, businessId: u.businessId, workStart: u.workStart, workEnd: u.workEnd })),
+      businesses: businesses.data!.map((b) => ({ id: b.id, name: b.name, workDays: b.workDays, workStart: b.workStart, workEnd: b.workEnd })),
+      tasks: tasks.data!.map((t) => ({
+        date: t.date,
+        businessId: t.businessId,
+        assigneeIds: t.assigneeIds,
+        doneBy: Object.entries(t.completion ?? {}).filter(([, c]) => c.done).map(([uid]) => uid),
+        status: t.status,
+        dueAtMs: t.dueAt?.toMillis() ?? null,
+        completedAtMs: t.completedAt?.toMillis() ?? null,
+      })),
+      presence: presence.data!,
+      journals: journals.data!.map((j) => ({ employeeId: j.employeeId, date: j.date, slots: Object.fromEntries(Object.entries(j.slots ?? {}).flatMap(([k, v]) => (v ? [[k, { text: v.text, taskIds: v.taskIds }]] : []))) })),
+      blocked: audit.data!.flatMap((a) => (a.action === "task.status" && a.to === "blocked" && typeof a.meta?.reason === "string" ? [{ reason: a.meta.reason as string, businessId: a.businessId }] : [])),
+      closed: calendar.data!.map((c) => ({ date: c.date, businessId: c.businessId })),
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from, to, businessId, tasks.data, presence.data, journals.data, audit.data, calendar.data, users.data, businesses.data]);
+
+  const truncated = [tasks, presence, journals, audit].some((c) => (c.data?.length ?? 0) >= CAP);
+  const retry = () => all.forEach((c) => c.retry());
+  return { input, businesses: businesses.data ?? [], loading, error, retry, truncated };
+}

@@ -70,7 +70,7 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
     <div className="flex min-h-dvh">
       <aside
         className={cn(
-          "glass sticky top-0 hidden h-dvh shrink-0 flex-col border-y-0 border-l-0 p-4 transition-[width] duration-200 lg:flex",
+          "glass sticky top-0 hidden h-dvh shrink-0 flex-col border-y-0 border-l-0 p-4 transition-[width] duration-200 lg:flex print:!hidden",
           collapsed ? "w-[76px]" : "w-64",
         )}
       >
@@ -94,7 +94,7 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="glass sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-x-0 border-t-0 px-4 sm:px-6">
+        <header className="glass sticky top-0 z-30 flex h-16 print:hidden items-center justify-between gap-3 border-x-0 border-t-0 px-4 sm:px-6">
           <div className="flex items-center gap-2 lg:hidden">
             <Tooltip label="Open menu">
               <Button variant="ghost" size="icon" aria-label="Open menu" onClick={() => setDrawerOpen(true)}>

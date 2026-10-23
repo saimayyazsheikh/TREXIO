@@ -1,4 +1,4 @@
-import { Activity, Bell, Building2, CalendarDays, CalendarOff, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, NotebookPen, Sun, Users, type LucideIcon } from "lucide-react";
+import { Activity, Bell, Building2, CalendarDays, CalendarOff, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, NotebookPen, ScrollText, Sun, Users, type LucideIcon } from "lucide-react";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; hint: string; /** Shown as a tab on phones; the rest live under "More". */ primary?: boolean };
 export type NavGroup = { label: string; items: NavItem[]; /** Rendered at the bottom of the sidebar. */ pinned?: boolean };
@@ -23,6 +23,10 @@ export const ADMIN_NAV: NavGroup[] = [
       { href: "/admin/journals", label: "Journals", icon: NotebookPen, hint: "Who has logged their hours, and what they wrote" },
       { href: "/admin/leave", label: "Leave", icon: CalendarOff, hint: "Approve or decline time off" },
     ],
+  },
+  {
+    label: "Records",
+    items: [{ href: "/admin/audit", label: "Audit log", icon: ScrollText, hint: "Every task change: who, what and when" }],
   },
   {
     label: "Communicate",

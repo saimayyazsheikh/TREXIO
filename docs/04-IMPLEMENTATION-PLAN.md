@@ -34,7 +34,7 @@ Order is chosen so each phase is testable and later phases reuse earlier foundat
 - [x] Admin live status board + idle/break report
 - [x] Leave/excuse requests + approval; global calendar (weekends/holidays/closures) wired into task generation
 ## Phase 7 — Live Feed & Audit UI (M16, M18)
-- [ ] Activity stream widget on admin dashboard; Audit log page (filter, search, CSV export)
+- [x] Activity stream widget on admin dashboard; Audit log page (filter, search, CSV export)
 ## Phase 8 — Notifications & Automation (M17)
 - [ ] Notification center + FCM (service worker, token mgmt)
 - [ ] WhatsApp service (`lib/server/whatsapp.ts`), button on every task card, logs

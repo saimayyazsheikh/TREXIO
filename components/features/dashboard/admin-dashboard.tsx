@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlarmClock, Building2, CircleCheck, Eye, OctagonAlert, Radio, Sparkles, Users, ListChecks } from "lucide-react";
 import { collection, limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
+import { ActivityFeed } from "@/components/features/activity/activity-feed";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
 import { PageHeader } from "@/components/features/page-header";
@@ -77,6 +78,9 @@ export function AdminDashboard({ firstName }: { firstName: string }) {
             <Button asChild variant="secondary">
               <Link href="/admin/settings/team">Manage team</Link>
             </Button>
+          </div>
+          <div className="mt-6">
+            <ActivityFeed businesses={businesses.data ?? []} employees={employees.data ?? []} now={now} />
           </div>
         </>
       )}

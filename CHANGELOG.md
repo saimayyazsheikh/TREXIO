@@ -64,3 +64,8 @@ pm run seed:admin), custom claims, username to email login.
 - Admin: Presence board with a daily report, Leave approvals with a waiting-count badge, Holidays and closures page, and an "Online now" card on the dashboard.
 - Employee: Leave and breaks page, short excuses, and a Today banner for holidays, closures and approved leave.
 - Approved leave, holidays and closures pause daily task generation; a stale-break cron closes forgotten breaks.
+
+## Phase 7 - Live feed and audit log
+- Admin dashboard: live activity stream (last 100 task events) with business, person and kind-of-change filters.
+- Audit log page: time range, search, filters, load-older paging and CSV export (spreadsheet-formula safe).
+- Pure logic in lib/domain/audit-log.ts with tests. No rules changes: both collections were already admin-read, no client writes.

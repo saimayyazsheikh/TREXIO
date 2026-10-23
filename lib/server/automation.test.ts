@@ -3,7 +3,6 @@ import { DEFAULT_SETTINGS, type AutomationSettings } from "@/lib/domain/automati
 import type { TaskData } from "@/lib/domain/tasks";
 import { runBriefing, runEscalations, type AutomationDeps } from "@/lib/server/automation";
 import type { Notice } from "@/lib/server/communication";
-import type { WaMessage } from "@/lib/server/whatsapp";
 
 const MIN = 60_000;
 const now = new Date("2026-10-21T08:00:00Z"); // 13:00 PKT, Wednesday
@@ -21,12 +20,10 @@ type World = {
   settings: AutomationSettings;
   calendar: { date: string; businessId: string | null }[];
   leave: Set<string>;
-  people: Record<string, { name: string; status: "active" | "disabled"; businessId: string | null; phone: string | null }>;
+  people: Record<string, { name: string; status: "active" | "disabled"; businessId: string | null }>;
   businesses: Record<string, { name: string; active: boolean; workDays: number[] }>;
   runs: Set<string>;
   notices: Notice[];
-  sent: WaMessage[];
-  failWhatsApp: boolean;
 };
 let w: World;
 
@@ -49,27 +46,21 @@ const deps = (): AutomationDeps => ({
   },
   claimRun: async (key) => (w.runs.has(key) ? false : (w.runs.add(key), true)),
   notify: async (n) => void w.notices.push(n),
-  sendWhatsApp: async (m) => {
-    if (w.failWhatsApp) throw new Error("boom");
-    w.sent.push(m);
-  },
 });
 
 beforeEach(() => {
   w = {
     tasks: new Map([["t1", task()]]),
-    settings: { ...DEFAULT_SETTINGS, adminPhone: "+923009999999" },
+    settings: { ...DEFAULT_SETTINGS },
     calendar: [],
     leave: new Set(),
     people: {
-      ali: { name: "Ali Khan", status: "active", businessId: "b1", phone: "+923001111111" },
-      sara: { name: "Sara Ahmed", status: "active", businessId: "b1", phone: null },
+      ali: { name: "Ali Khan", status: "active", businessId: "b1" },
+      sara: { name: "Sara Ahmed", status: "active", businessId: "b1" },
     },
     businesses: { b1: { name: "Alpha Traders", active: true, workDays: [1, 2, 3, 4, 5, 6] } },
     runs: new Set(),
     notices: [],
-    sent: [],
-    failWhatsApp: false,
   };
 });
 
@@ -79,7 +70,6 @@ describe("runEscalations", () => {
     expect(r).toMatchObject({ level1: 1, level2: 0 });
     expect(w.notices).toEqual([expect.objectContaining({ toUid: "ali", title: "A task is running late", link: "/me" })]);
     expect(w.tasks.get("t1")!.escalation.l1At).toEqual(now);
-    expect(w.sent).toHaveLength(0);
   });
 
   it("each level fires once even when the job runs again", async () => {
@@ -88,31 +78,15 @@ describe("runEscalations", () => {
     expect(w.notices).toHaveLength(1);
   });
 
-  it("level 2 tells the admin in the app and on WhatsApp", async () => {
+  it("level 2 tells the admin in the app, naming the task and the person", async () => {
     w.tasks.set("t1", task({ dueAt: dueAgo(200) }));
     const r = await runEscalations(deps());
     expect(r).toMatchObject({ level1: 1, level2: 1 });
     expect(w.notices.map((n) => n.toUid).sort()).toEqual(["admin", "ali"]);
-    expect(w.sent[0]).toMatchObject({ kind: "escalation", to: "+923009999999", taskId: "t1" });
-    expect(w.sent[0].text).toContain("Count stock");
-    expect(w.sent[0].text).toContain("Ali Khan");
-  });
-
-  it("with no admin number the admin is still told in the app", async () => {
-    w.settings = { ...DEFAULT_SETTINGS };
-    w.tasks.set("t1", task({ dueAt: dueAgo(200) }));
-    await runEscalations(deps());
-    expect(w.notices.some((n) => n.toUid === "admin")).toBe(true);
-    expect(w.sent).toHaveLength(0);
-  });
-
-  it("a WhatsApp failure is counted and doesn't stop the run", async () => {
-    w.failWhatsApp = true;
-    w.tasks.set("t1", task({ dueAt: dueAgo(200) }));
-    w.tasks.set("t2", task({ dueAt: dueAgo(90), title: "Other" }));
-    const r = await runEscalations(deps());
-    expect(r.whatsappFailed).toBe(1);
-    expect(r.level1).toBe(2);
+    const adminNotice = w.notices.find((n) => n.toUid === "admin")!;
+    expect(adminNotice).toMatchObject({ title: "A task is badly late", link: "/admin/kanban" });
+    expect(adminNotice.body).toContain("Count stock");
+    expect(adminNotice.body).toContain("Ali Khan");
   });
 
   it("pauses on a holiday, a closure of that business, and for people on leave", async () => {
@@ -156,8 +130,8 @@ describe("runEscalations", () => {
 });
 
 describe("runBriefing", () => {
+  const forUser = (uid: string) => w.notices.filter((n) => n.toUid === uid);
   beforeEach(() => {
-    w.people.sara.phone = "+923002222222";
     w.tasks = new Map([
       ["a", task({ title: "Open shop", dueAt: new Date("2026-10-21T04:30:00Z") })],
       ["b", task({ title: "Cash up", dueAt: new Date("2026-10-21T12:45:00Z") })],
@@ -166,44 +140,45 @@ describe("runBriefing", () => {
     ]);
   });
 
-  it("sends each person their open tasks in due order, once", async () => {
+  it("tells each person their open tasks in due order, once", async () => {
     const r = await runBriefing(deps());
     expect(r).toMatchObject({ sent: 2, failed: 0 });
-    const ali = w.sent.find((m) => m.toUid === "ali")!;
-    expect(ali.kind).toBe("briefing");
-    expect(ali.text).toContain("2 tasks");
-    expect(ali.text.indexOf("Open shop")).toBeLessThan(ali.text.indexOf("Cash up"));
-    expect(ali.text).not.toContain("Already done");
+    const [ali] = forUser("ali");
+    expect(ali).toMatchObject({ title: "Good morning! 2 tasks today", link: "/me" });
+    expect(ali.body.indexOf("Open shop")).toBeLessThan(ali.body.indexOf("Cash up"));
+    expect(ali.body).not.toContain("Already done");
+    expect(forUser("sara")[0]).toMatchObject({ title: "Good morning! 1 task today", body: "Sara's job" });
     expect(await runBriefing(deps())).toMatchObject({ sent: 0 });
-    expect(w.sent).toHaveLength(2);
+    expect(w.notices).toHaveLength(2);
+  });
+
+  it("lists three tasks and counts the rest", async () => {
+    w.tasks = new Map(Array.from({ length: 5 }, (_, i) => [`t${i}`, task({ title: `Task ${i}`, dueAt: new Date(Date.UTC(2026, 9, 21, 5 + i)) })]));
+    await runBriefing(deps());
+    expect(forUser("ali")[0].body).toBe("Task 0, Task 1, Task 2 and 2 more");
   });
 
   it("is off when the setting is off", async () => {
     w.settings = { ...DEFAULT_SETTINGS, briefingEnabled: false };
     expect(await runBriefing(deps())).toEqual({ eligible: 0, sent: 0, skipped: 0, failed: 0 });
-    expect(w.sent).toHaveLength(0);
+    expect(w.notices).toHaveLength(0);
   });
 
-  it("skips holidays, closures, leave, non-working days, and people with no number", async () => {
+  it("skips holidays, closures, leave and non-working days", async () => {
     w.calendar = [{ date: "2026-10-21", businessId: null }];
     expect(await runBriefing(deps())).toMatchObject({ sent: 0 });
     w.calendar = [];
     w.leave = new Set(["ali"]);
-    w.people.sara.phone = null;
-    expect(await runBriefing(deps())).toMatchObject({ sent: 0, eligible: 1 });
+    expect(await runBriefing(deps())).toMatchObject({ sent: 1, eligible: 1 });
+    expect(forUser("ali")).toHaveLength(0);
     w.leave = new Set();
     w.businesses.b1.workDays = [1, 2, 4, 5, 6, 7]; // no Wednesday
     expect(await runBriefing(deps())).toMatchObject({ sent: 0, eligible: 0 });
   });
 
-  it("a failed send is counted, and one failure doesn't block the others", async () => {
-    w.failWhatsApp = true;
-    expect(await runBriefing(deps())).toMatchObject({ sent: 0, failed: 2 });
-  });
-
   it("an empty day still gets a friendly message", async () => {
     w.tasks = new Map();
     await runBriefing(deps());
-    expect(w.sent[0].text).toContain("nothing assigned");
+    expect(forUser("ali")[0]).toMatchObject({ title: "Good morning! Nothing assigned yet" });
   });
 });

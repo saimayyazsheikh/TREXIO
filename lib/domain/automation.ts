@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { DEFAULT_IDLE_MIN } from "@/lib/domain/presence";
 import { PROMPT_MINUTE } from "@/lib/domain/journal";
-import { phoneSchema } from "@/lib/domain/schemas";
 import { formatPkt } from "@/lib/time";
 
 export const SETTINGS_PATH = "settings/global";
@@ -15,12 +14,8 @@ const baseSchema = z.object({
   escalationL1Min: z.number().int("Use whole minutes").min(10, "At least 10 minutes").max(1440, "At most 24 hours"),
   escalationL2Min: z.number().int("Use whole minutes").min(20, "At least 20 minutes").max(2880, "At most 48 hours"),
   briefingEnabled: z.boolean(),
-  /** Also send each finished week's AI summary to the admin's WhatsApp. */
-  weeklySummaryWhatsApp: z.boolean(),
   promptMinute: z.number().int("Use whole minutes").min(0).max(59, "A minute from 0 to 59"),
   idleMin: z.number().int("Use whole minutes").min(1, "At least 1 minute").max(60, "At most 60 minutes"),
-  /** The admin's WhatsApp number for urgent alerts; empty turns those alerts off. */
-  adminPhone: z.union([z.literal(""), phoneSchema]),
 });
 export const settingsSchema = baseSchema.refine((s) => s.escalationL2Min > s.escalationL1Min, { path: ["escalationL2Min"], message: "The second alert must come after the first" });
 export type AutomationSettings = z.infer<typeof settingsSchema>;
@@ -29,10 +24,8 @@ export const DEFAULT_SETTINGS: AutomationSettings = {
   escalationL1Min: 60,
   escalationL2Min: 180,
   briefingEnabled: true,
-  weeklySummaryWhatsApp: false,
   promptMinute: PROMPT_MINUTE,
   idleMin: DEFAULT_IDLE_MIN,
-  adminPhone: "",
 };
 
 /** Whatever is stored, repaired field by field: a missing or invalid value falls back to its default. */

@@ -36,7 +36,7 @@ Set `CRON_SECRET` in Vercel (a long random string). Every job checks it as `Auth
 | Job | Route | When | Where it runs |
 |---|---|---|---|
 | Daily tasks + close forgotten breaks | `/api/cron/daily` | 19:05 UTC (00:05 PKT) | `vercel.json` |
-| 9:00 AM WhatsApp briefing, plus last week's AI summary on Mondays | `/api/cron/morning-briefing` | 04:00 UTC (09:00 PKT) | `vercel.json` |
+| 9:00 AM briefing notification, plus last week's AI summary on Mondays | `/api/cron/morning-briefing` | 04:00 UTC (09:00 PKT) | `vercel.json` |
 | Late-task alerts | `/api/cron/escalations` | every 10 to 15 minutes | an external pinger |
 
 Vercel Hobby allows two cron entries, once a day each, so the two daily jobs live in `vercel.json` and the escalation check needs a free pinger such as cron-job.org: a GET to `https://your-app.vercel.app/api/cron/escalations` every 10 minutes with the header `Authorization: Bearer <CRON_SECRET>`. On Vercel Pro you can add it to `vercel.json` instead. Every job is safe to run twice. Admin > Settings > Automation also has "Run now" buttons. To trigger one by hand:
@@ -46,15 +46,12 @@ curl -H "Authorization: Bearer $CRON_SECRET" https://your-app.vercel.app/api/cro
 Employees also get today's routines the moment they open their dashboard, so a missed daily run is harmless.
 
 ## WhatsApp
-`WHATSAPP_PROVIDER=mock` (the default) records every message in Admin > Settings > Automation > WhatsApp log without sending anything, so the whole flow works before Meta approves your templates. To go live set `WHATSAPP_PROVIDER=cloud`, `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` and the three template names. Create these message templates in Meta Business Manager (category Utility, language English) and put their names in the env vars:
+There is nothing to set up and nothing to pay for: Traxio never sends WhatsApp messages itself. Wherever a WhatsApp message would help, a button opens WhatsApp (the app, or WhatsApp Web) on that person's chat with the message already typed in, and you press send:
+- on any task card or in the task drawer: "Nudge on WhatsApp" (message prefilled from the task, editable);
+- in Admin > Settings > Automation: a list of today's briefing for each person;
+- on Admin > AI summaries: "Share on WhatsApp".
 
-| Env var | Body |
-|---|---|
-| `WHATSAPP_TEMPLATE_TASK_NUDGE` | `Hi {{1}}, {{2}}` |
-| `WHATSAPP_TEMPLATE_MORNING_BRIEFING` | `Good morning {{1}}! Your tasks today: {{2}}` |
-| `WHATSAPP_TEMPLATE_ESCALATION_ALERT` | `{{1}}` |
-
-Employee numbers are set in Team (international format, like +923001234567); your own number for late-task alerts is in Automation.
+It needs each person's number saved in Team in international format (like +923001234567) and WhatsApp (or WhatsApp Web) signed in on the device you click from. Late-task alerts and the 9:00 AM briefing arrive as bell notifications (and browser notifications for anyone who turned them on), not as WhatsApp messages.
 
 ## AI weekly summary
 Every Monday the morning job writes last week's summary (highlights, bottlenecks, per-business notes, suggested actions) and puts it under Admin > AI summaries. "Summarize last week" and "Week so far" write one on demand. Set one key on the server and nothing else:
@@ -65,7 +62,7 @@ Every Monday the morning job writes last week's summary (highlights, bottlenecks
 | `GEMINI_API_KEY` | Uses Gemini (`gemini-2.5-flash` unless `AI_MODEL` or `GEMINI_MODEL` says otherwise) |
 | `AI_PROVIDER` | Optional: `anthropic`, `gemini` or `mock` to force one. Naming a provider with no key is an error. |
 
-With no key, a built-in template writes the summary from the same figures (no AI, no cost), and the page says so. Only totals and per-person or per-business figures are sent to the model: never journal text, chat or attachments. Blocked-reason text typed by employees is included, clipped to 80 characters. Turn on "Also send each weekly AI summary to my WhatsApp" in Automation to receive it there too (needs the `WHATSAPP_TEMPLATE_WEEKLY_SUMMARY` template with body `Week of {{1}}: {{2}}`).
+With no key, a built-in template writes the summary from the same figures (no AI, no cost), and the page says so. Only totals and per-person or per-business figures are sent to the model: never journal text, chat or attachments. Blocked-reason text typed by employees is included, clipped to 80 characters. To pass it on, press "Share on WhatsApp" on the page.
 
 ## Browser notifications
 The bell works everywhere. For alerts while Traxio is closed, set `NEXT_PUBLIC_FIREBASE_VAPID_KEY` (Firebase console > Project settings > Cloud Messaging > Web Push certificates) and each person taps "Get alerts on this device" in the bell. Not available under the emulators.

@@ -1,22 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { MessageCircleMore } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { ExternalLink, MessageCircleMore } from "lucide-react";
+import { doc } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
-import { apiFetch } from "@/lib/api-client";
+import { useDocument } from "@/hooks/use-document";
+import { getFirebase } from "@/lib/firebase/client";
 import { nudgeDefault } from "@/lib/domain/automation";
 import { TASK_STATUS_LABEL } from "@/lib/domain/constants";
-import type { TaskDoc, WithId } from "@/types/models";
+import { waLink } from "@/lib/domain/whatsapp-link";
+import type { TaskDoc, UserDoc, WithId } from "@/types/models";
 
-/** Admin: a WhatsApp nudge about one task, with an editable message prefilled from the task. */
+/**
+ * Admin: a WhatsApp nudge about one task. Traxio doesn't send it. The button opens WhatsApp (app or web) on that person's
+ * chat with the message already typed, and the admin presses send there.
+ */
 export function NudgeDialog({ task, open, onOpenChange, defaultUid }: { task: WithId<TaskDoc>; open: boolean; onOpenChange: (open: boolean) => void; defaultUid?: string }) {
   const [uid, setUid] = useState(defaultUid ?? task.assigneeIds[0]);
   const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const draft = (who: string) => nudgeDefault({ employeeName: task.assigneeNames[who] ?? "there", title: task.title, dueAtMs: task.dueAt?.toMillis() ?? null, status: TASK_STATUS_LABEL[task.status] });
 
@@ -25,33 +30,23 @@ export function NudgeDialog({ task, open, onOpenChange, defaultUid }: { task: Wi
     const who = defaultUid ?? task.assigneeIds[0];
     setUid(who);
     setMessage(draft(who));
-    setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, defaultUid, task.id]);
 
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setBusy(true);
-    try {
-      const res = await apiFetch<{ status: "sent" | "mock" }>("/api/whatsapp/send", "POST", { taskId: task.id, toUid: uid, message });
-      toast.success(res.status === "mock" ? "Saved in test mode: nothing was sent to WhatsApp yet." : `WhatsApp sent to ${task.assigneeNames[uid] ?? "them"}.`);
-      onOpenChange(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const userRef = useMemo(() => (open && uid ? doc(getFirebase().db, "users", uid) : null), [open, uid]);
+  const person = useDocument<UserDoc>(userRef);
+  const name = task.assigneeNames[uid] ?? "them";
+  const link = message.trim().length >= 3 ? waLink(person.data?.phone, message) : null;
+  const noNumber = !person.loading && !!person.data && !waLink(person.data.phone, "x");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogTitle className="flex items-center gap-2">
-          <MessageCircleMore className="size-5 text-brand-text" aria-hidden /> Send a WhatsApp nudge
+          <MessageCircleMore className="size-5 text-brand-text" aria-hidden /> Nudge on WhatsApp
         </DialogTitle>
-        <DialogDescription>About “{task.title}”. Edit the message if you like; it goes to their WhatsApp number.</DialogDescription>
-        <form onSubmit={send} className="mt-4 flex flex-col gap-4">
+        <DialogDescription>About “{task.title}”. Edit the message if you like. WhatsApp opens with it ready, and you press send there.</DialogDescription>
+        <div className="mt-4 flex flex-col gap-4">
           {task.assigneeIds.length > 1 ? (
             <div className="flex flex-col gap-1.5">
               <label htmlFor="nudge-to" className="text-sm font-medium">
@@ -87,9 +82,9 @@ export function NudgeDialog({ task, open, onOpenChange, defaultUid }: { task: Wi
             />
             <p className="num text-right text-xs text-muted">{message.length}/600</p>
           </div>
-          {error ? (
-            <p role="alert" className="rounded-control bg-danger/10 px-3 py-2 text-sm text-danger">
-              {error}
+          {noNumber ? (
+            <p role="alert" className="rounded-control bg-warning/10 px-3 py-2 text-sm text-warning">
+              {name} has no WhatsApp number yet. <Link href="/admin/settings/team" className="font-semibold underline underline-offset-2">Add one in Team</Link> (like +923001234567).
             </p>
           ) : null}
           <div className="flex justify-end gap-2">
@@ -98,11 +93,27 @@ export function NudgeDialog({ task, open, onOpenChange, defaultUid }: { task: Wi
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="submit" loading={busy} disabled={message.trim().length < 3}>
-              Send WhatsApp
-            </Button>
+            {link ? (
+              <Button asChild>
+                <a
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => {
+                    toast.success(`WhatsApp is opening on ${name}'s chat. Press send there.`);
+                    onOpenChange(false);
+                  }}
+                >
+                  Open WhatsApp <ExternalLink aria-hidden />
+                </a>
+              </Button>
+            ) : (
+              <Button type="button" disabled>
+                Open WhatsApp
+              </Button>
+            )}
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

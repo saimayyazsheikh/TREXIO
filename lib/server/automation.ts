@@ -1,11 +1,10 @@
-import { ESCALATION_LOOKBACK_MS, briefingText, escalationAdminText, escalationDue, escalationEmployeeText, type AutomationSettings } from "@/lib/domain/automation";
+import { ESCALATION_LOOKBACK_MS, escalationAdminText, escalationDue, escalationEmployeeText, type AutomationSettings } from "@/lib/domain/automation";
 import { isClosedFor, type CalendarEntry } from "@/lib/domain/timeoff";
 import type { TaskData } from "@/lib/domain/tasks";
 import { isoWeekdayOfDate, pktDateString } from "@/lib/time";
 import type { Notice } from "@/lib/server/communication";
-import type { WaMessage } from "@/lib/server/whatsapp";
 
-type Person = { name: string; status: "active" | "disabled"; businessId: string | null; phone: string | null };
+type Person = { name: string; status: "active" | "disabled"; businessId: string | null };
 type Business = { name: string; active: boolean; workDays: number[] };
 
 export type AutomationDeps = {
@@ -25,21 +24,20 @@ export type AutomationDeps = {
   /** True only for the first caller for this key (a briefing goes out once per person per day). */
   claimRun(key: string): Promise<boolean>;
   notify(notice: Notice): Promise<void>;
-  sendWhatsApp(msg: WaMessage): Promise<unknown>;
 };
 
-export type EscalationResult = { checked: number; level1: number; level2: number; paused: number; whatsappFailed: number };
+export type EscalationResult = { checked: number; level1: number; level2: number; paused: number };
 
 /**
- * Looks for late tasks and raises each alert once: level 1 tells the assignees in the app, level 2 tells the admin
- * in the app and on WhatsApp. Holidays, business closures and approved leave pause alerts (they are not "late" then).
- * The flag is set BEFORE sending, so overlapping runs can never alert twice; a failed send is logged, not retried.
+ * Looks for late tasks and raises each alert once: level 1 tells the assignees, level 2 tells the admin (both in the
+ * app, with a browser push when the person turned that on). Holidays, business closures and approved leave pause alerts (they are not "late" then).
+ * The flag is set BEFORE sending, so overlapping runs can never alert twice.
  */
 export async function runEscalations(deps: AutomationDeps): Promise<EscalationResult> {
   const now = deps.now();
   const nowMs = now.getTime();
   const settings = await deps.loadSettings();
-  const result: EscalationResult = { checked: 0, level1: 0, level2: 0, paused: 0, whatsappFailed: 0 };
+  const result: EscalationResult = { checked: 0, level1: 0, level2: 0, paused: 0 };
 
   const candidates = await deps.loadDueBetween(nowMs - ESCALATION_LOOKBACK_MS, nowMs - settings.escalationL1Min * 60_000);
   const today = pktDateString(now);
@@ -72,13 +70,6 @@ export async function runEscalations(deps: AutomationDeps): Promise<EscalationRe
       const business = businesses.get(task.businessId)?.name ?? "";
       const line = escalationAdminText({ employeeNames: names, title: task.title, business, lateMs });
       await deps.notify({ toUid: "admin", title: "A task is badly late", body: line, link: "/admin/kanban" });
-      if (settings.adminPhone) {
-        try {
-          await deps.sendWhatsApp({ kind: "escalation", to: settings.adminPhone, toUid: null, toName: "Admin", text: line, taskId: id });
-        } catch {
-          result.whatsappFailed++;
-        }
-      }
       result.level2++;
     }
   }
@@ -87,7 +78,7 @@ export async function runEscalations(deps: AutomationDeps): Promise<EscalationRe
 
 export type BriefingResult = { eligible: number; sent: number; skipped: number; failed: number };
 
-/** Sends each active employee today's task list on WhatsApp, once per person per day. Skips days off and people with no number. */
+/** Tells each active employee what is on for today (a bell notification, and a push if they turned it on), once per person per day. Skips days off. */
 export async function runBriefing(deps: AutomationDeps): Promise<BriefingResult> {
   const now = deps.now();
   const today = pktDateString(now);
@@ -107,10 +98,6 @@ export async function runBriefing(deps: AutomationDeps): Promise<BriefingResult>
       continue;
     }
     result.eligible++;
-    if (!person.phone) {
-      result.skipped++;
-      continue;
-    }
     const mine = tasks
       .filter((t) => t.task.assigneeIds.includes(id) && t.task.status !== "completed" && !t.task.completion[id]?.done)
       .sort((a, b) => (a.task.dueAt?.getTime() ?? Infinity) - (b.task.dueAt?.getTime() ?? Infinity));
@@ -118,10 +105,15 @@ export async function runBriefing(deps: AutomationDeps): Promise<BriefingResult>
       result.skipped++;
       continue;
     }
-    const lines = mine.map((t) => ({ title: t.task.title, dueAtMs: t.task.dueAt?.getTime() ?? null }));
-    const text = briefingText(person.name, lines);
+    const titles = mine.map((t) => t.task.title);
+    const more = titles.length > 3 ? ` and ${titles.length - 3} more` : "";
     try {
-      await deps.sendWhatsApp({ kind: "briefing", to: person.phone, toUid: id, toName: person.name, text, params: [person.name.split(" ")[0], lines.length ? lines.map((l, i) => `${i + 1}. ${l.title}`).join("; ").slice(0, 900) : "Nothing assigned yet"] });
+      await deps.notify({
+        toUid: id,
+        title: titles.length ? `Good morning! ${titles.length} ${titles.length === 1 ? "task" : "tasks"} today` : "Good morning! Nothing assigned yet",
+        body: titles.length ? `${titles.slice(0, 3).join(", ")}${more}` : "Your admin hasn't given you work for today yet.",
+        link: "/me",
+      });
       result.sent++;
     } catch {
       result.failed++;

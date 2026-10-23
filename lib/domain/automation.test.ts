@@ -27,10 +27,8 @@ describe("escalationDue", () => {
 
 describe("settings", () => {
   it("defaults are valid", () => expect(settingsSchema.safeParse(DEFAULT_SETTINGS).success).toBe(true));
-  it("requires the second alert after the first, and a real phone", () => {
+  it("requires the second alert after the first", () => {
     expect(settingsSchema.safeParse({ ...DEFAULT_SETTINGS, escalationL1Min: 120, escalationL2Min: 90 }).success).toBe(false);
-    expect(settingsSchema.safeParse({ ...DEFAULT_SETTINGS, adminPhone: "0300 1234567" }).success).toBe(false);
-    expect(settingsSchema.safeParse({ ...DEFAULT_SETTINGS, adminPhone: "+923001234567" }).success).toBe(true);
   });
   it("resolveSettings fills gaps and repairs bad values", () => {
     expect(resolveSettings(undefined)).toEqual(DEFAULT_SETTINGS);

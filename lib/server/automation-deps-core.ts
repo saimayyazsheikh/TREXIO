@@ -5,15 +5,14 @@ import type { AutomationDeps } from "@/lib/server/automation";
 import { createDocDb } from "@/lib/server/doc-db-core";
 import type { Notice } from "@/lib/server/communication";
 import { taskFromFirestore } from "@/lib/server/task-mapper";
-import { sendWhatsApp, type WaDeps } from "@/lib/server/whatsapp";
 import type { UserDoc } from "@/types/models";
 
 const ALREADY_EXISTS = 6;
 
 /** The automation jobs wired to a Firestore instance (the real project or the emulator). */
-export function createAutomationDeps(db: Firestore, wa: WaDeps, push: (n: Notice) => Promise<void>): AutomationDeps {
+export function createAutomationDeps(db: Firestore, push: (n: Notice) => Promise<void>): AutomationDeps {
   const docDb = createDocDb(db, push);
-  const person = (u: Partial<UserDoc>) => ({ name: String(u.name ?? ""), status: (u.status ?? "disabled") as "active" | "disabled", businessId: u.businessId ?? null, phone: u.phone ?? null });
+  const person = (u: Partial<UserDoc>) => ({ name: String(u.name ?? ""), status: (u.status ?? "disabled") as "active" | "disabled", businessId: u.businessId ?? null });
   return {
     now: () => new Date(),
     loadSettings: async () => resolveSettings((await db.doc(SETTINGS_PATH).get()).data()),
@@ -66,6 +65,5 @@ export function createAutomationDeps(db: Firestore, wa: WaDeps, push: (n: Notice
       }
     },
     notify: (n) => docDb.transaction(async (tx) => queueNotification(docDb, tx, n)),
-    sendWhatsApp: (msg) => sendWhatsApp(wa, msg),
   };
 }

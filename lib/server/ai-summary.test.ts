@@ -1,10 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AnalyticsInput } from "@/lib/domain/analytics";
-import { DEFAULT_SETTINGS, type AutomationSettings } from "@/lib/domain/automation";
 import { generateWeeklySummary, type SummaryDeps, type SummaryDoc } from "@/lib/server/ai-summary";
 import type { AiProvider } from "@/lib/server/ai";
 import type { Notice } from "@/lib/server/communication";
-import type { WaMessage } from "@/lib/server/whatsapp";
 
 const now = new Date("2026-10-21T08:00:00Z"); // Wednesday 21 Oct 2026 in PKT
 const input = (from: string, to: string): AnalyticsInput => ({
@@ -18,12 +16,9 @@ const input = (from: string, to: string): AnalyticsInput => ({
 let saved: Map<string, SummaryDoc>;
 let claims: Set<string>;
 let notices: Notice[];
-let sent: WaMessage[];
 let loads: { from: string; to: string }[];
-let settings: AutomationSettings;
 let generate: ReturnType<typeof vi.fn>;
 let failLoad: boolean;
-let failWhatsApp: boolean;
 
 const claude = (): AiProvider => ({ name: "anthropic", model: "claude-opus-5-5", generate: (generate as unknown as AiProvider["generate"]) });
 const mock = (): AiProvider => ({ name: "mock", model: "template", generate: async () => "unused" });
@@ -35,27 +30,19 @@ const deps = (provider: AiProvider): SummaryDeps => ({
     if (failLoad) throw new Error("db down");
     return input(p.from, p.to);
   },
-  loadSettings: async () => settings,
   save: async (id, doc) => void saved.set(id, doc),
   claimRun: async (k) => (claims.has(k) ? false : (claims.add(k), true)),
   releaseRun: async (k) => void claims.delete(k),
   notify: async (n) => void notices.push(n),
-  sendWhatsApp: async (m) => {
-    if (failWhatsApp) throw new Error("wa down");
-    sent.push(m);
-  },
 });
 
 beforeEach(() => {
   saved = new Map();
   claims = new Set();
   notices = [];
-  sent = [];
   loads = [];
-  settings = { ...DEFAULT_SETTINGS, adminPhone: "+923009999999" };
   generate = vi.fn(async () => "## Highlights\n- A good week");
   failLoad = false;
-  failWhatsApp = false;
 });
 
 describe("generateWeeklySummary", () => {
@@ -92,11 +79,10 @@ describe("generateWeeklySummary", () => {
     expect(generate).not.toHaveBeenCalled();
   });
 
-  it("a manual run doesn't notify or message anyone, and can be repeated to redo the week", async () => {
+  it("a manual run doesn't notify anyone, and can be repeated to redo the week", async () => {
     await generateWeeklySummary(deps(claude()), { which: "last-week", trigger: "manual" });
     await generateWeeklySummary(deps(claude()), { which: "last-week", trigger: "manual" });
     expect(notices).toHaveLength(0);
-    expect(sent).toHaveLength(0);
     expect(generate).toHaveBeenCalledTimes(2);
   });
 });
@@ -109,28 +95,6 @@ describe("scheduled runs", () => {
     expect(second).toMatchObject({ skipped: true, id: "week_2026-10-12" });
     expect(generate).toHaveBeenCalledTimes(1);
     expect(notices).toEqual([expect.objectContaining({ toUid: "admin", title: "Your weekly summary is ready", link: "/admin/ai-summaries" })]);
-  });
-
-  it("send it on WhatsApp only when that setting is on and a number is saved", async () => {
-    expect((await generateWeeklySummary(deps(claude()), { which: "last-week", trigger: "cron" })).whatsapp).toBe("off");
-    claims.clear();
-    settings = { ...settings, weeklySummaryWhatsApp: true };
-    const r = await generateWeeklySummary(deps(claude()), { which: "last-week", trigger: "cron" });
-    expect(r.whatsapp).toBe("sent");
-    expect(sent[0]).toMatchObject({ kind: "summary", to: "+923009999999" });
-    expect(sent[0].text).toContain("Highlights");
-    expect(sent[0].text).not.toContain("##");
-    claims.clear();
-    settings = { ...settings, adminPhone: "" };
-    expect((await generateWeeklySummary(deps(claude()), { which: "last-week", trigger: "cron" })).whatsapp).toBe("off");
-  });
-
-  it("a WhatsApp failure doesn't lose the saved summary", async () => {
-    settings = { ...settings, weeklySummaryWhatsApp: true };
-    failWhatsApp = true;
-    const r = await generateWeeklySummary(deps(claude()), { which: "last-week", trigger: "cron" });
-    expect(r.whatsapp).toBe("failed");
-    expect(saved.has("week_2026-10-12")).toBe(true);
   });
 
   it("a failed run gives its claim back so the next attempt can try again", async () => {

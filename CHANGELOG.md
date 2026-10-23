@@ -86,3 +86,8 @@ pm run seed:admin), custom claims, username to email login.
 ## Text only: Storage removed
 - Removed file attachments everywhere (tasks, reminders, questions, chat, leave), profile photos and business logos, plus Storage rules, tests, emulator and env settings. Firebase now needs only Auth, Firestore, Realtime Database and FCM, all available on the free Spark plan.
 - Chat messages and question replies now require text. Client-side writes to user profiles are closed entirely (only server routes edit them).
+
+## WhatsApp without an API
+- Removed the Meta WhatsApp Cloud API integration (service, send route, templates, logs, admin number and weekly-summary-to-WhatsApp settings, rules and index).
+- "Nudge on WhatsApp" now opens WhatsApp on the person's chat with the message ready. Automation has a per-person "briefing on WhatsApp" list, and AI summaries have "Share on WhatsApp".
+- The 9:00 AM briefing and the late-task second alert are now in-app notifications only.

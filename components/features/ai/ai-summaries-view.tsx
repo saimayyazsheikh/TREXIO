@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarRange, Info, Sparkles } from "lucide-react";
+import { CalendarRange, ExternalLink, Info, MessageCircleMore, Sparkles } from "lucide-react";
 import { collection, limit, orderBy, query, type Timestamp } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,8 @@ import { PageHeader } from "@/components/features/page-header";
 import { useCollection } from "@/hooks/use-collection";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
-import { parseSummary, type SummaryStats } from "@/lib/domain/ai-summary";
+import { condense, parseSummary, type SummaryStats } from "@/lib/domain/ai-summary";
+import { shareLink } from "@/lib/domain/whatsapp-link";
 import { formatPkt, pktInstant } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
@@ -159,6 +160,11 @@ export function AiSummariesView() {
             <Meta s={latest} />
             <Figures stats={latest.stats} />
             <SummaryText text={latest.text} />
+            <Button asChild variant="secondary" size="sm" className="mt-5">
+              <a href={shareLink(`Traxio weekly summary, ${day(latest.weekStart)} to ${day(latest.weekEnd)}: ${condense(latest.text, 1200)}`)} target="_blank" rel="noopener noreferrer">
+                <MessageCircleMore aria-hidden /> Share on WhatsApp <ExternalLink className="size-3.5" aria-hidden />
+              </a>
+            </Button>
           </GlassCard>
 
           {older.length > 0 ? (

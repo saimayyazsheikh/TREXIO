@@ -6,9 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { AttachmentPicker } from "@/components/features/comms/attachments";
 import { apiFetch } from "@/lib/api-client";
-import { newClientId, uploadAttachment } from "@/lib/firebase/upload";
 import { assertValidLeave, leaveActionSchema, type NewLeave } from "@/lib/domain/timeoff";
 import { cn } from "@/lib/utils";
 import { pktDateString } from "@/lib/time";
@@ -16,14 +14,13 @@ import { pktDateString } from "@/lib/time";
 type Kind = "leave" | "excuse";
 
 /** Ask for whole days off, or a few hours (a short excuse). Your admin approves or declines. */
-export function LeaveRequestSheet({ open, onOpenChange, uid }: { open: boolean; onOpenChange: (open: boolean) => void; uid: string }) {
+export function LeaveRequestSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const [kind, setKind] = useState<Kind>("leave");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [fromTime, setFromTime] = useState("");
   const [toTime, setToTime] = useState("");
   const [reason, setReason] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -36,7 +33,6 @@ export function LeaveRequestSheet({ open, onOpenChange, uid }: { open: boolean; 
     setFromTime("");
     setToTime("");
     setReason("");
-    setFiles([]);
     setError(null);
   }, [open]);
 
@@ -53,10 +49,7 @@ export function LeaveRequestSheet({ open, onOpenChange, uid }: { open: boolean; 
     }
     setBusy(true);
     try {
-      const folder = `u/${uid}/leave/${newClientId()}`;
-      const attachments = [];
-      for (const f of files) attachments.push(await uploadAttachment(folder, f));
-      await apiFetch("/api/leave", "POST", { ...draft, attachments });
+      await apiFetch("/api/leave", "POST", draft);
       toast.success("Request sent. Your admin will decide soon.");
       onOpenChange(false);
     } catch (err) {
@@ -142,11 +135,6 @@ export function LeaveRequestSheet({ open, onOpenChange, uid }: { open: boolean; 
               onChange={(e) => setReason(e.target.value)}
               className="w-full rounded-control border border-input bg-surface-solid px-3 py-2.5 text-base text-foreground placeholder:text-muted transition-colors focus-visible:border-ring md:text-sm"
             />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Attachment (optional)</span>
-            <AttachmentPicker files={files} onChange={setFiles} max={5} label="Attach a document" />
           </div>
 
           {error ? (

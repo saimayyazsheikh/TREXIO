@@ -5,14 +5,12 @@ import { ArrowLeft, Loader2, RotateCcw, Send, TriangleAlert } from "lucide-react
 import { collection, deleteDoc, doc, limit, orderBy, query, serverTimestamp, setDoc, type Timestamp } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AttachmentPicker, PickedFiles } from "@/components/features/comms/attachments";
 import { ErrorState } from "@/components/features/error-state";
 import { MessageBubble } from "@/components/features/chat/message-bubble";
 import { useCollection } from "@/hooks/use-collection";
 import { useTick } from "@/hooks/use-tick";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
-import { uploadAttachment } from "@/lib/firebase/upload";
 import type { Role } from "@/lib/domain/constants";
 import { formatPkt, pktDateString } from "@/lib/time";
 import type { ChatMessageDoc } from "@/types/models";
@@ -21,7 +19,7 @@ const PAGE = 50;
 const TYPING_WINDOW_MS = 6000;
 const TYPING_REFRESH_MS = 2500;
 
-type Pending = { tempId: string; body: string; files: File[]; status: "sending" | "failed"; messageId?: string; error?: string };
+type Pending = { tempId: string; body: string; status: "sending" | "failed"; messageId?: string; error?: string };
 type Typing = { name: string; at: Timestamp | null };
 
 export function MessagePane({
@@ -52,7 +50,6 @@ export function MessagePane({
   const hasMore = (result.data?.length ?? 0) >= limitN;
 
   const [text, setText] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
   const [pending, setPending] = useState<Pending[]>([]);
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -102,9 +99,7 @@ export function MessagePane({
 
   async function deliver(item: Pending) {
     try {
-      const attachments = [];
-      for (const f of item.files) attachments.push(await uploadAttachment(`chats/${chatId}`, f));
-      const res = await apiFetch<{ messageId: string }>("/api/chat", "POST", { action: "send", chatId, body: item.body, attachments });
+      const res = await apiFetch<{ messageId: string }>("/api/chat", "POST", { action: "send", chatId, body: item.body });
       setPending((p) => p.map((x) => (x.tempId === item.tempId ? { ...x, messageId: res.messageId } : x)));
     } catch (err) {
       setPending((p) => p.map((x) => (x.tempId === item.tempId ? { ...x, status: "failed", error: err instanceof Error ? err.message : "Couldn't send." } : x)));
@@ -113,11 +108,10 @@ export function MessagePane({
 
   function send() {
     const body = text.trim();
-    if (!body && files.length === 0) return;
-    const item: Pending = { tempId: crypto.randomUUID(), body, files, status: "sending" };
+    if (!body) return;
+    const item: Pending = { tempId: crypto.randomUUID(), body, status: "sending" };
     setPending((p) => [...p, item]);
     setText("");
-    setFiles([]);
     stopTyping();
     stick.current = true;
     void deliver(item);
@@ -194,7 +188,6 @@ export function MessagePane({
                 <div className="flex max-w-[85%] flex-col items-end">
                   <div className="rounded-card bg-brand-gradient px-3.5 py-2 text-white opacity-70">
                     {p.body ? <p className="whitespace-pre-line break-words text-sm">{p.body}</p> : null}
-                    {p.files.length > 0 ? <p className="text-xs">{p.files.length} attachment{p.files.length === 1 ? "" : "s"}</p> : null}
                   </div>
                   {p.status === "sending" ? (
                     <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted">
@@ -229,7 +222,6 @@ export function MessagePane({
           send();
         }}
       >
-        <PickedFiles files={files} onChange={setFiles} />
         <div className="flex items-end gap-2">
           <textarea
             aria-label={`Message ${title}`}
@@ -247,8 +239,7 @@ export function MessagePane({
             }}
             className="min-h-11 flex-1 resize-none rounded-control border border-input bg-surface-solid px-3 py-2.5 text-base text-foreground placeholder:text-muted transition-colors focus-visible:border-ring md:text-sm"
           />
-          <AttachmentPicker compact files={files} onChange={setFiles} max={5} label="Attach files" />
-          <Button type="submit" size="icon" aria-label="Send message" disabled={!text.trim() && files.length === 0}>
+          <Button type="submit" size="icon" aria-label="Send message" disabled={!text.trim()}>
             <Send aria-hidden />
           </Button>
         </div>

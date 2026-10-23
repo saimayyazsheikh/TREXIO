@@ -1,12 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { doc, getDoc } from "firebase/firestore";
-import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { Paperclip, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -17,16 +14,11 @@ import { ChecklistEditor, type ChecklistItem } from "@/components/features/tasks
 import { TaskLinkField } from "@/components/features/tasks/task-link-field";
 import { PrioritySelect } from "@/components/features/tasks/priority-select";
 import { apiFetch } from "@/lib/api-client";
-import { getFirebase } from "@/lib/firebase/client";
 import { MAX_DEPENDENCIES, MAX_RELATED } from "@/lib/domain/dependencies";
 import { createTaskSchema, formChecklistSchema } from "@/lib/domain/task-schemas";
 import type { Priority } from "@/lib/domain/constants";
 import { pktDateString } from "@/lib/time";
-import { formatBytes } from "@/lib/utils";
 import type { BusinessDoc, TaskDoc, UserDoc, WithId } from "@/types/models";
-
-const MAX_FILE = 10 * 1024 * 1024;
-const MAX_FILES = 10;
 
 type FormValues = {
   title: string;
@@ -43,10 +35,6 @@ type FormValues = {
 };
 
 const formSchema = createTaskSchema.omit({ subtasks: true }).extend({ subtasks: formChecklistSchema });
-type Attachment = TaskDoc["attachments"][number];
-
-const safeName = (name: string) => name.replace(/[^\w.\-]+/g, "_").slice(-80);
-
 export function TaskSheet({
   open,
   onOpenChange,
@@ -64,12 +52,8 @@ export function TaskSheet({
   defaultAssigneeId?: string;
 }) {
   const editing = !!task;
-  const [files, setFiles] = useState<File[]>([]);
-  const [existing, setExisting] = useState<Attachment[]>([]);
-  const [fileError, setFileError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [titles, setTitles] = useState<Record<string, string>>({});
-  const fileInput = useRef<HTMLInputElement>(null);
   const {
     register,
     control,
@@ -83,10 +67,7 @@ export function TaskSheet({
 
   useEffect(() => {
     if (!open) return;
-    setFiles([]);
-    setFileError(null);
     setFormError(null);
-    setExisting(task?.attachments ?? []);
     setTitles(task?.linkTitles ?? {});
     reset(
       task
@@ -110,27 +91,6 @@ export function TaskSheet({
     );
   }, [open, task, defaultAssigneeId, reset]);
 
-  function addFiles(list: FileList | null) {
-    const incoming = Array.from(list ?? []);
-    if (fileInput.current) fileInput.current.value = "";
-    const tooBig = incoming.find((f) => f.size >= MAX_FILE);
-    if (tooBig) return setFileError(`${tooBig.name} is over 10 MB.`);
-    if (existing.length + files.length + incoming.length > MAX_FILES) return setFileError(`You can attach up to ${MAX_FILES} files.`);
-    setFileError(null);
-    setFiles((f) => [...f, ...incoming]);
-  }
-
-  async function upload(taskId: string): Promise<Attachment[]> {
-    const { storage } = getFirebase();
-    const out: Attachment[] = [];
-    for (const file of files) {
-      const r = ref(storage, `tasks/${taskId}/${Date.now()}-${safeName(file.name)}`);
-      await uploadBytes(r, file, { contentType: file.type || "application/octet-stream" });
-      out.push({ name: file.name, url: await getDownloadURL(r), size: file.size, type: file.type || "application/octet-stream" });
-    }
-    return out;
-  }
-
   async function onSubmit(values: z.output<typeof formSchema>) {
     setFormError(null);
     const raw = getValues();
@@ -140,40 +100,11 @@ export function TaskSheet({
       requiresReview: raw.requiresReview,
     };
     try {
-      let taskId = task?.id;
-      let subtasks = values.subtasks.map((s) => ({ ...(s.id ? { id: s.id } : {}), title: s.title }));
-      if (!task) {
-        taskId = (await apiFetch<{ taskId: string }>("/api/admin/tasks", "POST", { ...base, subtasks: values.subtasks.map((s) => s.title) })).taskId;
-      }
-
-      let attachmentsFailed = false;
-      let attachments = existing;
-      if (taskId && (files.length > 0 || (task && existing.length !== task.attachments.length))) {
-        try {
-          attachments = [...existing, ...(await upload(taskId))];
-        } catch {
-          attachmentsFailed = true;
-        }
-        if (!attachmentsFailed) {
-          if (!task) {
-            // The server minted checklist ids on create; re-read them so the follow-up edit keeps them.
-            const created = await getDoc(doc(getFirebase().db, "tasks", taskId));
-            subtasks = ((created.data() as TaskDoc | undefined)?.subtasks ?? []).map((s) => ({ id: s.id, title: s.title }));
-          }
-          await apiFetch("/api/admin/tasks", "PATCH", { ...base, taskId, subtasks, attachments });
-        }
-      } else if (task) {
-        await apiFetch("/api/admin/tasks", "PATCH", { ...base, taskId, subtasks, attachments });
-      }
-
-      // Files the admin removed while editing: best-effort cleanup after the task no longer references them.
-      if (task && !attachmentsFailed) {
-        const kept = new Set(attachments.map((a) => a.url));
-        await Promise.all(task.attachments.filter((a) => !kept.has(a.url)).map((a) => deleteObject(ref(getFirebase().storage, a.url)).catch(() => undefined)));
-      }
+      const subtasks = values.subtasks.map((s) => ({ ...(s.id ? { id: s.id } : {}), title: s.title }));
+      if (task) await apiFetch("/api/admin/tasks", "PATCH", { ...base, taskId: task.id, subtasks });
+      else await apiFetch("/api/admin/tasks", "POST", { ...base, subtasks: values.subtasks.map((s) => s.title) });
 
       toast.success(editing ? "Task updated" : "Task assigned");
-      if (attachmentsFailed) toast.warning("Saved, but the attachments couldn't be uploaded. Check that Firebase Storage is enabled.");
       onOpenChange(false);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Something went wrong. Please try again.");
@@ -305,43 +236,6 @@ export function TaskSheet({
               />
             )}
           />
-
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">Attachments</span>
-            <ul className="space-y-1">
-              {existing.map((a) => (
-                <li key={a.url} className="flex items-center gap-2 text-sm">
-                  <Paperclip className="size-4 shrink-0 text-muted" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate">{a.name}</span>
-                  <span className="num text-muted">{formatBytes(a.size)}</span>
-                  <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${a.name}`} onClick={() => setExisting((l) => l.filter((x) => x.url !== a.url))}>
-                    <X aria-hidden />
-                  </Button>
-                </li>
-              ))}
-              {files.map((f, i) => (
-                <li key={`${f.name}-${i}`} className="flex items-center gap-2 text-sm">
-                  <Paperclip className="size-4 shrink-0 text-muted" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                  <span className="num text-muted">{formatBytes(f.size)}</span>
-                  <Button type="button" variant="ghost" size="icon" aria-label={`Remove ${f.name}`} onClick={() => setFiles((l) => l.filter((_, j) => j !== i))}>
-                    <X aria-hidden />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-            <input ref={fileInput} type="file" multiple className="sr-only" aria-label="Choose files to attach" onChange={(e) => addFiles(e.target.files)} />
-            <Button type="button" variant="secondary" size="sm" className="self-start" onClick={() => fileInput.current?.click()}>
-              <Paperclip aria-hidden /> Attach files
-            </Button>
-            {fileError ? (
-              <p role="alert" className="text-sm text-danger">
-                {fileError}
-              </p>
-            ) : (
-              <p className="text-sm text-muted">Up to 10 files, 10 MB each.</p>
-            )}
-          </div>
 
           <label className="flex min-h-11 items-start gap-3">
             <input type="checkbox" className="mt-1 size-5 accent-[var(--brand-from)]" {...register("requiresReview")} />

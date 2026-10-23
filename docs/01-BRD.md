@@ -33,7 +33,7 @@ See `02-FEATURES-MODULES.md` (IDs FR-xx per module).
 
 ## 8. Non-functional requirements
 - **Performance:** dashboard first load < 2.5 s on 4G; realtime listeners scoped by query (never listen to whole collections).
-- **Security:** role-based Firestore/Storage rules; custom claims; server-only secrets; audit log append-only.
+- **Security:** role-based Firestore and database rules; custom claims; server-only secrets; audit log append-only.
 - **Reliability:** scheduled jobs idempotent (safe to run twice).
 - **Usability:** every control has label/tooltip; consistent navigation; responsive (desktop-first, fully usable on phone); light + dark theme.
 - **Privacy/Ethics:** employees are told exactly what is tracked (activity within Traxio tab, breaks, journals). No hidden monitoring.
@@ -46,11 +46,11 @@ See `02-FEATURES-MODULES.md` (IDs FR-xx per module).
 - Employee WhatsApp numbers stored in international format (+92…).
 
 ## 10. Dependencies & constraints
-Vercel (hosting + cron), Firebase project (Blaze plan likely required for Storage and server-triggered features), Meta WhatsApp Business, Anthropic/Gemini API key.
+Vercel (hosting + cron), Firebase project (free Spark plan is enough: no Storage, no Cloud Functions), Meta WhatsApp Business, Anthropic/Gemini API key.
 
 ## 11. Key risks
 1. **Scheduled jobs on Vercel Hobby plan** run at most once per day → hourly/5-min escalation needs Vercel Pro or an external pinger (cron-job.org) calling a secured endpoint.
 2. **Idle detection is browser-limited:** can only detect activity on the Traxio tab (mouse/keyboard/visibility), not the whole computer. Document this honestly in UI.
 3. **WhatsApp business-initiated messages need pre-approved templates** and Meta business verification.
-4. **Firebase Storage** may require Blaze (pay-as-you-go) plan for new projects.
+4. **No file storage by design:** Traxio is text only, which keeps Firebase on the free Spark plan (watch the Realtime Database 100-connection and Firestore daily read limits as usage grows).
 5. Browser push requires user permission; iOS push needs PWA installed.

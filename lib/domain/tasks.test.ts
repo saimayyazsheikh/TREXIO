@@ -15,7 +15,7 @@ function task(over: Partial<TaskData> = {}): TaskData {
     kind: "oneoff", templateId: null, date: "2026-10-21", businessId: "b1", assigneeIds: ["ali"], assigneeNames: { ali: "Ali" }, completion: {}, completionMode: "all",
     title: "Server check", description: "", priority: "medium", status: "todo", blockedReason: null, blockedBy: null, dueAt: null,
     requiresReview: false, subtasks, subtaskTotal: subtasks.length, subtaskDone: subtasks.filter((s) => s.done).length,
-    relatedTaskIds: [], dependsOnIds: [], linkTitles: {}, waitingOnIds: [], attachments: [], tags: [], createdBy: "admin1", createdAt: now, updatedAt: now,
+    relatedTaskIds: [], dependsOnIds: [], linkTitles: {}, waitingOnIds: [], tags: [], createdBy: "admin1", createdAt: now, updatedAt: now,
     completedAt: null, escalation: { l1At: null, l2At: null }, ...over,
   };
 }

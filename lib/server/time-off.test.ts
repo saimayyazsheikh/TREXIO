@@ -74,11 +74,9 @@ describe("leave requests", () => {
   it("a new request is pending with the employee's details and no decision", () => {
     expect(docs.get(`leaveRequests/${rid}`)).toMatchObject({ employeeId: "ali12345", employeeName: "Ali Khan", businessId: "b1", kind: "leave", fromDate: "2026-10-22", toDate: "2026-10-23", status: "pending", decidedBy: null });
   });
-  it("only employees ask, with valid dates and their own files", async () => {
+  it("only employees ask, with valid dates", async () => {
     await expect(handleLeave(db, admin, create())).rejects.toMatchObject({ status: 403 });
     await expect(handleLeave(db, ali, create({ fromDate: "2026-10-25", toDate: "2026-10-24" }))).rejects.toThrow(/before the start/);
-    const file = { name: "a.pdf", url: `https://x.test/v0/b/x/o/${encodeURIComponent("u/sara9999/leave/a.pdf")}`, size: 1, type: "application/pdf" };
-    await expect(handleLeave(db, ali, create({ attachments: [file] }))).rejects.toThrow(/can't be attached/);
   });
   it("the admin approves; the decision is recorded; it can't be decided twice", async () => {
     await handleLeave(db, admin, decide(rid, "approve", "Enjoy"));

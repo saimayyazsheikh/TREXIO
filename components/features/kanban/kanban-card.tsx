@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
-import { CalendarCheck, Check, Link2, MessageCircleMore, MoreHorizontal, Paperclip, Repeat, Users } from "lucide-react";
+import { CalendarCheck, Check, Link2, MessageCircleMore, MoreHorizontal, Repeat, Users } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -15,7 +15,7 @@ import { availableMoves } from "@/lib/domain/task-moves";
 import { cn } from "@/lib/utils";
 import type { TaskDoc, WithId } from "@/types/models";
 
-export type Person = { name: string; photoUrl?: string | null };
+export type Person = { name: string };
 
 type Props = {
   task: WithId<TaskDoc>;
@@ -103,7 +103,7 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
             const p = people.get(uid);
             return (
               <li key={uid} className="relative rounded-full ring-2 ring-surface-solid">
-                <Avatar name={p?.name ?? task.assigneeNames[uid] ?? "?"} src={p?.photoUrl} size="sm" />
+                <Avatar name={p?.name ?? task.assigneeNames[uid] ?? "?"} size="sm" />
                 {task.completion[uid]?.done ? <Check className="absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full bg-success p-0.5 text-background" aria-label="finished their part" /> : null}
               </li>
             );
@@ -119,11 +119,6 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
           {task.subtaskTotal > 0 ? (
             <span className="inline-flex items-center gap-1" title="Checklist steps done">
               <CalendarCheck className="size-3.5" aria-hidden /> {task.subtaskDone}/{task.subtaskTotal}
-            </span>
-          ) : null}
-          {task.attachments.length > 0 ? (
-            <span className="inline-flex items-center gap-1">
-              <Paperclip className="size-3.5" aria-hidden /> {task.attachments.length}
             </span>
           ) : null}
         </div>

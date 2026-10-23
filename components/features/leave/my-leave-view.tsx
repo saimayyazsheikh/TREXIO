@@ -6,7 +6,6 @@ import { collection, query, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AttachmentLinks } from "@/components/features/comms/attachments";
 import { ConfirmDialog } from "@/components/features/confirm-dialog";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
@@ -83,7 +82,6 @@ export function MyLeaveView({ uid }: { uid: string }) {
                     <LeaveStatusBadge status={r.status} />
                   </div>
                   <p className="mt-2 whitespace-pre-line">{r.reason}</p>
-                  <AttachmentLinks files={r.attachments} />
                   {r.decidedByName && r.status !== "pending" && r.status !== "cancelled" ? (
                     <p className="mt-2 text-sm text-muted">
                       {r.decidedByName} {r.status === "approved" ? "approved this" : "didn't approve this"}
@@ -132,7 +130,7 @@ export function MyLeaveView({ uid }: { uid: string }) {
         )}
       </section>
 
-      <LeaveRequestSheet open={sheetOpen} onOpenChange={setSheetOpen} uid={uid} />
+      <LeaveRequestSheet open={sheetOpen} onOpenChange={setSheetOpen} />
       <ConfirmDialog
         open={cancelId !== null}
         onOpenChange={(o) => !o && setCancelId(null)}

@@ -12,18 +12,18 @@ npm run dev
 ## Try it locally without Firebase (demo mode)
 Everything runs against Firebase's local emulators with fake accounts. Needs Java 21+ (`winget install Microsoft.OpenJDK.21`).
 ```bash
-npm run emulators        # terminal 1: Auth, Firestore, Realtime DB and Storage on your machine
+npm run emulators        # terminal 1: Auth, Firestore and Realtime DB on your machine
 npm run seed:emulator    # terminal 2, once: demo businesses, team, routines and tasks (add -- --reset to start over)
 npm run dev:emulated     # terminal 2: the app at http://localhost:3000
 ```
 The seed prints the demo logins (they are also at the top of `scripts/seed-emulator.ts`). The admin signs in with an email, employees with just a username. The emulator data is wiped when you stop `npm run emulators`; run the seed again next time.
 ## Firebase setup (once)
-1. Create a Firebase project on the **Blaze** plan (Storage needs it).
+1. Create a Firebase project. The free **Spark** plan is enough: Traxio uses no Storage and no Cloud Functions.
 2. Build > **Authentication** > enable Email/Password.
-3. Build > **Firestore Database** > create in production mode. Build > **Realtime Database** > create. Build > **Storage** > get started.
+3. Build > **Firestore Database** > create in production mode. Build > **Realtime Database** > create.
 4. Project settings > Your apps > add a **Web app**, and copy its config into the `NEXT_PUBLIC_FIREBASE_*` values in `.env.local` (`NEXT_PUBLIC_FIREBASE_DATABASE_URL` is the Realtime Database URL).
 5. Project settings > Service accounts > **Generate new private key**. Put `project_id`, `client_email` and `private_key` into `FIREBASE_ADMIN_PROJECT_ID`, `FIREBASE_ADMIN_CLIENT_EMAIL`, `FIREBASE_ADMIN_PRIVATE_KEY` (keep the key on one line with literal `\n`). Set `FIREBASE_DATABASE_URL` to the same Realtime Database URL.
-6. Deploy the rules and indexes: `npx firebase-tools deploy --only firestore,storage,database --project <your-project-id>`.
+6. Deploy the rules and indexes: `npx firebase-tools deploy --only firestore,database --project <your-project-id>`.
 7. Create your admin account:
    ```bash
    npm run seed:admin -- --email you@example.com --password "a long password" --name "Your Name"
@@ -70,8 +70,8 @@ With no key, a built-in template writes the summary from the same figures (no AI
 ## Browser notifications
 The bell works everywhere. For alerts while Traxio is closed, set `NEXT_PUBLIC_FIREBASE_VAPID_KEY` (Firebase console > Project settings > Cloud Messaging > Web Push certificates) and each person taps "Get alerts on this device" in the bell. Not available under the emulators.
 
-After pulling new code, redeploy rules and indexes: `npx firebase-tools deploy --only firestore,storage,database --project <your-project-id>`. In the Firebase console, check Firestore > Indexes finishes building before first use.
+After pulling new code, redeploy rules and indexes: `npx firebase-tools deploy --only firestore,database --project <your-project-id>`. In the Firebase console, check Firestore > Indexes finishes building before first use.
 
 ## Tests
 - `npm test` runs unit tests (domain logic, schemas, contrast).
-- `npm run test:rules` runs the Firestore/Storage rules tests against the emulators (needs Java 21+ installed).
+- `npm run test:rules` runs the Firestore and Realtime Database rules tests against the emulators (needs Java 21+ installed).

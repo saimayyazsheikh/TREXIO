@@ -2,12 +2,11 @@ import { DomainError } from "@/lib/domain/errors";
 import { ADMIN_MAILBOX, queueNotification } from "@/lib/server/notify";
 import type { Actor } from "@/lib/domain/tasks";
 import {
-  EVERYONE_CHAT, assertCanUseChat, attachmentsInFolder, dmChatId, questionStatusAfterReply, toggleReaction, unreadKey,
+  EVERYONE_CHAT, assertCanUseChat, dmChatId, questionStatusAfterReply, toggleReaction, unreadKey,
   type ChatAction, type QuestionAction, type ReminderInput,
 } from "@/lib/domain/communication";
 
 type Doc = Record<string, unknown>;
-type Attachments = { name: string; url: string; size: number; type: string }[];
 type UserRec = { name: string; role: "admin" | "employee"; businessId: string | null; status: "active" | "disabled" };
 
 /** One atomic transaction over documents addressed by path. Reads must come before writes. */
@@ -74,7 +73,7 @@ export function sendReminder(db: DocDb, actor: Actor, input: ReminderInput): Pro
     }
 
     tx.create(`reminders/${input.id}`, {
-      fromUid: actor.uid, fromName: actor.name, toUids, toNames: names, body: input.body, attachments: input.attachments,
+      fromUid: actor.uid, fromName: actor.name, toUids, toNames: names, body: input.body,
       taskId: input.taskId, taskTitle, readBy: {}, createdAt: db.now(),
     });
     for (const uid of toUids) queueNotification(db, tx, { toUid: uid, title: `Reminder from ${actor.name}`, body: input.body, link: "/me/reminders" });
@@ -101,7 +100,6 @@ export function handleQuestion(db: DocDb, actor: Actor, input: QuestionAction): 
 
     if (input.action === "ask") {
       requireEmployee(actor, "ask questions");
-      if (!attachmentsInFolder(input.attachments, `u/${actor.uid}/`)) throw new DomainError("Those files can't be attached.", 400);
       const me = await getUser(tx, actor.uid);
       let taskTitle: string | null = null;
       if (input.taskId) {
@@ -114,7 +112,7 @@ export function handleQuestion(db: DocDb, actor: Actor, input: QuestionAction): 
         employeeId: actor.uid, employeeName: actor.name, businessId: me?.businessId ?? null, taskId: input.taskId, taskTitle, subject: input.subject,
         status: "open", urgent: input.urgent, unreadForAdmin: true, unreadForEmployee: false, lastMessageAt: now, lastAuthorRole: "employee", createdAt: now,
       });
-      tx.create(`questions/${questionId}/messages/${db.newId()}`, { authorId: actor.uid, authorName: actor.name, authorRole: "employee", body: input.body, attachments: input.attachments, createdAt: now });
+      tx.create(`questions/${questionId}/messages/${db.newId()}`, { authorId: actor.uid, authorName: actor.name, authorRole: "employee", body: input.body, createdAt: now });
       queueNotification(db, tx, { toUid: ADMIN_MAILBOX, title: `${input.urgent ? "Urgent question" : "Question"} from ${actor.name}`, body: input.subject, link: "/admin/inbox" });
       return { questionId };
     }
@@ -122,19 +120,16 @@ export function handleQuestion(db: DocDb, actor: Actor, input: QuestionAction): 
     const q = await loadQuestion(tx, input.questionId, actor);
 
     if (input.action === "reply") {
-      if (!input.body && input.attachments.length === 0) throw new DomainError("Write a reply or attach a file.", 400);
-      // Everyone in a thread uploads into the employee's private folder, which only they and the admin can read.
-      if (!attachmentsInFolder(input.attachments, `u/${q.employeeId}/`)) throw new DomainError("Those files can't be attached.", 400);
       const status = questionStatusAfterReply(q.status, actor.role);
       const fromAdmin = actor.role === "admin";
       tx.update(`questions/${input.questionId}`, { status, lastMessageAt: now, lastAuthorRole: actor.role, unreadForAdmin: !fromAdmin, unreadForEmployee: fromAdmin });
-      tx.create(`questions/${input.questionId}/messages/${db.newId()}`, { authorId: actor.uid, authorName: actor.name, authorRole: actor.role, body: input.body, attachments: input.attachments, createdAt: now });
+      tx.create(`questions/${input.questionId}/messages/${db.newId()}`, { authorId: actor.uid, authorName: actor.name, authorRole: actor.role, body: input.body, createdAt: now });
       queueNotification(
         db,
         tx,
         fromAdmin
-          ? { toUid: q.employeeId, title: "Your admin replied", body: input.body || "Sent an attachment", link: "/me/ask" }
-          : { toUid: ADMIN_MAILBOX, title: `${actor.name} replied`, body: input.body || "Sent an attachment", link: "/admin/inbox" },
+          ? { toUid: q.employeeId, title: "Your admin replied", body: input.body, link: "/me/ask" }
+          : { toUid: ADMIN_MAILBOX, title: `${actor.name} replied`, body: input.body, link: "/admin/inbox" },
       );
       return { ok: true };
     }
@@ -157,7 +152,7 @@ export function handleQuestion(db: DocDb, actor: Actor, input: QuestionAction): 
 type ChatDoc = { unread?: Record<string, number> };
 type MessageDoc = { authorId: string; deleted?: boolean; reactions?: Record<string, string[]> };
 
-const preview = (body: string) => (body.length > 80 ? `${body.slice(0, 80)}…` : body || "Sent an attachment");
+const preview = (body: string) => (body.length > 80 ? `${body.slice(0, 80)}…` : body);
 
 export function handleChat(db: DocDb, actor: Actor, input: ChatAction): Promise<unknown> {
   return db.transaction(async (tx) => {
@@ -166,8 +161,6 @@ export function handleChat(db: DocDb, actor: Actor, input: ChatAction): Promise<
     const chatPath = `chats/${input.chatId}`;
 
     if (input.action === "send") {
-      if (!input.body && input.attachments.length === 0) throw new DomainError("Write a message or attach a file.", 400);
-      if (!attachmentsInFolder(input.attachments, `chats/${input.chatId}/`)) throw new DomainError("Those files can't be attached.", 400);
 
       const isEveryone = input.chatId === EVERYONE_CHAT;
       const chat = (await tx.get(chatPath)) as ChatDoc | null;
@@ -200,7 +193,7 @@ export function handleChat(db: DocDb, actor: Actor, input: ChatAction): Promise<
         });
       }
       tx.create(`${chatPath}/messages/${messageId}`, {
-        authorId: actor.uid, authorName: actor.name, authorRole: actor.role, body: input.body, attachments: input.attachments, reactions: {}, createdAt: now, editedAt: null, deleted: false,
+        authorId: actor.uid, authorName: actor.name, authorRole: actor.role, body: input.body, reactions: {}, createdAt: now, editedAt: null, deleted: false,
       });
       return { messageId };
     }
@@ -221,7 +214,7 @@ export function handleChat(db: DocDb, actor: Actor, input: ChatAction): Promise<
       tx.update(messagePath, { body: input.body, editedAt: now });
     } else if (input.action === "delete") {
       if (message.authorId !== actor.uid) throw new DomainError("You can only delete your own messages.", 403);
-      tx.update(messagePath, { deleted: true, body: "", attachments: [], reactions: {}, editedAt: null });
+      tx.update(messagePath, { deleted: true, body: "", reactions: {}, editedAt: null });
     } else {
       tx.update(messagePath, { reactions: toggleReaction(message.reactions ?? {}, input.emoji, actor.uid) });
     }
@@ -230,4 +223,3 @@ export function handleChat(db: DocDb, actor: Actor, input: ChatAction): Promise<
 }
 
 export { dmChatId };
-export type { Attachments };

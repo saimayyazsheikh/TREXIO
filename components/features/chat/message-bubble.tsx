@@ -7,7 +7,6 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
-import { AttachmentLinks } from "@/components/features/comms/attachments";
 import { apiFetch } from "@/lib/api-client";
 import { REACTIONS } from "@/lib/domain/communication";
 import { formatPkt } from "@/lib/time";
@@ -86,7 +85,6 @@ export function MessageBubble({ message, chatId, viewerUid, showAuthor }: { mess
             ) : (
               <>
                 {message.body ? <p className="whitespace-pre-line break-words text-sm">{message.body}</p> : null}
-                {message.attachments.length > 0 ? <AttachmentLinks files={message.attachments} /> : null}
                 {message.editedAt ? <p className={cn("text-[11px]", mine ? "text-white/80" : "text-muted")}>edited</p> : null}
               </>
             )}

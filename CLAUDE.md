@@ -8,9 +8,9 @@ A task-management and team-monitoring web app for ONE admin (the business owner)
 ## Hard constraints
 - **Next.js (App Router, TypeScript) only. No separate backend server.** Deployed on Vercel.
 - Server-side logic lives ONLY in Next.js Route Handlers / Server Actions (using Firebase Admin SDK) — needed for: creating employee accounts, WhatsApp sends, cron jobs, AI summaries, audit writes.
-- Firebase: Auth, Firestore (primary DB), Realtime Database (presence only), Storage, Cloud Messaging (FCM).
+- Firebase: Auth, Firestore (primary DB), Realtime Database (presence only), Cloud Messaging (FCM). **No Storage: Traxio is text only (no file uploads, no photos or logos), so it runs on the free Spark plan.**
 - Timezone: Asia/Karachi (PKT, UTC+5) everywhere. Store timestamps in UTC, compute "day" boundaries in PKT.
-- Two roles only: `admin`, `employee`. Security is enforced by Firestore/Storage rules, never only by UI.
+- Two roles only: `admin`, `employee`. Security is enforced by Firestore and database rules, never only by UI.
 
 ## Stack
 Next.js 15 + React + TypeScript, Tailwind CSS, shadcn/ui (Radix), Framer Motion, lucide-react, @dnd-kit (drag & drop), Recharts, TanStack Query where useful, Zod + React Hook Form, date-fns + date-fns-tz, Firebase JS SDK (client) + firebase-admin (server routes), Anthropic SDK or Gemini SDK (server only).

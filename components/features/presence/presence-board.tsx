@@ -110,7 +110,7 @@ export function PresenceBoard() {
                   return (
                     <li key={user.id}>
                       <GlassCard className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3">
-                        <Avatar name={user.name} src={user.photoUrl} />
+                        <Avatar name={user.name} />
                         <div className="min-w-0 flex-1 basis-40">
                           <p className="truncate font-semibold">{user.name}</p>
                           <div className="mt-0.5">{business ? <BusinessChip name={business.name} color={business.color} /> : null}</div>
@@ -151,7 +151,7 @@ export function PresenceBoard() {
                     <li key={user.id}>
                       <GlassCard className="p-3">
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                          <Avatar name={user.name} src={user.photoUrl} />
+                          <Avatar name={user.name} />
                           <div className="min-w-0 flex-1 basis-40">
                             <p className="truncate font-semibold">{user.name}</p>
                             {t ? (

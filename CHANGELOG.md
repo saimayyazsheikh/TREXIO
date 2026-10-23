@@ -82,3 +82,7 @@ pm run seed:admin), custom claims, username to email login.
 - Chart colours follow a validated palette (colour-blind-safe order, light and dark variants), with legends, hover readouts and values at bar tips.
 - Admin > AI summaries: weekly summary service with Claude (official SDK) or Gemini behind one interface, and a template fallback when no key is set. Written every Monday by the morning job, or on demand ("Summarize last week", "Week so far"); history page; optional WhatsApp copy; in-app notification.
 - Emulator seed now includes two weeks of history so the charts and summaries have something to show.
+
+## Text only: Storage removed
+- Removed file attachments everywhere (tasks, reminders, questions, chat, leave), profile photos and business logos, plus Storage rules, tests, emulator and env settings. Firebase now needs only Auth, Firestore, Realtime Database and FCM, all available on the free Spark plan.
+- Chat messages and question replies now require text. Client-side writes to user profiles are closed entirely (only server routes edit them).

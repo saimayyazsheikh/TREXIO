@@ -9,8 +9,8 @@ const admin = () => env.authenticatedContext("admin1", { role: "admin" }).firest
 const employee = (uid = "emp1", businessId = "b1") => env.authenticatedContext(uid, { role: "employee", businessId }).firestore();
 const stranger = () => env.authenticatedContext("nobody").firestore(); // signed in but no role claim
 
-const business = { name: "Alpha", color: "indigo", logoUrl: null, workStart: "09:00", workEnd: "18:00", workDays: [1, 2, 3], active: true };
-const userDoc = (over: Record<string, unknown> = {}) => ({ role: "employee", name: "Ali", businessId: "b1", status: "active", photoUrl: null, ...over });
+const business = { name: "Alpha", color: "indigo", workStart: "09:00", workEnd: "18:00", workDays: [1, 2, 3], active: true };
+const userDoc = (over: Record<string, unknown> = {}) => ({ role: "employee", name: "Ali", businessId: "b1", status: "active", ...over });
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
@@ -57,13 +57,12 @@ describe("users", () => {
   it("an employee cannot promote themselves or change their business", async () => {
     await assertFails(updateDoc(doc(employee(), "users/emp1"), { role: "admin" }));
     await assertFails(updateDoc(doc(employee(), "users/emp1"), { businessId: "b2" }));
-    await assertFails(updateDoc(doc(employee(), "users/emp1"), { photoUrl: "https://x" }));
+    await assertFails(updateDoc(doc(employee(), "users/emp1"), { name: "Someone else" }));
   });
-  it("admin may only change photoUrl on a profile", async () => {
-    await assertSucceeds(updateDoc(doc(admin(), "users/emp1"), { photoUrl: "https://example.com/p.png" }));
+  it("not even the admin edits a profile from the browser; only server routes do", async () => {
+    await assertFails(updateDoc(doc(admin(), "users/emp1"), { name: "Renamed" }));
     await assertFails(updateDoc(doc(admin(), "users/emp1"), { status: "disabled" }));
     await assertFails(updateDoc(doc(admin(), "users/emp1"), { role: "admin" }));
-    await assertFails(updateDoc(doc(admin(), "users/emp1"), { photoUrl: 42 }));
   });
 });
 

@@ -10,9 +10,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ColorPicker } from "@/components/features/color-picker";
-import { PhotoField } from "@/components/features/photo-field";
 import { getFirebase } from "@/lib/firebase/client";
-import { removeImage, uploadImage } from "@/lib/firebase/upload";
 import { businessInputSchema, type BusinessInput } from "@/lib/domain/schemas";
 import { WEEKDAYS } from "@/lib/domain/work-days";
 import { cn } from "@/lib/utils";
@@ -30,20 +28,17 @@ export function BusinessSheet({
   /** Present when editing; absent when creating. */
   business?: WithId<BusinessDoc>;
 }) {
-  const [photo, setPhoto] = useState<{ file: File | null; removed: boolean }>({ file: null, removed: false });
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
     control,
     handleSubmit,
     reset,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<BusinessInput>({ resolver: zodResolver(businessInputSchema), defaultValues: DEFAULTS });
 
   useEffect(() => {
     if (!open) return;
-    setPhoto({ file: null, removed: false });
     setFormError(null);
     reset(
       business
@@ -57,22 +52,9 @@ export function BusinessSheet({
     try {
       const { db } = getFirebase();
       const ref = business ? doc(db, "businesses", business.id) : doc(collection(db, "businesses"));
-      let logoUrl = business?.logoUrl ?? null;
-      let photoFailed = false;
-      if (photo.file) {
-        try {
-          logoUrl = await uploadImage(`logos/${ref.id}`, photo.file);
-        } catch {
-          photoFailed = true;
-        }
-      } else if (photo.removed && logoUrl) {
-        await removeImage(`logos/${ref.id}`);
-        logoUrl = null;
-      }
-      if (business) await updateDoc(ref, { ...values, logoUrl });
-      else await setDoc(ref, { ...values, logoUrl, createdAt: serverTimestamp() });
+      if (business) await updateDoc(ref, values);
+      else await setDoc(ref, { ...values, createdAt: serverTimestamp() });
       toast.success(business ? "Business updated" : `${values.name} added`);
-      if (photoFailed) toast.warning("Saved, but the logo couldn't be uploaded. Check that Firebase Storage is enabled.");
       onOpenChange(false);
     } catch (error) {
       console.error(error);
@@ -80,7 +62,6 @@ export function BusinessSheet({
     }
   }
 
-  const name = watch("name");
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
@@ -98,8 +79,6 @@ export function BusinessSheet({
         }
       >
         <form id="business-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5" noValidate>
-          <PhotoField label="Logo (optional)" name={name} currentUrl={business?.logoUrl ?? null} file={photo.file} removed={photo.removed} onChange={setPhoto} />
-
           <Field id="biz-name" label="Business name" required error={errors.name?.message}>
             {(aria) => <Input {...aria} autoComplete="off" {...register("name")} />}
           </Field>

@@ -59,7 +59,7 @@
         "lint": "eslint .",
         "typecheck": "tsc --noEmit",
         "test": "vitest run",
-        "test:rules": "firebase emulators:exec --only firestore,storage,database --project demo-traxio \"vitest run --config vitest.rules.config.mts\"",
+        "test:rules": "firebase emulators:exec --only firestore,database --project demo-traxio \"vitest run --config vitest.rules.config.mts\"",
         "emulators": "firebase emulators:start --project demo-traxio",
         "dev:emulated": "node --env-file=.env.emulator ./node_modules/next/dist/bin/next dev --turbopack",
         "seed:emulator": "node --env-file=.env.emulator ./node_modules/tsx/dist/cli.mjs scripts/seed-emulator.ts",

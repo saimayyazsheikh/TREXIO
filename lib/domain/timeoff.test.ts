@@ -16,7 +16,7 @@ describe("schemas", () => {
   });
   it("turns empty times into null and needs a real reason", () => {
     const parsed = leave();
-    expect(parsed).toMatchObject({ fromTime: null, toTime: null, attachments: [] });
+    expect(parsed).toMatchObject({ fromTime: null, toTime: null });
     expect(leaveActionSchema.safeParse({ action: "create", kind: "leave", fromDate: "2026-10-22", toDate: "2026-10-22", reason: "ok" }).success).toBe(false);
     expect(leaveActionSchema.safeParse({ action: "decide", requestId: "r1", decision: "maybe" }).success).toBe(false);
   });

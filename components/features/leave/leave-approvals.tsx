@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AttachmentLinks } from "@/components/features/comms/attachments";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
@@ -35,7 +34,6 @@ function RequestCard({ r, onDecide }: { r: WithId<LeaveRequestDoc>; onDecide?: (
       </div>
       <p className="num mt-1 text-sm font-medium">{describeRequest(r, fmtDay, daysBetween(r.fromDate, r.toDate))}</p>
       <p className="mt-2 whitespace-pre-line">{r.reason}</p>
-      <AttachmentLinks files={r.attachments} />
       <p className="num mt-2 text-xs text-muted">Sent {formatPkt(r.createdAt.toDate(), "EEE d MMM, h:mm a")}</p>
       {r.decidedByName && r.status !== "pending" && r.status !== "cancelled" ? (
         <p className="mt-1 text-sm text-muted">

@@ -3,7 +3,6 @@ import type { Priority, Role, TaskStatus } from "@/lib/domain/constants";
 import { TASK_STATUS_LABEL } from "@/lib/domain/constants";
 
 export type Subtask = { id: string; title: string; done: boolean; doneAt: Date | null; doneBy: string | null };
-export type Attachment = { name: string; url: string; size: number; type: string };
 
 /** A task as stored in Firestore (server view, plain `Date`s). */
 export type TaskData = {
@@ -37,7 +36,6 @@ export type TaskData = {
   linkTitles: Record<string, string>;
   /** The subset of `dependsOnIds` not completed yet. Kept in sync by the shared writer; display only. */
   waitingOnIds: string[];
-  attachments: Attachment[];
   tags: string[];
   createdBy: string;
   createdAt: Date;

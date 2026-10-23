@@ -3,18 +3,14 @@
 import { useEffect, useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { doc, updateDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { PhotoField } from "@/components/features/photo-field";
 import { PasswordInput } from "@/components/features/team/password-input";
 import { apiFetch } from "@/lib/api-client";
-import { getFirebase } from "@/lib/firebase/client";
-import { removeImage, uploadImage } from "@/lib/firebase/upload";
 import { generatePassword } from "@/lib/password";
 import { createEmployeeSchema, updateEmployeeSchema } from "@/lib/domain/schemas";
 import { USERNAME_EMAIL_DOMAIN } from "@/lib/auth-identifier";
@@ -47,7 +43,6 @@ export function EmployeeSheet({
   businesses: WithId<BusinessDoc>[];
 }) {
   const editing = !!employee;
-  const [photo, setPhoto] = useState<{ file: File | null; removed: boolean }>({ file: null, removed: false });
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
@@ -64,7 +59,6 @@ export function EmployeeSheet({
 
   useEffect(() => {
     if (!open) return;
-    setPhoto({ file: null, removed: false });
     setFormError(null);
     reset(
       employee
@@ -90,32 +84,15 @@ export function EmployeeSheet({
       designation: raw.designation, workStart: raw.workStart, workEnd: raw.workEnd,
     };
     try {
-      let uid = employee?.id;
       if (employee) await apiFetch(`/api/admin/employees/${employee.id}`, "PATCH", common);
-      else uid = (await apiFetch<{ uid: string }>("/api/admin/employees", "POST", { ...common, username: raw.username, password: raw.password })).uid;
-
-      let photoFailed = false;
-      if (uid && (photo.file || photo.removed)) {
-        try {
-          const userRef = doc(getFirebase().db, "users", uid);
-          if (photo.file) await updateDoc(userRef, { photoUrl: await uploadImage(`avatars/${uid}`, photo.file) });
-          else if (employee?.photoUrl) {
-            await updateDoc(userRef, { photoUrl: null });
-            await removeImage(`avatars/${uid}`);
-          }
-        } catch {
-          photoFailed = true;
-        }
-      }
+      else await apiFetch("/api/admin/employees", "POST", { ...common, username: raw.username, password: raw.password });
       toast.success(editing ? "Changes saved" : `${raw.name} can now sign in as ${raw.username}`);
-      if (photoFailed) toast.warning("Saved, but the photo couldn't be uploaded. Check that Firebase Storage is enabled.");
       onOpenChange(false);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Something went wrong. Please try again.");
     }
   }
 
-  const name = watch("name");
   const password = watch("password");
   const selectable = businesses.filter((b) => b.active || b.id === employee?.businessId);
 
@@ -136,8 +113,6 @@ export function EmployeeSheet({
         }
       >
         <form id="employee-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5" noValidate>
-          <PhotoField label="Photo (optional)" name={name} currentUrl={employee?.photoUrl ?? null} file={photo.file} removed={photo.removed} onChange={setPhoto} />
-
           <Field id="emp-name" label="Full name" required error={errors.name?.message}>
             {(aria) => <Input {...aria} autoComplete="off" {...register("name")} />}
           </Field>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  attachmentsInFolder, canUseChat, chatActionSchema, dmChatId, questionActionSchema, questionStatusAfterReply, reminderSchema, toggleReaction, unreadKey,
+  canUseChat, chatActionSchema, dmChatId, questionActionSchema, questionStatusAfterReply, reminderSchema, toggleReaction, unreadKey,
 } from "@/lib/domain/communication";
 
 const ali = { uid: "ali12345", role: "employee" as const };
@@ -10,7 +10,7 @@ describe("reminderSchema", () => {
   const base = { id: "abcdefghij1", body: "  Please send the report  ", toUids: ["a", "a", "b"] };
   it("trims, dedupes recipients and defaults optional fields", () => {
     const r = reminderSchema.parse(base);
-    expect(r).toMatchObject({ body: "Please send the report", toUids: ["a", "b"], toAll: false, taskId: null, attachments: [] });
+    expect(r).toMatchObject({ body: "Please send the report", toUids: ["a", "b"], toAll: false, taskId: null });
   });
   it("needs a recipient or 'everyone', and a message", () => {
     expect(reminderSchema.safeParse({ ...base, toUids: [] }).success).toBe(false);
@@ -18,11 +18,9 @@ describe("reminderSchema", () => {
     expect(reminderSchema.safeParse({ ...base, body: "   " }).success).toBe(false);
   });
   it("rejects odd ids", () => expect(reminderSchema.safeParse({ ...base, id: "../x" }).success).toBe(false));
-  it("accepts local emulator and https attachment links but not other http links", () => {
-    const file = (url: string) => ({ ...base, attachments: [{ name: "a.pdf", url, size: 10, type: "application/pdf" }] });
-    expect(reminderSchema.safeParse(file("https://firebasestorage.googleapis.com/v0/b/x/o/a")).success).toBe(true);
-    expect(reminderSchema.safeParse(file("http://127.0.0.1:9199/v0/b/x/o/a")).success).toBe(true);
-    expect(reminderSchema.safeParse(file("http://evil.example/a")).success).toBe(false);
+  it("ignores any files sent along, since Traxio is text only", () => {
+    const r = reminderSchema.parse({ ...base, attachments: [{ name: "a.pdf", url: "https://x.test/a", size: 1, type: "application/pdf" }] });
+    expect(r).not.toHaveProperty("attachments");
   });
 });
 
@@ -84,11 +82,3 @@ describe("questionStatusAfterReply", () => {
   });
 });
 
-describe("attachmentsInFolder", () => {
-  const url = (uid: string) => `https://firebasestorage.googleapis.com/v0/b/x/o/${encodeURIComponent(`u/${uid}/q/abc/file.pdf`)}?alt=media&token=t`;
-  it("accepts files in the expected folder only", () => {
-    expect(attachmentsInFolder([{ url: url("ali12345") }], "u/ali12345/")).toBe(true);
-    expect(attachmentsInFolder([{ url: url("sara9999") }], "u/ali12345/")).toBe(false);
-    expect(attachmentsInFolder([], "u/ali12345/")).toBe(true);
-  });
-});

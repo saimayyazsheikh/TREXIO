@@ -75,7 +75,7 @@ export function BoardView({ viewer }: { viewer: { uid: string; role: Role } }) {
   const [sheet, setSheet] = useState<{ open: boolean; task?: WithId<TaskDoc> }>({ open: false });
 
   const businessById = useMemo(() => new Map((businesses.data ?? []).map((b) => [b.id, b])), [businesses.data]);
-  const people = useMemo(() => new Map<string, Person>((users.data ?? []).map((u) => [u.id, { name: u.name, photoUrl: u.photoUrl }])), [users.data]);
+  const people = useMemo(() => new Map<string, Person>((users.data ?? []).map((u) => [u.id, { name: u.name }])), [users.data]);
 
   const rows: BoardRow[] = useMemo(
     () => tasks.map((t) => ({ id: t.id, status: displayStatus(t), priority: t.priority, title: t.title, businessId: t.businessId, assigneeIds: t.assigneeIds, assigneeNames: t.assigneeNames, dueAtMs: t.dueAt?.toMillis() ?? null, task: t })),

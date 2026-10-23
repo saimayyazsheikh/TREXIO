@@ -9,7 +9,6 @@ const admin: Actor = { uid: "admin1", name: "Boss", role: "admin" };
 const ali: Actor = { uid: "ali12345", name: "Ali Khan", role: "employee" };
 const sara: Actor = { uid: "sara9999", name: "Sara Ahmed", role: "employee" };
 
-const file = (folder: string) => ({ name: "a.pdf", url: `https://firebasestorage.googleapis.com/v0/b/x/o/${encodeURIComponent(`${folder}/a.pdf`)}?alt=media`, size: 10, type: "application/pdf" });
 
 let docs: Map<string, Record<string, unknown>>;
 let db: DocDb;
@@ -59,11 +58,9 @@ describe("questions", () => {
     expect(messages).toHaveLength(1);
     expect(messages[0][1]).toMatchObject({ authorRole: "employee", body: "It jams on page 2" });
   });
-  it("only employees ask, only about their own tasks, only with their own files", async () => {
+  it("only employees ask, and only about their own tasks", async () => {
     await expect(handleQuestion(db, admin, ask())).rejects.toMatchObject({ status: 403 });
     await expect(handleQuestion(db, sara, ask({ taskId: "t1" }))).rejects.toThrow(/isn't one of yours/);
-    await expect(handleQuestion(db, ali, ask({ attachments: [file("u/sara9999/q/x")] }))).rejects.toThrow(/can't be attached/);
-    await expect(handleQuestion(db, ali, ask({ attachments: [file("u/ali12345/q/x")] }))).resolves.toBeTruthy();
   });
   it("the admin's reply marks it answered and flags it for the employee; the employee's reply reopens it", async () => {
     await handleQuestion(db, admin, reply(qid));
@@ -71,10 +68,8 @@ describe("questions", () => {
     await handleQuestion(db, ali, reply(qid, { body: "That worked, thanks" }));
     expect(docs.get(`questions/${qid}`)).toMatchObject({ status: "open", unreadForAdmin: true, unreadForEmployee: false });
   });
-  it("replies need text or a file, and files must be in the employee's folder (also for the admin)", async () => {
-    await expect(handleQuestion(db, admin, reply(qid, { body: "" }))).rejects.toThrow(/Write a reply/);
-    await expect(handleQuestion(db, admin, reply(qid, { body: "", attachments: [file("u/admin1/x")] }))).rejects.toThrow(/can't be attached/);
-    await expect(handleQuestion(db, admin, reply(qid, { body: "", attachments: [file("u/ali12345/q/x")] }))).resolves.toBeTruthy();
+  it("a reply needs text", () => {
+    expect(questionActionSchema.safeParse({ action: "reply", questionId: qid, body: "   " }).success).toBe(false);
   });
   it("other employees can't see, reply to or mark seen someone else's question", async () => {
     await expect(handleQuestion(db, sara, reply(qid))).rejects.toMatchObject({ status: 404 });
@@ -100,7 +95,7 @@ describe("questions", () => {
 });
 
 describe("chat", () => {
-  const send = (chatId: string, body = "hello", attachments: unknown[] = []) => chatActionSchema.parse({ action: "send", chatId, body, attachments });
+  const send = (chatId: string, body = "hello") => chatActionSchema.parse({ action: "send", chatId, body });
   const act = (a: Record<string, unknown>) => chatActionSchema.parse(a);
   const messages = (chatId: string) => [...docs].filter(([p]) => p.startsWith(`chats/${chatId}/messages/`));
   const unread = (chatId: string) => (docs.get(`chats/${chatId}`)?.unread ?? {}) as Record<string, number>;
@@ -125,11 +120,8 @@ describe("chat", () => {
     await expect(handleChat(db, admin, send("dm_off11111"))).rejects.toThrow(/turned off/);
     await expect(handleChat(db, admin, send("dm_ghost0000"))).rejects.toMatchObject({ status: 404 });
   });
-  it("needs text or a file, and files must belong to that chat", async () => {
-    await expect(handleChat(db, ali, send("everyone", ""))).rejects.toThrow(/Write a message/);
-    await expect(handleChat(db, ali, send("everyone", "", [file("chats/dm_ali12345")]))).rejects.toThrow(/can't be attached/);
-    await handleChat(db, ali, send("everyone", "", [file("chats/everyone")]));
-    expect(docs.get("chats/everyone")?.lastMessage).toMatchObject({ text: "Sent an attachment" });
+  it("a message needs text", () => {
+    expect(chatActionSchema.safeParse({ action: "send", chatId: "everyone", body: "   " }).success).toBe(false);
   });
   it("marking read resets only your own counter", async () => {
     await handleChat(db, ali, send("everyone"));
@@ -150,7 +142,7 @@ describe("chat", () => {
       await handleChat(db, ali, act({ action: "edit", chatId: "everyone", messageId: mid, body: "final text" }));
       expect(docs.get(path())).toMatchObject({ body: "final text", editedAt: now });
       await handleChat(db, ali, act({ action: "delete", chatId: "everyone", messageId: mid }));
-      expect(docs.get(path())).toMatchObject({ deleted: true, body: "", attachments: [] });
+      expect(docs.get(path())).toMatchObject({ deleted: true, body: "" });
       await expect(handleChat(db, ali, act({ action: "edit", chatId: "everyone", messageId: mid, body: "again" }))).rejects.toMatchObject({ status: 404 });
     });
     it("anyone in the chat can react; reacting twice removes it", async () => {

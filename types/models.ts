@@ -5,7 +5,6 @@ import type { BusinessColorId } from "@/lib/domain/business-colors";
 export type BusinessDoc = {
   name: string;
   color: BusinessColorId;
-  logoUrl: string | null;
   workStart: string;
   workEnd: string;
   workDays: number[];
@@ -24,7 +23,6 @@ export type UserDoc = {
   /** Real contact email an admin may record for an employee. */
   contactEmail: string | null;
   phone: string | null;
-  photoUrl: string | null;
   businessId: string | null;
   designation: string;
   status: UserStatus;
@@ -59,7 +57,6 @@ export type TaskDoc = {
   subtasks: { id: string; title: string; done: boolean }[];
   subtaskTotal: number;
   subtaskDone: number;
-  attachments: { name: string; url: string; size: number; type: string }[];
   createdAt: Timestamp;
   completedAt: Timestamp | null;
 };
@@ -77,15 +74,12 @@ export type TemplateDoc = {
   order: number;
 };
 
-export type AttachmentDoc = { name: string; url: string; size: number; type: string };
-
 export type ReminderDoc = {
   fromUid: string;
   fromName: string;
   toUids: string[];
   toNames: Record<string, string>;
   body: string;
-  attachments: AttachmentDoc[];
   taskId: string | null;
   taskTitle: string | null;
   readBy: Record<string, Timestamp>;
@@ -110,7 +104,7 @@ export type QuestionDoc = {
   createdAt: Timestamp;
 };
 
-export type QuestionMessageDoc = { authorId: string; authorName: string; authorRole: Role; body: string; attachments: AttachmentDoc[]; createdAt: Timestamp };
+export type QuestionMessageDoc = { authorId: string; authorName: string; authorRole: Role; body: string; createdAt: Timestamp };
 
 export type ChatDoc = {
   type: "direct" | "group";
@@ -126,7 +120,6 @@ export type ChatMessageDoc = {
   authorName: string;
   authorRole: Role;
   body: string;
-  attachments: AttachmentDoc[];
   reactions: Record<string, string[]>;
   createdAt: Timestamp;
   editedAt: Timestamp | null;
@@ -143,7 +136,6 @@ export type LeaveRequestDoc = {
   fromTime: string | null;
   toTime: string | null;
   reason: string;
-  attachments: AttachmentDoc[];
   status: "pending" | "approved" | "rejected" | "cancelled";
   decidedBy: string | null;
   decidedByName: string | null;

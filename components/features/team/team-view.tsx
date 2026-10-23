@@ -141,7 +141,7 @@ export function TeamView() {
                 return (
                   <li key={u.id}>
                     <GlassCard accent={business ? businessColorVar(business.color) : undefined} className={cn("flex flex-wrap items-center gap-x-4 gap-y-3 p-4", off && "opacity-80")}>
-                      <Avatar name={u.name} src={u.photoUrl} ringColor={business ? businessColorVar(business.color) : undefined} />
+                      <Avatar name={u.name} ringColor={business ? businessColorVar(business.color) : undefined} />
                       <div className="min-w-0 flex-1 basis-48">
                         <Link href={`/admin/employees/${u.id}`} className="block truncate font-semibold hover:underline">
                           {u.name}

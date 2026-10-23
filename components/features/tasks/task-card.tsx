@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronDown, Hand, Hourglass, Link2, Paperclip, Play, Repeat, Undo2, Unlock, Users } from "lucide-react";
+import { Check, ChevronDown, Hand, Hourglass, Link2, Play, Repeat, Undo2, Unlock, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -116,17 +116,6 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
           {blocked && task.blockedReason ? <p className="mt-2 rounded-control bg-status-blocked/15 px-3 py-2 text-sm text-status-blocked">Blocked: {task.blockedReason}</p> : null}
           {inReview ? <p className="mt-2 text-sm text-muted">Sent for review. Your admin will approve it or send it back.</p> : null}
 
-          {task.attachments.length > 0 ? (
-            <ul className="mt-2 flex flex-wrap gap-2">
-              {task.attachments.map((a) => (
-                <li key={a.url}>
-                  <a href={a.url} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-border-solid px-3 text-sm text-brand-text hover:bg-surface-raised">
-                    <Paperclip className="size-3.5" aria-hidden /> {a.name}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          ) : null}
 
           {task.subtaskTotal > 0 ? (
             <div className="mt-3">

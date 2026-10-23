@@ -6,7 +6,6 @@ import { collection, doc, limit, orderBy, query, serverTimestamp, updateDoc, whe
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AttachmentLinks } from "@/components/features/comms/attachments";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
@@ -79,7 +78,6 @@ export function MyRemindersView({ uid }: { uid: string }) {
                       <Link2 className="size-4" aria-hidden /> About: {r.taskTitle}
                     </p>
                   ) : null}
-                  <AttachmentLinks files={r.attachments} />
                   <div className="mt-3 flex items-center justify-end">
                     {read ? (
                       <p className="num inline-flex items-center gap-1.5 text-sm text-success">

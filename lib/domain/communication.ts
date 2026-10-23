@@ -1,21 +1,18 @@
 import { z } from "zod";
 import type { Role } from "@/lib/domain/constants";
 import { DomainError } from "@/lib/domain/errors";
-import { attachmentSchema } from "@/lib/domain/task-schemas";
 
 /** Quick emoji reactions on chat messages. */
 export const REACTIONS = ["👍", "❤️", "😂", "🎉", "🙏", "👀"] as const;
 export type Reaction = (typeof REACTIONS)[number];
 
 export const MAX_BODY = 4000;
-export const MAX_CHAT_ATTACHMENTS = 5;
 export const EVERYONE_CHAT = "everyone";
 /** Chat unread counters are keyed by employee uid, and by this literal for the single admin. */
 export const ADMIN_UNREAD_KEY = "admin";
 
-const attachments = (max: number) => z.array(attachmentSchema).max(max, `Up to ${max} attachments`).default([]);
 const id = z.string().min(1).max(60);
-/** Ids minted in the browser so files can be uploaded before the document exists. */
+/** Minted in the browser, so sending the same reminder twice (a double click) is recognised and refused. */
 const clientId = z.string().regex(/^[A-Za-z0-9]{10,40}$/, "Invalid id");
 
 /* ---------- Reminders (admin -> employees) ---------- */
@@ -27,7 +24,6 @@ export const reminderSchema = z
     toUids: z.array(id).max(200).default([]).transform((ids) => [...new Set(ids)]),
     toAll: z.boolean().default(false),
     taskId: id.nullable().default(null),
-    attachments: attachments(10),
   })
   .refine((r) => r.toAll || r.toUids.length > 0, { path: ["toUids"], message: "Choose who should get it" });
 export type ReminderInput = z.infer<typeof reminderSchema>;
@@ -41,13 +37,11 @@ export const questionActionSchema = z.discriminatedUnion("action", [
     body: z.string().trim().min(1, "Describe what you need").max(MAX_BODY),
     urgent: z.boolean().default(false),
     taskId: id.nullable().default(null),
-    attachments: attachments(5),
   }),
   z.object({
     action: z.literal("reply"),
     questionId: id,
-    body: z.string().trim().max(MAX_BODY).default(""),
-    attachments: attachments(5),
+    body: z.string().trim().min(1, "Write a reply").max(MAX_BODY),
   }),
   z.object({ action: z.literal("status"), questionId: id, status: z.enum(["open", "closed"]) }),
   z.object({ action: z.literal("seen"), questionId: id }),
@@ -59,7 +53,7 @@ export type QuestionAction = z.infer<typeof questionActionSchema>;
 export const chatIdSchema = z.string().regex(/^(everyone|dm_[A-Za-z0-9]{6,40})$/, "Unknown chat");
 
 export const chatActionSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("send"), chatId: chatIdSchema, body: z.string().trim().max(MAX_BODY).default(""), attachments: attachments(MAX_CHAT_ATTACHMENTS) }),
+  z.object({ action: z.literal("send"), chatId: chatIdSchema, body: z.string().trim().min(1, "Write a message").max(MAX_BODY) }),
   z.object({ action: z.literal("read"), chatId: chatIdSchema }),
   z.object({ action: z.literal("edit"), chatId: chatIdSchema, messageId: id, body: z.string().trim().min(1, "A message can't be empty").max(MAX_BODY) }),
   z.object({ action: z.literal("delete"), chatId: chatIdSchema, messageId: id }),
@@ -82,11 +76,6 @@ export function assertCanUseChat(chatId: string, actor: { uid: string; role: Rol
 }
 
 export const unreadKey = (actor: { uid: string; role: Role }) => (actor.role === "admin" ? ADMIN_UNREAD_KEY : actor.uid);
-
-/** True when every file sits under `folder` in storage (e.g. "u/<uid>/"), so nobody can attach someone else's private file. */
-export function attachmentsInFolder(files: { url: string }[], folder: string): boolean {
-  return files.every((f) => decodeURIComponent(f.url).includes(`/o/${folder}`));
-}
 
 /** Toggles `uid` in the reactors of an emoji; empty reactions disappear. */
 export function toggleReaction(reactions: Record<string, string[]>, emoji: string, uid: string): Record<string, string[]> {

@@ -4,10 +4,9 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { AttachmentPicker } from "@/components/features/comms/attachments";
 import { TaskLinkField } from "@/components/features/tasks/task-link-field";
 import { apiFetch } from "@/lib/api-client";
-import { newClientId, uploadAttachment } from "@/lib/firebase/upload";
+import { newClientId } from "@/lib/client-id";
 import { cn } from "@/lib/utils";
 import type { BusinessDoc, UserDoc, WithId } from "@/types/models";
 
@@ -28,7 +27,6 @@ export function ReminderSheet({
   const [body, setBody] = useState("");
   const [taskIds, setTaskIds] = useState<string[]>([]);
   const [titles, setTitles] = useState<Record<string, string>>({});
-  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -39,7 +37,6 @@ export function ReminderSheet({
     setBody("");
     setTaskIds([]);
     setTitles({});
-    setFiles([]);
     setError(null);
   }, [open]);
 
@@ -55,9 +52,7 @@ export function ReminderSheet({
     setError(null);
     try {
       const id = newClientId();
-      const attachments = [];
-      for (const f of files) attachments.push(await uploadAttachment(`reminders/${id}`, f));
-      const res = await apiFetch<{ recipients: number }>("/api/admin/reminders", "POST", { id, body, toUids: everyone ? [] : picked, toAll: everyone, taskId: taskIds[0] ?? null, attachments });
+      const res = await apiFetch<{ recipients: number }>("/api/admin/reminders", "POST", { id, body, toUids: everyone ? [] : picked, toAll: everyone, taskId: taskIds[0] ?? null });
       toast.success(`Reminder sent to ${res.recipients} ${res.recipients === 1 ? "person" : "people"}`);
       onOpenChange(false);
     } catch (err) {
@@ -140,11 +135,6 @@ export function ReminderSheet({
             onTitle={(id, title) => setTitles((t) => ({ ...t, [id]: title }))}
             max={1}
           />
-
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Attachments</span>
-            <AttachmentPicker files={files} onChange={setFiles} max={10} />
-          </div>
 
           {error ? (
             <p role="alert" className="rounded-control bg-danger/10 px-3 py-2 text-sm text-danger">

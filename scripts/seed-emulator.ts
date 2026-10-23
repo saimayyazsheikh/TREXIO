@@ -75,7 +75,7 @@ async function main() {
   ];
   for (const b of businesses) {
     const ref = db.collection("businesses").doc();
-    await ref.set({ ...b, logoUrl: null, active: true, createdAt: new Date() });
+    await ref.set({ ...b, active: true, createdAt: new Date() });
     businessIds[b.name] = ref.id;
   }
 

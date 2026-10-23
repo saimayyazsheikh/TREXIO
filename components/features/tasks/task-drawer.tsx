@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Hand, Link2, MessageCircleMore, Paperclip, Pencil, Repeat } from "lucide-react";
+import { Check, Hand, Link2, MessageCircleMore, Pencil, Repeat } from "lucide-react";
 import { collection, limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -223,19 +223,6 @@ export function TaskDrawer({
               </Section>
             ) : null}
 
-            {task.attachments.length > 0 ? (
-              <Section title="Attachments">
-                <ul className="flex flex-wrap gap-2">
-                  {task.attachments.map((a) => (
-                    <li key={a.url}>
-                      <a href={a.url} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-border-solid px-3 text-sm text-brand-text hover:bg-surface-raised">
-                        <Paperclip className="size-3.5" aria-hidden /> {a.name}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-            ) : null}
 
             {viewer.role === "admin" ? (
               <Section title="History">

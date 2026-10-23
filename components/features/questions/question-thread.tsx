@@ -6,11 +6,9 @@ import { collection, orderBy, query } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AttachmentLinks, AttachmentPicker } from "@/components/features/comms/attachments";
 import { useCollection } from "@/hooks/use-collection";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
-import { uploadAttachment } from "@/lib/firebase/upload";
 import type { Role } from "@/lib/domain/constants";
 import { formatPkt } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -40,7 +38,6 @@ export function QuestionThread({ question, viewer }: { question: WithId<Question
   const messages = useCollection<QuestionMessageDoc>(q);
 
   const [body, setBody] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
@@ -61,16 +58,12 @@ export function QuestionThread({ question, viewer }: { question: WithId<Question
 
   async function reply(e: React.FormEvent) {
     e.preventDefault();
-    if (!body.trim() && files.length === 0) return setError("Write a reply or attach a file.");
+    if (!body.trim()) return setError("Write a reply first.");
     setBusy(true);
     setError(null);
     try {
-      // Everyone in a thread uploads into the employee's private folder, readable only by them and the admin.
-      const attachments = [];
-      for (const f of files) attachments.push(await uploadAttachment(`u/${question.employeeId}/q/${question.id}`, f));
-      await apiFetch("/api/questions", "POST", { action: "reply", questionId: question.id, body, attachments });
+      await apiFetch("/api/questions", "POST", { action: "reply", questionId: question.id, body });
       setBody("");
-      setFiles([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
@@ -115,7 +108,6 @@ export function QuestionThread({ question, viewer }: { question: WithId<Question
                   {m.authorRole === "admin" ? " (admin)" : ""} · <span className="num font-normal">{formatPkt(m.createdAt.toDate(), "d MMM, h:mm a")}</span>
                 </p>
                 {m.body ? <p className="mt-1 whitespace-pre-line text-sm">{m.body}</p> : null}
-                {m.attachments.length > 0 ? <AttachmentLinks files={m.attachments} /> : null}
               </div>
             </div>
           );
@@ -140,7 +132,6 @@ export function QuestionThread({ question, viewer }: { question: WithId<Question
             onChange={(e) => setBody(e.target.value)}
             className="w-full rounded-control border border-input bg-surface-solid px-3 py-2.5 text-base text-foreground placeholder:text-muted transition-colors focus-visible:border-ring md:text-sm"
           />
-          <AttachmentPicker files={files} onChange={setFiles} max={5} />
           {error ? (
             <p role="alert" className="text-sm text-danger">
               {error}

@@ -104,7 +104,7 @@ export function JournalsOverview() {
                 <li key={user.id}>
                   <GlassCard className="p-4">
                     <button type="button" aria-expanded={open} aria-controls={`journal-${user.id}`} onClick={() => setOpenId(open ? null : user.id)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 text-left">
-                      <Avatar name={user.name} src={user.photoUrl} />
+                      <Avatar name={user.name} />
                       <div className="min-w-0 flex-1 basis-44">
                         <p className="truncate font-semibold">{user.name}</p>
                         <div className="mt-1">{business ? <BusinessChip name={business.name} color={business.color} /> : null}</div>

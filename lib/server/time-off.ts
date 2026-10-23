@@ -1,5 +1,4 @@
 import { DomainError } from "@/lib/domain/errors";
-import { attachmentsInFolder } from "@/lib/domain/communication";
 import { assertValidLeave, type BreakAction, type LeaveAction } from "@/lib/domain/timeoff";
 import type { Actor } from "@/lib/domain/tasks";
 import { pktDateString, pktDayBounds } from "@/lib/time";
@@ -72,7 +71,6 @@ export function handleLeave(db: DocDb, actor: Actor, input: LeaveAction): Promis
     if (input.action === "create") {
       requireEmployee(actor, "request leave");
       assertValidLeave(input, pktDateString(now));
-      if (!attachmentsInFolder(input.attachments, `u/${actor.uid}/`)) throw new DomainError("Those files can't be attached.", 400);
       const pending = await tx.find("leaveRequests", [["employeeId", actor.uid], ["status", "pending"]]);
       if (pending.length >= MAX_PENDING_REQUESTS) throw new DomainError("You have a lot of requests waiting. Wait for a decision first.", 409);
       const me = (await tx.get(`users/${actor.uid}`)) as Doc | null;
@@ -80,7 +78,7 @@ export function handleLeave(db: DocDb, actor: Actor, input: LeaveAction): Promis
       tx.create(`leaveRequests/${requestId}`, {
         employeeId: actor.uid, employeeName: actor.name, businessId: (me?.businessId as string | null) ?? null,
         kind: input.kind, fromDate: input.fromDate, toDate: input.toDate, fromTime: input.fromTime, toTime: input.toTime,
-        reason: input.reason, attachments: input.attachments, status: "pending",
+        reason: input.reason, status: "pending",
         decidedBy: null, decidedByName: null, decisionNote: "", decidedAt: null, createdAt: now,
       });
       queueNotification(db, tx, {

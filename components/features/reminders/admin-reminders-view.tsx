@@ -5,7 +5,6 @@ import { Bell, ChevronDown, CircleCheck, Clock, Link2, Send } from "lucide-react
 import { collection, limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AttachmentLinks } from "@/components/features/comms/attachments";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
@@ -72,7 +71,6 @@ export function AdminRemindersView() {
                       <Link2 className="size-4" aria-hidden /> About: {r.taskTitle}
                     </p>
                   ) : null}
-                  <AttachmentLinks files={r.attachments} />
                   <button
                     type="button"
                     aria-expanded={open}

@@ -16,7 +16,6 @@ import { PageHeader } from "@/components/features/page-header";
 import { BusinessSheet } from "@/components/features/businesses/business-sheet";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
-import { removeImage } from "@/lib/firebase/upload";
 import { businessColorVar } from "@/lib/domain/business-colors";
 import { describeWorkDays } from "@/lib/domain/work-days";
 import type { BusinessDoc, UserDoc, WithId } from "@/types/models";
@@ -46,7 +45,6 @@ export function BusinessesView() {
     if (!deleting) return;
     try {
       await deleteDoc(doc(getFirebase().db, "businesses", deleting.id));
-      if (deleting.logoUrl) await removeImage(`logos/${deleting.id}`);
       toast.success(`${deleting.name} deleted`);
     } catch {
       toast.error("Couldn't delete that business. Try again.");
@@ -87,7 +85,7 @@ export function BusinessesView() {
               <li key={b.id}>
                 <GlassCard accent={businessColorVar(b.color)} className="flex h-full flex-col gap-4 p-5">
                   <div className="flex items-start gap-3">
-                    <Avatar name={b.name} src={b.logoUrl} size="lg" ringColor={businessColorVar(b.color)} />
+                    <Avatar name={b.name} size="lg" ringColor={businessColorVar(b.color)} />
                     <div className="min-w-0 flex-1">
                       <h2 className="truncate font-display text-lg font-bold">{b.name}</h2>
                       <p className="text-sm text-muted">{b.active ? "Active" : "Inactive: no new daily tasks"}</p>

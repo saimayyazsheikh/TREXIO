@@ -15,15 +15,11 @@ service cloud.firestore {
       return signedIn() && request.auth.token.get('role', '') == 'employee';
     }
 
-    // Profiles are created and changed only by server routes (Admin SDK bypasses rules).
-    // The one client write allowed is the admin attaching a profile photo.
+    // Profiles are created and changed only by server routes (Admin SDK bypasses rules). Browsers never write them.
     match /users/{uid} {
       allow get: if isAdmin() || (signedIn() && request.auth.uid == uid);
       allow list: if isAdmin();
-      allow create, delete: if false;
-      allow update: if isAdmin()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['photoUrl'])
-        && (request.resource.data.photoUrl == null || request.resource.data.photoUrl is string);
+      allow write: if false;
     }
 
     match /businesses/{businessId} {

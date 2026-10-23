@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, CalendarCheck, CircleCheck, CircleSlash, ClipboardList, ListPlus, Paperclip, Pause, Pencil, Play, Plus, Repeat, ThumbsDown, ThumbsUp, Trash2, UserX } from "lucide-react";
+import { ArrowLeft, CalendarCheck, CircleCheck, CircleSlash, ClipboardList, ListPlus, Pause, Pencil, Play, Plus, Repeat, ThumbsDown, ThumbsUp, Trash2, UserX } from "lucide-react";
 import { collection, doc, limit, orderBy, query, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Avatar } from "@/components/ui/avatar";
@@ -117,7 +117,7 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
       </Link>
 
       <GlassCard accent={business ? businessColorVar(business.color) : undefined} className="mb-6 flex flex-wrap items-center gap-4 p-5">
-        <Avatar name={person.name} src={person.photoUrl} size="lg" ringColor={business ? businessColorVar(business.color) : undefined} />
+        <Avatar name={person.name} size="lg" ringColor={business ? businessColorVar(business.color) : undefined} />
         <div className="min-w-0 flex-1 basis-56">
           <h1 className="truncate font-display text-2xl font-bold">{person.name}</h1>
           <p className="truncate text-sm text-muted">
@@ -195,11 +195,6 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
                                   {t.subtaskTotal > 0 ? (
                                     <span className="num inline-flex items-center gap-1 text-xs text-muted">
                                       <CalendarCheck className="size-3.5" aria-hidden /> {t.subtaskDone}/{t.subtaskTotal} steps
-                                    </span>
-                                  ) : null}
-                                  {t.attachments.length > 0 ? (
-                                    <span className="num inline-flex items-center gap-1 text-xs text-muted">
-                                      <Paperclip className="size-3.5" aria-hidden /> {t.attachments.length}
                                     </span>
                                   ) : null}
                                 </div>

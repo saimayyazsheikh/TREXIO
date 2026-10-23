@@ -3,7 +3,7 @@ import { SESSION_COOKIE } from "@/lib/session-constants";
 
 /**
  * Cheap, edge-safe routing guard (UX only). It reads the role from the session cookie payload *without*
- * verifying the signature; real verification happens in server layouts (`requireRole`) and in Firestore/Storage rules.
+ * verifying the signature; real verification happens in server layouts (`requireRole`) and in Firestore and database rules.
  */
 function roleFromCookie(token: string | undefined): "admin" | "employee" | null {
   if (!token) return null;

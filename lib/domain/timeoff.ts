@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { BREAK_TYPES } from "@/lib/domain/presence";
 import { DomainError } from "@/lib/domain/errors";
-import { attachmentSchema } from "@/lib/domain/task-schemas";
 import { dateStringFromDayIndex, dayIndexFromDateString } from "@/lib/time";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date");
@@ -27,7 +26,6 @@ export const leaveActionSchema = z.discriminatedUnion("action", [
     fromTime: hhmm.default(""),
     toTime: hhmm.default(""),
     reason: z.string().trim().min(3, "Give a short reason").max(500, "Keep the reason under 500 characters"),
-    attachments: z.array(attachmentSchema).max(5).default([]),
   }),
   z.object({ action: z.literal("cancel"), requestId: id }),
   z.object({ action: z.literal("decide"), requestId: id, decision: z.enum(["approve", "reject"]), note: z.string().trim().max(500).default("") }),

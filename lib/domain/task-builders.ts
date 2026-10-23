@@ -40,11 +40,11 @@ function linkFields(links: ResolvedLinks) {
 
 function baseTask(now: Date, createdBy: string): Pick<
   TaskData,
-  "completionMode" | "blockedReason" | "blockedBy" | "attachments" | "tags" | "createdBy" | "createdAt" | "updatedAt" | "completedAt" | "escalation" | "status"
+  "completionMode" | "blockedReason" | "blockedBy" | "tags" | "createdBy" | "createdAt" | "updatedAt" | "completedAt" | "escalation" | "status"
 > {
   return {
     status: "todo", completionMode: "all", blockedReason: null, blockedBy: null,
-    attachments: [], tags: [], createdBy, createdAt: now, updatedAt: now,
+    tags: [], createdBy, createdAt: now, updatedAt: now,
     completedAt: null, escalation: { l1At: null, l2At: null },
   };
 }
@@ -108,7 +108,6 @@ export function planTaskUpdate(task: TaskData, input: UpdateTaskInput, assignees
     subtaskTotal: total,
     subtaskDone: done,
     ...linkFields(links),
-    ...(input.attachments ? { attachments: input.attachments } : {}),
     updatedAt: now,
   };
   const changed = (Object.keys(next) as (keyof TaskData)[]).filter((k) => k !== "updatedAt" && JSON.stringify(next[k]) !== JSON.stringify(task[k]));

@@ -19,7 +19,7 @@ import { formatPkt } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import type { ChatDoc, UserDoc } from "@/types/models";
 
-type Channel = { id: string; title: string; kind: "group" | "direct"; subtitle: string; preview: string; lastAtMs: number; unread: number; photoUrl?: string | null };
+type Channel = { id: string; title: string; kind: "group" | "direct"; subtitle: string; preview: string; lastAtMs: number; unread: number };
 
 /** Quick conversation: Everyone plus direct chats. Admin sees every employee; an employee sees Everyone and their admin. */
 export function ChatView({ viewer }: { viewer: { uid: string; name: string; role: Role } }) {
@@ -41,8 +41,8 @@ export function ChatView({ viewer }: { viewer: { uid: string; name: string; role
   const [search, setSearch] = useState("");
 
   const channels: Channel[] = useMemo(() => {
-    const toChannel = (id: string, title: string, kind: Channel["kind"], subtitle: string, c: ChatDoc | null | undefined, photoUrl?: string | null): Channel => ({
-      id, title, kind, subtitle, photoUrl,
+    const toChannel = (id: string, title: string, kind: Channel["kind"], subtitle: string, c: ChatDoc | null | undefined): Channel => ({
+      id, title, kind, subtitle,
       preview: c?.lastMessage ? `${c.lastMessage.authorName}: ${c.lastMessage.text}` : "No messages yet",
       lastAtMs: c?.lastAt?.toMillis() ?? 0,
       unread: c?.unread?.[key] ?? 0,
@@ -53,7 +53,7 @@ export function ChatView({ viewer }: { viewer: { uid: string; name: string; role
         toChannel(EVERYONE_CHAT, "Everyone", "group", "All active team members", byId.get(EVERYONE_CHAT)),
         ...(users.data ?? [])
           .filter((u) => u.status === "active")
-          .map((u) => toChannel(dmChatId(u.id), u.name, "direct", [u.designation, "Direct message"].filter(Boolean).join(" · "), byId.get(dmChatId(u.id)), u.photoUrl)),
+          .map((u) => toChannel(dmChatId(u.id), u.name, "direct", [u.designation, "Direct message"].filter(Boolean).join(" · "), byId.get(dmChatId(u.id)))),
       ];
       const [first, ...rest] = list;
       return [first, ...rest.sort((a, b) => b.lastAtMs - a.lastAtMs || a.title.localeCompare(b.title))];
@@ -106,7 +106,7 @@ export function ChatView({ viewer }: { viewer: { uid: string; name: string; role
                         <Users className="size-4" aria-hidden />
                       </span>
                     ) : (
-                      <Avatar name={c.title} src={c.photoUrl} />
+                      <Avatar name={c.title} />
                     )}
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">

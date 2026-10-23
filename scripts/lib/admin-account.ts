@@ -24,7 +24,6 @@ export async function upsertAdmin(auth: Auth, db: Firestore, a: { email: string;
       email: a.email,
       contactEmail: a.email,
       phone: null,
-      photoUrl: null,
       businessId: null,
       designation: "Owner",
       status: "active",

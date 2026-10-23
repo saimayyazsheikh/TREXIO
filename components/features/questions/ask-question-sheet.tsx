@@ -8,11 +8,9 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { AttachmentPicker } from "@/components/features/comms/attachments";
 import { useCollection } from "@/hooks/use-collection";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
-import { newClientId, uploadAttachment } from "@/lib/firebase/upload";
 import type { TaskDoc } from "@/types/models";
 
 /** A formal help request. Quick chat belongs in Chat; this creates a tracked thread the admin can answer and close. */
@@ -25,7 +23,6 @@ export function AskQuestionSheet({ open, onOpenChange, uid, defaultTaskId }: { o
   const [body, setBody] = useState("");
   const [taskId, setTaskId] = useState("");
   const [urgent, setUrgent] = useState(false);
-  const [files, setFiles] = useState<File[]>([]);
   const [errors, setErrors] = useState<{ subject?: string; body?: string; form?: string }>({});
   const [busy, setBusy] = useState(false);
 
@@ -35,7 +32,6 @@ export function AskQuestionSheet({ open, onOpenChange, uid, defaultTaskId }: { o
     setBody("");
     setTaskId(defaultTaskId ?? "");
     setUrgent(false);
-    setFiles([]);
     setErrors({});
   }, [open, defaultTaskId]);
 
@@ -49,9 +45,7 @@ export function AskQuestionSheet({ open, onOpenChange, uid, defaultTaskId }: { o
 
     setBusy(true);
     try {
-      const attachments = [];
-      for (const f of files) attachments.push(await uploadAttachment(`u/${uid}/q/${newClientId()}`, f));
-      await apiFetch("/api/questions", "POST", { action: "ask", subject, body, urgent, taskId: taskId || null, attachments });
+      await apiFetch("/api/questions", "POST", { action: "ask", subject, body, urgent, taskId: taskId || null });
       toast.success("Question sent. You'll see the answer here.");
       onOpenChange(false);
     } catch (err) {
@@ -112,10 +106,6 @@ export function AskQuestionSheet({ open, onOpenChange, uid, defaultTaskId }: { o
               <span className="block text-sm text-muted">It gets flagged so your admin sees it first.</span>
             </span>
           </label>
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Attachments</span>
-            <AttachmentPicker files={files} onChange={setFiles} max={5} />
-          </div>
           {errors.form ? (
             <p role="alert" className="rounded-control bg-danger/10 px-3 py-2 text-sm text-danger">
               {errors.form}

@@ -51,7 +51,6 @@ export async function createEmployee(deps: Deps, input: CreateEmployeeInput): Pr
       email,
       contactEmail: input.contactEmail,
       phone: input.phone,
-      photoUrl: null,
       businessId: input.businessId,
       designation: input.designation,
       status: "active",

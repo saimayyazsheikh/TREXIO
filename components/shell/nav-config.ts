@@ -1,4 +1,4 @@
-import { Activity, Bell, BellRing, Building2, CalendarDays, CalendarOff, ChartColumn, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, NotebookPen, ScrollText, Sun, Users, type LucideIcon } from "lucide-react";
+import { Activity, Bell, BellRing, Building2, CalendarDays, CalendarOff, ChartColumn, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, NotebookPen, ScrollText, Sparkles, Sun, Users, type LucideIcon } from "lucide-react";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; hint: string; /** Shown as a tab on phones; the rest live under "More". */ primary?: boolean };
 export type NavGroup = { label: string; items: NavItem[]; /** Rendered at the bottom of the sidebar. */ pinned?: boolean };
@@ -28,6 +28,7 @@ export const ADMIN_NAV: NavGroup[] = [
     label: "Insights",
     items: [
       { href: "/admin/analytics", label: "Analytics", icon: ChartColumn, hint: "Completion, timing, time use and journals" },
+      { href: "/admin/ai-summaries", label: "AI summaries", icon: Sparkles, hint: "A short weekly read on how your teams did" },
       { href: "/admin/audit", label: "Audit log", icon: ScrollText, hint: "Every task change: who, what and when" },
     ],
   },

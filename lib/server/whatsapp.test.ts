@@ -3,7 +3,7 @@ import { cleanParam, cloudProvider, mockProvider, sendWhatsApp, type WaDeps, typ
 
 const now = new Date("2026-10-21T08:00:00Z");
 let logs: WaLogEntry[];
-const deps = (provider = mockProvider(), templates = { nudge: "task_nudge", briefing: "morning_briefing", escalation: "escalation_alert" }): WaDeps => ({
+const deps = (provider = mockProvider(), templates = { nudge: "task_nudge", briefing: "morning_briefing", escalation: "escalation_alert", summary: "weekly_summary" }): WaDeps => ({
   provider,
   templates,
   now: () => now,
@@ -29,7 +29,7 @@ describe("sendWhatsApp", () => {
 
   it("the real provider needs an approved template name", async () => {
     const cloud = cloudProvider({ token: "t", phoneNumberId: "1", fetchImpl: vi.fn() as unknown as typeof fetch });
-    await expect(sendWhatsApp(deps(cloud, { nudge: "", briefing: "", escalation: "" }), msg)).rejects.toMatchObject({ status: 503 });
+    await expect(sendWhatsApp(deps(cloud, { nudge: "", briefing: "", escalation: "", summary: "" }), msg)).rejects.toMatchObject({ status: 503 });
   });
 
   it("a provider failure is logged as failed and shown as a friendly error", async () => {

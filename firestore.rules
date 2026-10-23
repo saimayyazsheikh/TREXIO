@@ -261,12 +261,13 @@ service cloud.firestore {
       allow get: if signedIn() && settingId == 'global';
       allow list: if false;
       allow create, update: if isAdmin() && settingId == 'global'
-        && request.resource.data.keys().hasOnly(['escalationL1Min', 'escalationL2Min', 'briefingEnabled', 'promptMinute', 'idleMin', 'adminPhone'])
-        && request.resource.data.keys().hasAll(['escalationL1Min', 'escalationL2Min', 'briefingEnabled', 'promptMinute', 'idleMin', 'adminPhone'])
+        && request.resource.data.keys().hasOnly(['escalationL1Min', 'escalationL2Min', 'briefingEnabled', 'weeklySummaryWhatsApp', 'promptMinute', 'idleMin', 'adminPhone'])
+        && request.resource.data.keys().hasAll(['escalationL1Min', 'escalationL2Min', 'briefingEnabled', 'weeklySummaryWhatsApp', 'promptMinute', 'idleMin', 'adminPhone'])
         && request.resource.data.escalationL1Min is int && request.resource.data.escalationL1Min >= 10 && request.resource.data.escalationL1Min <= 1440
         && request.resource.data.escalationL2Min is int && request.resource.data.escalationL2Min >= 20 && request.resource.data.escalationL2Min <= 2880
         && request.resource.data.escalationL2Min > request.resource.data.escalationL1Min
         && request.resource.data.briefingEnabled is bool
+        && request.resource.data.weeklySummaryWhatsApp is bool
         && request.resource.data.promptMinute is int && request.resource.data.promptMinute >= 0 && request.resource.data.promptMinute <= 59
         && request.resource.data.idleMin is int && request.resource.data.idleMin >= 1 && request.resource.data.idleMin <= 60
         && request.resource.data.adminPhone is string
@@ -275,6 +276,12 @@ service cloud.firestore {
     }
 
     // Every WhatsApp message the server sent (or the mock pretended to). Read-only for the admin.
+    // Weekly AI summaries are written by the server only; the admin reads them.
+    match /aiSummaries/{summaryId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /whatsappLogs/{logId} {
       allow read: if isAdmin();
       allow write: if false;

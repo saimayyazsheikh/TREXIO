@@ -11,7 +11,7 @@ const docs: Record<string, Record<string, unknown>> = {
 };
 const deps = () => ({
   get: async (p: string) => docs[p] ?? null,
-  wa: { provider: mockProvider(), templates: { nudge: "task_nudge", briefing: "", escalation: "" }, now: () => new Date("2026-10-21T08:00:00Z"), writeLog: async (e: WaLogEntry) => (logs.push(e), "log1") },
+  wa: { provider: mockProvider(), templates: { nudge: "task_nudge", briefing: "", escalation: "", summary: "" }, now: () => new Date("2026-10-21T08:00:00Z"), writeLog: async (e: WaLogEntry) => (logs.push(e), "log1") },
 });
 const input = (o: Record<string, unknown> = {}) => nudgeSchema.parse({ taskId: "t1", toUid: "ali", message: "Any update on the stock count?", ...o });
 

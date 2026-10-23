@@ -76,3 +76,9 @@ pm run seed:admin), custom claims, username to email login.
 - 9:00 AM briefing and late-task escalation jobs (first alert in the app at +1h, second to the admin in the app and on WhatsApp at +3h), each fires once, paused by holidays, closures and leave.
 - Settings > Automation: alert thresholds, briefing on/off, journal prompt minute, idle minutes, admin WhatsApp number, "Run now" buttons. Idle time and the prompt minute now follow these settings.
 - One daily cron (/api/cron/daily) replaces two so Vercel Hobby's two-job limit leaves room for the briefing; escalations use an external pinger.
+
+## Phase 9 - Analytics and AI
+- Admin > Analytics: period (7/14/30/90 days) and business filters in one row, five headline numbers, and six Recharts charts (completion over time, on time versus late, completion by person, active/idle/break time, journal fill rate, what gets blocked) plus a workload-by-weekday heat map. Every chart has a table twin; the per-person table exports to CSV; the page prints cleanly to PDF.
+- Chart colours follow a validated palette (colour-blind-safe order, light and dark variants), with legends, hover readouts and values at bar tips.
+- Admin > AI summaries: weekly summary service with Claude (official SDK) or Gemini behind one interface, and a template fallback when no key is set. Written every Monday by the morning job, or on demand ("Summarize last week", "Week so far"); history page; optional WhatsApp copy; in-app notification.
+- Emulator seed now includes two weeks of history so the charts and summaries have something to show.

@@ -36,7 +36,7 @@ Set `CRON_SECRET` in Vercel (a long random string). Every job checks it as `Auth
 | Job | Route | When | Where it runs |
 |---|---|---|---|
 | Daily tasks + close forgotten breaks | `/api/cron/daily` | 19:05 UTC (00:05 PKT) | `vercel.json` |
-| 9:00 AM WhatsApp briefing | `/api/cron/morning-briefing` | 04:00 UTC (09:00 PKT) | `vercel.json` |
+| 9:00 AM WhatsApp briefing, plus last week's AI summary on Mondays | `/api/cron/morning-briefing` | 04:00 UTC (09:00 PKT) | `vercel.json` |
 | Late-task alerts | `/api/cron/escalations` | every 10 to 15 minutes | an external pinger |
 
 Vercel Hobby allows two cron entries, once a day each, so the two daily jobs live in `vercel.json` and the escalation check needs a free pinger such as cron-job.org: a GET to `https://your-app.vercel.app/api/cron/escalations` every 10 minutes with the header `Authorization: Bearer <CRON_SECRET>`. On Vercel Pro you can add it to `vercel.json` instead. Every job is safe to run twice. Admin > Settings > Automation also has "Run now" buttons. To trigger one by hand:
@@ -55,6 +55,17 @@ Employees also get today's routines the moment they open their dashboard, so a m
 | `WHATSAPP_TEMPLATE_ESCALATION_ALERT` | `{{1}}` |
 
 Employee numbers are set in Team (international format, like +923001234567); your own number for late-task alerts is in Automation.
+
+## AI weekly summary
+Every Monday the morning job writes last week's summary (highlights, bottlenecks, per-business notes, suggested actions) and puts it under Admin > AI summaries. "Summarize last week" and "Week so far" write one on demand. Set one key on the server and nothing else:
+
+| Env var | Meaning |
+|---|---|
+| `ANTHROPIC_API_KEY` | Uses Claude (model `claude-opus-5-5` unless `AI_MODEL` says otherwise) |
+| `GEMINI_API_KEY` | Uses Gemini (`gemini-2.5-flash` unless `AI_MODEL` or `GEMINI_MODEL` says otherwise) |
+| `AI_PROVIDER` | Optional: `anthropic`, `gemini` or `mock` to force one. Naming a provider with no key is an error. |
+
+With no key, a built-in template writes the summary from the same figures (no AI, no cost), and the page says so. Only totals and per-person or per-business figures are sent to the model: never journal text, chat or attachments. Blocked-reason text typed by employees is included, clipped to 80 characters. Turn on "Also send each weekly AI summary to my WhatsApp" in Automation to receive it there too (needs the `WHATSAPP_TEMPLATE_WEEKLY_SUMMARY` template with body `Week of {{1}}: {{2}}`).
 
 ## Browser notifications
 The bell works everywhere. For alerts while Traxio is closed, set `NEXT_PUBLIC_FIREBASE_VAPID_KEY` (Firebase console > Project settings > Cloud Messaging > Web Push certificates) and each person taps "Get alerts on this device" in the bell. Not available under the emulators.

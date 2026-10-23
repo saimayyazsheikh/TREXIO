@@ -41,8 +41,8 @@ Order is chosen so each phase is testable and later phases reuse earlier foundat
 - [x] 09:00 morning briefing cron; escalation cron (L1 in-app at +1h, L2 WhatsApp admin at +3h; idempotent flags; pauses on holidays/leave)
 - [x] Settings → Automation thresholds
 ## Phase 9 — Analytics & AI (M19, M20)
-- [ ] Analytics dashboards (Recharts), filters, exports
-- [ ] AI weekly summary service (provider abstraction: Claude/Gemini), cron + "Generate now", history page
+- [x] Analytics dashboards (Recharts), filters, exports
+- [x] AI weekly summary service (provider abstraction: Claude/Gemini), cron + "Generate now", history page
 ## Phase 10 — Polish & Launch (M21)
 - [ ] Command palette (Ctrl/Cmd+K), global search, keyboard shortcuts, onboarding tour, tooltips audit
 - [ ] PWA manifest/install, performance pass (indexes, listener scoping, image optimization)

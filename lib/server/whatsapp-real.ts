@@ -11,6 +11,7 @@ export function realWhatsApp(): WaDeps {
       nudge: process.env.WHATSAPP_TEMPLATE_TASK_NUDGE ?? "",
       briefing: process.env.WHATSAPP_TEMPLATE_MORNING_BRIEFING ?? "",
       escalation: process.env.WHATSAPP_TEMPLATE_ESCALATION_ALERT ?? "",
+      summary: process.env.WHATSAPP_TEMPLATE_WEEKLY_SUMMARY ?? "",
     },
     now: () => new Date(),
     writeLog: async (entry) => (await adminDb().collection("whatsappLogs").add(entry)).id,

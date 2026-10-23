@@ -15,6 +15,8 @@ const baseSchema = z.object({
   escalationL1Min: z.number().int("Use whole minutes").min(10, "At least 10 minutes").max(1440, "At most 24 hours"),
   escalationL2Min: z.number().int("Use whole minutes").min(20, "At least 20 minutes").max(2880, "At most 48 hours"),
   briefingEnabled: z.boolean(),
+  /** Also send each finished week's AI summary to the admin's WhatsApp. */
+  weeklySummaryWhatsApp: z.boolean(),
   promptMinute: z.number().int("Use whole minutes").min(0).max(59, "A minute from 0 to 59"),
   idleMin: z.number().int("Use whole minutes").min(1, "At least 1 minute").max(60, "At most 60 minutes"),
   /** The admin's WhatsApp number for urgent alerts; empty turns those alerts off. */
@@ -27,6 +29,7 @@ export const DEFAULT_SETTINGS: AutomationSettings = {
   escalationL1Min: 60,
   escalationL2Min: 180,
   briefingEnabled: true,
+  weeklySummaryWhatsApp: false,
   promptMinute: PROMPT_MINUTE,
   idleMin: DEFAULT_IDLE_MIN,
   adminPhone: "",

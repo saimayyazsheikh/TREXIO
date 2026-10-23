@@ -1,7 +1,7 @@
 import { DomainError } from "@/lib/domain/errors";
 import { phoneSchema } from "@/lib/domain/schemas";
 
-export type WaKind = "nudge" | "briefing" | "escalation";
+export type WaKind = "nudge" | "briefing" | "escalation" | "summary";
 
 export type WaSend = { to: string; template: string; params: string[] };
 export type WaProvider = {

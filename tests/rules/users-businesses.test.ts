@@ -92,7 +92,7 @@ describe("businesses", () => {
 
 describe("collections not opened yet", () => {
   it("stay denied for admin too", async () => {
-    await assertFails(getDoc(doc(admin(), "aiSummaries/s1")));
+    await assertFails(getDoc(doc(admin(), "futureThings/s1")));
     await assertFails(setDoc(doc(admin(), "whatsappLogs/w1"), { x: 1 }));
   });
 });

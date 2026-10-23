@@ -29,11 +29,12 @@ const STATUS = {
   failed: { label: "Failed", cls: "bg-danger/15 text-danger" },
 } as const;
 
-type Draft = Omit<Record<keyof AutomationSettings, string>, "briefingEnabled"> & { briefingEnabled: boolean };
+type Draft = Omit<Record<keyof AutomationSettings, string>, "briefingEnabled" | "weeklySummaryWhatsApp"> & { briefingEnabled: boolean; weeklySummaryWhatsApp: boolean };
 const toDraft = (s: AutomationSettings): Draft => ({
   escalationL1Min: String(s.escalationL1Min),
   escalationL2Min: String(s.escalationL2Min),
   briefingEnabled: s.briefingEnabled,
+  weeklySummaryWhatsApp: s.weeklySummaryWhatsApp,
   promptMinute: String(s.promptMinute),
   idleMin: String(s.idleMin),
   adminPhone: s.adminPhone,
@@ -60,6 +61,7 @@ export function AutomationSettingsView() {
       escalationL1Min: draft.escalationL1Min.trim() === "" ? NaN : Number(draft.escalationL1Min),
       escalationL2Min: draft.escalationL2Min.trim() === "" ? NaN : Number(draft.escalationL2Min),
       briefingEnabled: draft.briefingEnabled,
+      weeklySummaryWhatsApp: draft.weeklySummaryWhatsApp,
       promptMinute: draft.promptMinute.trim() === "" ? NaN : Number(draft.promptMinute),
       idleMin: draft.idleMin.trim() === "" ? NaN : Number(draft.idleMin),
       adminPhone: draft.adminPhone.trim(),
@@ -136,6 +138,10 @@ export function AutomationSettingsView() {
             <label className="mb-5 flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium">
               <input type="checkbox" className="size-5 accent-[var(--brand)]" checked={draft.briefingEnabled} onChange={(e) => set("briefingEnabled", e.target.checked)} />
               Send the 9:00 AM briefing on WhatsApp
+            </label>
+            <label className="mb-5 flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium">
+              <input type="checkbox" className="size-5 accent-[var(--brand)]" checked={draft.weeklySummaryWhatsApp} onChange={(e) => set("weeklySummaryWhatsApp", e.target.checked)} />
+              Also send each weekly AI summary to my WhatsApp (needs your number above)
             </label>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field id="prompt-minute" label="Journal prompt at minute" required hint="At this minute of each working hour, an empty hour is asked about. 55 means 10:55, 11:55…" error={errors.promptMinute}>

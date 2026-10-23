@@ -9,7 +9,7 @@ const admin = () => env.authenticatedContext("admin1", { role: "admin" }).firest
 const employee = (uid: string) => env.authenticatedContext(uid, { role: "employee", businessId: "b1" }).firestore();
 const stranger = () => env.unauthenticatedContext().firestore();
 
-const settings = (over: Record<string, unknown> = {}) => ({ escalationL1Min: 60, escalationL2Min: 180, briefingEnabled: true, promptMinute: 55, idleMin: 5, adminPhone: "", ...over });
+const settings = (over: Record<string, unknown> = {}) => ({ escalationL1Min: 60, escalationL2Min: 180, briefingEnabled: true, weeklySummaryWhatsApp: false, promptMinute: 55, idleMin: 5, adminPhone: "", ...over });
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
@@ -81,6 +81,7 @@ describe("settings/global", () => {
       { idleMin: 0 },
       { idleMin: 5.5 },
       { briefingEnabled: "yes" },
+      { weeklySummaryWhatsApp: "yes" },
       { adminPhone: "0300 1234567" },
       { adminPhone: "+92300" },
     ]) {
@@ -93,6 +94,22 @@ describe("settings/global", () => {
     delete missing.adminPhone;
     await assertFails(setDoc(doc(admin(), "settings/global"), missing));
     await assertFails(deleteDoc(doc(admin(), "settings/global")));
+  });
+});
+
+describe("aiSummaries", () => {
+  it("the admin reads them; nobody writes", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "aiSummaries/week_2026-10-12"), { text: "## Highlights", createdAt: new Date() });
+    });
+    await assertSucceeds(getDoc(doc(admin(), "aiSummaries/week_2026-10-12")));
+    await assertSucceeds(getDocs(collection(admin(), "aiSummaries")));
+    await assertFails(getDoc(doc(employee("ali"), "aiSummaries/week_2026-10-12")));
+    for (const db of [admin(), employee("ali")]) {
+      await assertFails(setDoc(doc(db, "aiSummaries/forged"), { text: "x" }));
+      await assertFails(updateDoc(doc(db, "aiSummaries/week_2026-10-12"), { text: "edited" }));
+      await assertFails(deleteDoc(doc(db, "aiSummaries/week_2026-10-12")));
+    }
   });
 });
 

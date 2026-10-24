@@ -115,6 +115,12 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
           })}
           {task.assigneeIds.length > 4 ? <li className="num flex size-7 items-center justify-center rounded-full bg-surface-raised text-[10px] font-semibold ring-2 ring-surface-solid">+{task.assigneeIds.length - 4}</li> : null}
         </ul>
+        {task.assigneeIds.length > 0 ? (
+          <span className="min-w-0 flex-1 basis-20 truncate text-[13px] font-medium">
+            {task.assigneeIds.map((u) => people.get(u)?.name ?? task.assigneeNames[u] ?? "Teammate")[0]}
+            {task.assigneeIds.length > 1 ? <span className="text-muted"> +{task.assigneeIds.length - 1}</span> : null}
+          </span>
+        ) : null}
         <div className="num ml-auto flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-muted">
           {task.assigneeIds.length > 1 ? (
             <span className="inline-flex items-center gap-1" title="Parts finished">

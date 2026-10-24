@@ -1,5 +1,10 @@
 # Changelog
 
+## Attendance and away status
+- Presence has a new Attendance tab: one day (present, late, absent, on leave) or a whole month with a day-by-day strip. Login is the first time someone is seen in Traxio that day and logout is the last; approved leave and the business calendar decide who was expected.
+- Approved short excuses and leave days now show on Presence as "On break" or "On leave" while they are happening, and excused time counts in the daily report's Breaks.
+- Team members now get the same side panel as the admin; kanban cards show who the task is for.
+
 ## UI redesign: second pass
 - New logo and wordmark; collapse button moved to the top of the sidebar; account menu, theme switch and bell redone.
 - Stat tiles: clearer icons, red for blocked, full text, count-up and hover motion. Cleaner pills, kanban cards with the business name on top, task drawer chips.

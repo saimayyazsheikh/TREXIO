@@ -120,7 +120,7 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
       <GlassCard accent={business ? businessColorVar(business.color) : undefined} className="mb-6 flex flex-wrap items-center gap-4 p-5">
         <Avatar name={person.name} size="lg" ringColor={business ? businessColorVar(business.color) : undefined} />
         <div className="min-w-0 flex-1 basis-56">
-          <h1 className="truncate font-display text-2xl font-bold">{person.name}</h1>
+          <h1 className="truncate font-display text-2xl font-semibold">{person.name}</h1>
           <p className="truncate text-sm text-muted">
             @{person.username}
             {person.designation ? ` · ${person.designation}` : ""}
@@ -177,7 +177,7 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
                 <div className="space-y-6">
                   {groups.map((g) => (
                     <section key={g.date} aria-labelledby={`day-${g.date}`}>
-                      <h2 id={`day-${g.date}`} className="mb-2 font-display text-base font-bold text-muted">
+                      <h2 id={`day-${g.date}`} className="mb-2 font-display text-base font-semibold text-muted">
                         {dayLabel(g.date, today)}
                       </h2>
                       <ul className="space-y-2">

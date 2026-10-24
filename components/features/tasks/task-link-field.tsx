@@ -104,7 +104,7 @@ export function TaskLinkField({
                         onClick={() => toggle(t.id, t.title)}
                         className={cn("flex min-h-14 w-full items-center gap-3 rounded-control border px-3 py-2 text-left transition-colors", on ? "border-ring bg-surface-raised" : "border-transparent hover:bg-surface-raised")}
                       >
-                        <span className={cn("flex size-5 shrink-0 items-center justify-center rounded border", on ? "border-transparent bg-brand-gradient text-white" : "border-input")}>
+                        <span className={cn("flex size-5 shrink-0 items-center justify-center rounded border", on ? "border-transparent bg-brand text-brand-fg" : "border-input")}>
                           {on ? <Check className="size-3.5" aria-hidden /> : null}
                         </span>
                         <span className="min-w-0 flex-1">

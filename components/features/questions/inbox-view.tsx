@@ -48,7 +48,7 @@ export function InboxView({ adminUid }: { adminUid: string }) {
             role="tab"
             aria-selected={filter === f.id}
             onClick={() => setFilter(f.id)}
-            className={cn("min-h-10 rounded-[10px] px-4 text-sm font-medium transition-colors", filter === f.id ? "bg-brand-gradient text-white" : "text-muted hover:text-foreground")}
+            className={cn("min-h-10 rounded-[10px] px-4 text-sm font-medium transition-colors", filter === f.id ? "bg-brand text-brand-fg" : "text-muted hover:text-foreground")}
           >
             {f.label} <span className="num opacity-80">({counts[f.id]})</span>
           </button>
@@ -78,7 +78,7 @@ export function InboxView({ adminUid }: { adminUid: string }) {
                   <div className="min-w-0 flex-1 basis-56">
                     <p className="truncate font-semibold">
                       {x.subject}
-                      {x.unreadForAdmin ? <span className="ml-2 rounded-full bg-brand-gradient px-2 py-0.5 text-xs font-semibold text-white">New</span> : null}
+                      {x.unreadForAdmin ? <span className="ml-2 rounded-full bg-brand px-2 py-0.5 text-xs font-semibold text-brand-fg">New</span> : null}
                     </p>
                     <p className="num mt-0.5 truncate text-sm text-muted">
                       {x.employeeName}

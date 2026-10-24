@@ -64,7 +64,7 @@ export function JournalsOverview() {
     <>
       <PageHeader title="Journals" subtitle="Who has logged their hours, and what they wrote. Days lock at midnight." actions={<DateNav date={date} today={today} onChange={setDate} />} />
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="font-display text-lg font-bold">{formatPkt(new Date(`${date}T12:00:00+05:00`), "EEEE, d MMMM")}</p>
+        <p className="font-display text-lg font-semibold">{formatPkt(new Date(`${date}T12:00:00+05:00`), "EEEE, d MMMM")}</p>
         <div className="w-full sm:w-56">
           <Select aria-label="Filter by business" value={businessId} onChange={(e) => setBusinessId(e.target.value)}>
             <option value="">All businesses</option>
@@ -90,7 +90,7 @@ export function JournalsOverview() {
       ) : (
         <>
           <GlassCard className="mb-4 flex flex-wrap items-center gap-x-8 gap-y-2 p-4">
-            <p className="font-display text-lg font-bold">
+            <p className="font-display text-lg font-semibold">
               <span className="num">{average}%</span> average fill rate
             </p>
             <p className="text-sm text-muted">

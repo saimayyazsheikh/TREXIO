@@ -279,7 +279,7 @@ function NewWorkspaceForm({ user, onDone, onBack }: { user: User; onDone: (user:
   return (
     <form onSubmit={submit} className="flex flex-col gap-5" noValidate>
       <div>
-        <h2 className="font-display text-xl font-bold">Set up your workspace</h2>
+        <h2 className="font-display text-xl font-semibold">Set up your workspace</h2>
         <p className="mt-1 text-sm text-muted">
           Signed in as <span className="font-medium text-foreground">{user.email}</span>. This is your own private space: only you and the people you add can see it.
         </p>

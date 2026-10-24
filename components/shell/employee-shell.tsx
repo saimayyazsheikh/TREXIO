@@ -31,7 +31,7 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
 
   return (
     <div className="flex min-h-dvh flex-col pb-20 md:pb-0">
-      <header className="glass sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-x-0 border-t-0 px-4 sm:px-6">
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border-solid bg-surface-solid/90 px-4 backdrop-blur sm:px-6">
         <div className="flex items-center gap-4 lg:gap-6">
           <Brand compact className="lg:hidden" />
           <Brand className="hidden lg:inline-flex" />
@@ -44,8 +44,8 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
                   aria-current={isActive(item.href) ? "page" : undefined}
                   aria-label={item.label}
                   className={cn(
-                    "flex min-h-11 items-center gap-2 whitespace-nowrap rounded-control px-3 py-2 text-sm font-medium transition-colors",
-                    isActive(item.href) ? "bg-brand-gradient text-white" : "hover:bg-surface-raised",
+                    "flex min-h-10 items-center gap-2 whitespace-nowrap rounded-control px-3 py-2 text-sm font-medium transition-colors",
+                    isActive(item.href) ? "bg-brand-soft font-semibold text-brand-text" : "text-muted hover:bg-surface-raised hover:text-foreground",
                   )}
                 >
                   <item.icon className="size-4" aria-hidden />
@@ -63,11 +63,11 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
           <UserMenu name={userName} roleLabel="Team member" onBeforeSignOut={() => goOffline(uid)} />
         </div>
       </header>
-      <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6">
+      <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-8 sm:py-8">
         {children}
       </main>
       <HourlyPrompt uid={uid} promptMinute={settings.promptMinute} />
-      <nav aria-label="Main" className="glass fixed inset-x-0 bottom-0 z-30 flex border-x-0 border-b-0 md:hidden">
+      <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border-solid bg-surface-solid md:hidden">
         {primary.map((item) => (
           <Link
             key={item.href}

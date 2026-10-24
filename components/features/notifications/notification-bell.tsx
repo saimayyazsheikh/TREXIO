@@ -50,7 +50,7 @@ function BellMenu({ uid, role }: { uid: string; role: Role }) {
           <Button variant="ghost" size="icon" aria-label={count ? `Notifications, ${count} unread` : "Notifications"} className="relative">
             <Bell aria-hidden />
             {count > 0 ? (
-              <span aria-hidden className="num absolute right-1 top-1 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-bold leading-4 text-white">
+              <span aria-hidden className="num absolute right-1 top-1 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold leading-4 text-white">
                 {count > 9 ? "9+" : count}
               </span>
             ) : null}

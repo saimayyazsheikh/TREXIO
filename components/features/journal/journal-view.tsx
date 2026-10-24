@@ -108,14 +108,14 @@ export function JournalView({ uid }: { uid: string }) {
 
           <GlassCard className="flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
             <div className="min-w-48 flex-1">
-              <p className="font-display text-lg font-bold">
+              <p className="font-display text-lg font-semibold">
                 <span className="num">
                   {stats.filled} of {stats.expected}
                 </span>{" "}
                 hours logged
               </p>
               <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-surface-raised" role="progressbar" aria-valuenow={stats.pct} aria-valuemin={0} aria-valuemax={100} aria-label="Hours logged">
-                <div className="h-full rounded-full bg-brand-gradient transition-[width] duration-300" style={{ width: `${stats.pct}%` }} />
+                <div className="h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${stats.pct}%` }} />
               </div>
               {!isWorkingDay(hours.workDays, date) ? <p className="mt-2 text-sm text-muted">Not a regular working day for your business.</p> : null}
             </div>

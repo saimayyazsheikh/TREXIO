@@ -130,7 +130,7 @@ export function PresenceBoard() {
 
           <TabsContent value="report">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <p className="font-display text-lg font-bold">{formatPkt(pktInstant(date, "12:00"), "EEEE, d MMMM")}</p>
+              <p className="font-display text-lg font-semibold">{formatPkt(pktInstant(date, "12:00"), "EEEE, d MMMM")}</p>
               <DateNav date={date} today={today} onChange={setDate} />
             </div>
             {totals.error ? (

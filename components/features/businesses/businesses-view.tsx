@@ -88,7 +88,7 @@ export function BusinessesView() {
                   <div className="flex items-start gap-3">
                     <Avatar name={b.name} size="lg" ringColor={businessColorVar(b.color)} />
                     <div className="min-w-0 flex-1">
-                      <h2 className="truncate font-display text-lg font-bold">{b.name}</h2>
+                      <h2 className="truncate font-display text-lg font-semibold">{b.name}</h2>
                       <p className="text-sm text-muted">{b.active ? "Active" : "Inactive: no new daily tasks"}</p>
                     </div>
                   </div>

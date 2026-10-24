@@ -23,7 +23,7 @@ export function SheetContent({
 }) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm" />
+      <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px]" />
       <DialogPrimitive.Content
         className={cn(
           "fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col bg-surface-solid shadow-[var(--shadow-3)] sm:rounded-l-card sm:border-l",
@@ -33,12 +33,12 @@ export function SheetContent({
       >
         <header className="flex items-start justify-between gap-4 border-b px-6 py-4">
           <div className="min-w-0">
-            <DialogPrimitive.Title className="font-display text-xl font-bold">{title}</DialogPrimitive.Title>
+            <DialogPrimitive.Title className="font-display text-xl font-semibold">{title}</DialogPrimitive.Title>
             <DialogPrimitive.Description className="mt-0.5 text-sm text-muted">{description}</DialogPrimitive.Description>
           </div>
           <DialogPrimitive.Close
             aria-label="Close"
-            className="-mr-2 flex size-11 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-surface-raised"
+            className="-mr-2 flex size-9 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-surface-raised"
           >
             <X className="size-5" aria-hidden />
           </DialogPrimitive.Close>

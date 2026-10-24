@@ -24,12 +24,12 @@ export function WorkspaceCodeCard() {
 
   return (
     <GlassCard className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2 p-4">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-brand-gradient text-white">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-brand text-brand-fg">
         <KeyRound className="size-5" aria-hidden />
       </span>
       <div className="min-w-0 flex-1 basis-64">
         <p className="text-sm font-semibold">
-          Your team signs in with the workspace code <code className="num rounded bg-surface-raised px-1.5 py-0.5 text-sm font-bold">{code}</code>, their username and their password.
+          Your team signs in with the workspace code <code className="num rounded bg-surface-raised px-1.5 py-0.5 text-sm font-semibold">{code}</code>, their username and their password.
         </p>
         <p className="text-sm text-muted">Share the code with everyone in {name ?? "your workspace"}. It is the same for all of them, and not a secret on its own.</p>
       </div>

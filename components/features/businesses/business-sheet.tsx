@@ -118,7 +118,7 @@ export function BusinessSheet({
                         onClick={() => field.onChange(on ? field.value.filter((x) => x !== d.n) : [...field.value, d.n])}
                         className={cn(
                           "min-h-11 min-w-12 rounded-control border px-3 text-sm font-medium transition-colors",
-                          on ? "border-transparent bg-brand-gradient text-white" : "border-input hover:bg-surface-raised",
+                          on ? "border-transparent bg-brand text-brand-fg" : "border-input hover:bg-surface-raised",
                         )}
                       >
                         {d.short}

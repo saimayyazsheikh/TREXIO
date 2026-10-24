@@ -47,7 +47,7 @@ export function KanbanColumn({
         isOver && droppable === false && "ring-2 ring-danger",
       )}
     >
-      <h3 className="mb-2.5 flex items-center gap-2 px-1.5 text-sm font-bold">
+      <h3 className="mb-2.5 flex items-center gap-2 px-1.5 text-sm font-semibold">
         <Icon className={cn("size-4", TONE[status])} aria-hidden />
         {label}
         <span className="num ml-auto rounded-full bg-surface-solid px-2 py-0.5 text-xs font-semibold text-muted">{count}</span>

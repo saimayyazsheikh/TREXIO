@@ -63,7 +63,7 @@ export function AnalyticsView() {
               role="radio"
               aria-checked={days === p.days}
               onClick={() => setDays(p.days)}
-              className={cn("min-h-10 rounded-lg px-3 text-sm font-medium transition-colors", days === p.days ? "bg-brand-gradient text-white" : "text-muted hover:bg-surface-raised hover:text-foreground")}
+              className={cn("min-h-10 rounded-lg px-3 text-sm font-medium transition-colors", days === p.days ? "bg-brand text-brand-fg" : "text-muted hover:bg-surface-raised hover:text-foreground")}
             >
               {p.label}
             </button>
@@ -98,7 +98,7 @@ function AnalyticsBody({ range, businessId }: { range: { from: string; to: strin
   if (data.loading || !a) {
     return (
       <div aria-busy aria-label="Loading analytics" className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-20 rounded-card" />
           ))}
@@ -135,7 +135,7 @@ function AnalyticsBody({ range, businessId }: { range: { from: string; to: strin
         </p>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-5">
         <StatCard label="Tasks completed" value={`${k.completedPct}%`} hint={`${k.completed} of ${k.total}`} icon={CircleCheck} tone="success" />
         <StatCard label="Finished on time" value={`${k.onTimePct}%`} hint={`${k.onTime} on time, ${k.late} late`} icon={Clock3} tone={k.late > k.onTime ? "warning" : "info"} />
         <StatCard label="Active per day" value={`${k.avgActiveHours}h`} hint="Average per person seen" icon={Timer} tone="brand" />

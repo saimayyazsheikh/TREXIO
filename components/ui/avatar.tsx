@@ -26,7 +26,7 @@ export function Avatar({
     >
       {src ? <AvatarPrimitive.Image src={src} alt={name} className="size-full object-cover" /> : null}
       <AvatarPrimitive.Fallback
-        className="flex size-full items-center justify-center bg-brand-gradient font-semibold text-white"
+        className="flex size-full items-center justify-center bg-brand-soft font-semibold text-brand-text"
         aria-label={name}
       >
         {initials(name)}

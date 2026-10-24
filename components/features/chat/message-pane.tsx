@@ -133,7 +133,7 @@ export function MessagePane({
           <ArrowLeft aria-hidden />
         </Button>
         <div className="min-w-0">
-          <h2 className="truncate font-display text-lg font-bold">{title}</h2>
+          <h2 className="truncate font-display text-lg font-semibold">{title}</h2>
           <p className="truncate text-xs text-muted">{subtitle}</p>
         </div>
       </header>
@@ -187,7 +187,7 @@ export function MessagePane({
               <div key={p.tempId} className="flex flex-row-reverse gap-2.5" aria-label={p.status === "failed" ? "Message not sent" : "Sending message"}>
                 <div className="w-8 shrink-0" />
                 <div className="flex max-w-[85%] flex-col items-end">
-                  <div className="rounded-card bg-brand-gradient px-3.5 py-2 text-white opacity-70">
+                  <div className="rounded-card bg-brand px-3.5 py-2 text-brand-fg opacity-70">
                     {p.body ? <p className="whitespace-pre-line break-words text-sm">{p.body}</p> : null}
                   </div>
                   {p.status === "sending" ? (

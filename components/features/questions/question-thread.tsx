@@ -103,8 +103,8 @@ export function QuestionThread({ question, viewer }: { question: WithId<Question
           const mine = m.authorId === viewer.uid;
           return (
             <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
-              <div className={cn("max-w-[85%] rounded-card px-4 py-2.5", mine ? "bg-brand-gradient text-white" : "bg-surface-raised")}>
-                <p className={cn("text-xs font-semibold", mine ? "text-white/90" : "text-muted")}>
+              <div className={cn("max-w-[85%] rounded-card px-4 py-2.5", mine ? "bg-brand text-brand-fg" : "bg-surface-raised")}>
+                <p className={cn("text-xs font-semibold", mine ? "text-brand-fg/90" : "text-muted")}>
                   {m.authorName}
                   {m.authorRole === "admin" ? " (admin)" : ""} · <span className="num font-normal">{formatPkt(m.createdAt.toDate(), "d MMM, h:mm a")}</span>
                 </p>

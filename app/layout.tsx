@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f5f7ff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1020" },
+    { media: "(prefers-color-scheme: light)", color: "#f3f8f4" },
+    { media: "(prefers-color-scheme: dark)", color: "#051f20" },
   ],
 };
 
@@ -22,7 +22,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${jakarta.variable}`}>
       <body className="antialiased">
-        <div className="app-backdrop" aria-hidden />
         <a
           href="#main"
           className="sr-only z-50 rounded-lg bg-surface-solid px-3 py-2 focus:not-sr-only focus:fixed focus:left-3 focus:top-3"

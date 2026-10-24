@@ -15,8 +15,8 @@ export function EmptyState({
 }) {
   return (
     <GlassCard className="flex flex-col items-center px-6 py-12 text-center">
-      <span className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-[var(--shadow-2)]">
-        <Icon className="size-7" aria-hidden />
+      <span className="mb-4 flex size-12 items-center justify-center rounded-xl bg-brand-soft text-brand-text">
+        <Icon className="size-6" aria-hidden />
       </span>
       <h2 className="font-display text-lg font-semibold">{title}</h2>
       <p className="mt-1 max-w-md text-sm text-muted">{description}</p>

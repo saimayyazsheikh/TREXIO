@@ -23,9 +23,9 @@ function NavList({ collapsed, onNavigate, badges }: { collapsed: boolean; onNavi
       {ADMIN_NAV.map((group) => (
         <div key={group.label} className={group.pinned ? "mt-auto" : undefined}>
           {collapsed ? null : (
-            <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-wider text-muted">{group.label}</p>
+            <p className="mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted/80">{group.label}</p>
           )}
-          <ul className="flex flex-col gap-1">
+          <ul className="flex flex-col gap-0.5">
             {group.items.map((item) => {
               const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
               const count = badges[item.href] ?? 0;
@@ -36,12 +36,14 @@ function NavList({ collapsed, onNavigate, badges }: { collapsed: boolean; onNavi
                   onClick={onNavigate}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-control px-3 py-2.5 text-sm font-medium transition-colors",
-                    active ? "bg-brand-gradient text-white shadow-[var(--shadow-1)]" : "hover:bg-surface-raised",
+                    "relative flex items-center gap-3 rounded-control px-3 py-2 text-sm font-medium transition-colors",
+                    active
+                      ? "bg-[var(--sidebar-active)] text-sidebar-fg before:absolute before:-left-4 before:top-2 before:bottom-2 before:w-1 before:rounded-r-full before:bg-sidebar-muted"
+                      : "text-sidebar-muted hover:bg-[var(--sidebar-hover)] hover:text-sidebar-fg",
                     collapsed && "relative justify-center px-0",
                   )}
                 >
-                  <item.icon className="size-5 shrink-0" aria-hidden />
+                  <item.icon className="size-[18px] shrink-0" aria-hidden />
                   {collapsed ? <span className="sr-only">{item.label}</span> : <span className="flex-1">{item.label}</span>}
                   <NavBadge count={count} className={collapsed ? "absolute right-1 top-1 min-w-4 px-1 text-[10px]" : undefined} />
                 </Link>
@@ -70,8 +72,8 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
     <div className="flex min-h-dvh">
       <aside
         className={cn(
-          "glass sticky top-0 hidden h-dvh shrink-0 flex-col border-y-0 border-l-0 p-4 transition-[width] duration-200 lg:flex print:!hidden",
-          collapsed ? "w-[76px]" : "w-64",
+          "bg-sidebar sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-[var(--sidebar-line)] p-4 transition-[width] duration-200 lg:flex print:!hidden",
+          collapsed ? "w-[76px]" : "w-60",
         )}
       >
         <div className={cn("mb-6 flex items-center", collapsed ? "justify-center" : "justify-between")}>
@@ -84,7 +86,7 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
           <Button
             variant="ghost"
             size="icon"
-            className="self-start"
+            className="self-start text-sidebar-muted hover:bg-[var(--sidebar-hover)] hover:text-sidebar-fg"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
             onClick={() => setCollapsed((c) => !c)}
           >
@@ -94,7 +96,7 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="glass sticky top-0 z-30 flex h-16 print:hidden items-center justify-between gap-3 border-x-0 border-t-0 px-4 sm:px-6">
+        <header className="sticky top-0 z-30 flex h-16 print:hidden items-center justify-between gap-3 border-b border-border-solid bg-surface-solid/90 px-4 backdrop-blur sm:px-6">
           <div className="flex items-center gap-2 lg:hidden">
             <Tooltip label="Open menu">
               <Button variant="ghost" size="icon" aria-label="Open menu" onClick={() => setDrawerOpen(true)}>
@@ -109,13 +111,13 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
             <UserMenu name={userName} roleLabel="Admin" />
           </div>
         </header>
-        <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
+        <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-8 sm:py-8">
           {children}
         </main>
       </div>
 
       <Dialog open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <DialogContent className="left-0 top-0 h-dvh w-72 max-w-[85vw] translate-x-0 translate-y-0 rounded-none rounded-r-card">
+        <DialogContent className="bg-sidebar left-0 top-0 h-dvh overflow-y-auto w-72 max-w-[85vw] translate-x-0 translate-y-0 rounded-none rounded-r-card border-[var(--sidebar-line)] text-sidebar-fg [&>button]:text-sidebar-muted [&>button]:hover:bg-[var(--sidebar-hover)]">
           <DialogTitle className="mb-6">
             <Brand />
           </DialogTitle>

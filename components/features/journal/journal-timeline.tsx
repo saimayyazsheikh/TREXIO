@@ -44,9 +44,9 @@ function SlotCard({ slotKey, slot, editable, isNow, tasks, taskById, onChange, o
       >
         <div ref={setNodeRef}>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <h3 className="font-display text-base font-bold">{label}</h3>
+            <h3 className="font-display text-base font-semibold">{label}</h3>
             {isNow ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-brand-gradient px-2.5 py-0.5 text-xs font-semibold text-white">
+              <span className="inline-flex items-center gap-1 rounded-full bg-brand px-2.5 py-0.5 text-xs font-semibold text-brand-fg">
                 <Clock className="size-3.5" aria-hidden /> Now
               </span>
             ) : null}

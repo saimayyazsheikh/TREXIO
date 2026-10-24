@@ -42,7 +42,7 @@ export function EmployeeJournalTab({ employee, business }: { employee: WithId<Us
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="font-display text-lg font-bold">{formatPkt(new Date(`${date}T12:00:00+05:00`), "EEEE, d MMMM")}</p>
+        <p className="font-display text-lg font-semibold">{formatPkt(new Date(`${date}T12:00:00+05:00`), "EEEE, d MMMM")}</p>
         <DateNav date={date} today={today} onChange={setDate} />
       </div>
 
@@ -59,7 +59,7 @@ export function EmployeeJournalTab({ employee, business }: { employee: WithId<Us
       ) : (
         <>
           <GlassCard className="p-4">
-            <p className="font-display text-lg font-bold">
+            <p className="font-display text-lg font-semibold">
               <span className="num">
                 {stats.filled} of {stats.expected}
               </span>{" "}
@@ -67,7 +67,7 @@ export function EmployeeJournalTab({ employee, business }: { employee: WithId<Us
               {!working ? <span className="ml-2 text-sm font-normal text-muted">(not a working day)</span> : null}
             </p>
             <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-surface-raised" role="progressbar" aria-valuenow={stats.pct} aria-valuemin={0} aria-valuemax={100} aria-label="Hours logged">
-              <div className="h-full rounded-full bg-brand-gradient" style={{ width: `${stats.pct}%` }} />
+              <div className="h-full rounded-full bg-brand" style={{ width: `${stats.pct}%` }} />
             </div>
             {date < today ? <p className="mt-2 text-sm text-muted">Locked at midnight. This is the final record for the day.</p> : null}
           </GlassCard>

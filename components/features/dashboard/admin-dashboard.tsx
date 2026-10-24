@@ -64,7 +64,7 @@ export function AdminDashboard({ firstName }: { firstName: string }) {
         />
       ) : (
         <>
-          <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-6">
             <StatCard loading={loading || !live.ready} label="Online now" value={onlineNow} hint={`of ${employees.data?.length ?? 0} team members`} icon={Radio} tone="success" />
             <StatCard loading={loading} label="Tasks today" value={stats.total} hint={`${employees.data?.length ?? 0} team members`} icon={ListChecks} tone="brand" />
             <StatCard loading={loading} label="Completed" value={`${stats.completedPct}%`} hint={`${stats.completed} of ${stats.total}`} icon={CircleCheck} tone="success" />

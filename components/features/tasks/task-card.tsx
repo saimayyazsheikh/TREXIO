@@ -130,7 +130,7 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
                   Checklist {task.subtaskDone}/{task.subtaskTotal}
                 </span>
                 <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-raised" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Checklist progress">
-                  <span className="block h-full rounded-full bg-brand-gradient transition-[width] duration-200" style={{ width: `${pct}%` }} />
+                  <span className="block h-full rounded-full bg-brand transition-[width] duration-200" style={{ width: `${pct}%` }} />
                 </span>
                 <ChevronDown className={cn("size-4 shrink-0 text-muted transition-transform", open && "rotate-180")} aria-hidden />
               </button>

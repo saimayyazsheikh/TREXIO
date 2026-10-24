@@ -41,7 +41,7 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
 
   return (
     <div
-      className={cn("glass rounded-control border-l-4 p-3 text-left transition-shadow", dragging && "shadow-[var(--shadow-3)] ring-2 ring-ring")}
+      className={cn("glass rounded-xl border-l-4 p-3.5 text-left transition-shadow", dragging && "shadow-[var(--shadow-3)] ring-2 ring-ring")}
       style={accent ? { borderLeftColor: accent, borderLeftWidth: 4 } : undefined}
     >
       <div className="flex items-start gap-2">

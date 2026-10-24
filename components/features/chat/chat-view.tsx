@@ -103,7 +103,7 @@ export function ChatView({ viewer }: { viewer: { uid: string; name: string; role
                     className={cn("flex min-h-14 w-full items-center gap-3 rounded-control px-2.5 py-2 text-left transition-colors hover:bg-surface-raised", c.id === current.id && "bg-surface-raised")}
                   >
                     {c.kind === "group" ? (
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-gradient text-white">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand text-brand-fg">
                         <Users className="size-4" aria-hidden />
                       </span>
                     ) : (
@@ -111,13 +111,13 @@ export function ChatView({ viewer }: { viewer: { uid: string; name: string; role
                     )}
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">
-                        <span className={cn("truncate text-sm", c.unread > 0 ? "font-bold" : "font-semibold")}>{c.title}</span>
+                        <span className={cn("truncate text-sm", c.unread > 0 ? "font-semibold" : "font-semibold")}>{c.title}</span>
                         {c.lastAtMs ? <span className="num shrink-0 text-xs text-muted">{formatPkt(new Date(c.lastAtMs), "h:mm a")}</span> : null}
                       </span>
                       <span className="block truncate text-xs text-muted">{c.preview}</span>
                     </span>
                     {c.unread > 0 ? (
-                      <span className="num flex min-w-5 shrink-0 items-center justify-center rounded-full bg-brand-gradient px-1.5 py-0.5 text-xs font-bold text-white" aria-label={`${c.unread} unread`}>
+                      <span className="num flex min-w-5 shrink-0 items-center justify-center rounded-full bg-brand px-1.5 py-0.5 text-xs font-semibold text-brand-fg" aria-label={`${c.unread} unread`}>
                         {c.unread > 99 ? "99+" : c.unread}
                       </span>
                     ) : null}

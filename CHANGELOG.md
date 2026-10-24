@@ -1,5 +1,10 @@
 # Changelog
 
+## UI redesign
+- New look from the supplied palette (ink, deep, forest, primary, sage, mint), light and dark: flat cards with hairline borders, a deep forest side panel, solid primary buttons, underline tabs, tinted pills and icon chips, slim scrollbars. Split-screen sign-in.
+- Look only: no change to routes, data, rules or behaviour. Plan in docs/09, notes in design-system/traxio/MASTER.md.
+- Fixed a theme-toggle hydration warning.
+
 ## Phase 0 — Foundation
 - Next.js 15 (App Router, TS) + Tailwind v4, design tokens from docs/06, light/dark theme.
 - Shared UI kit: PageHeader, StatCard, EmptyState, ErrorState, Avatar, PriorityBadge, StatusBadge, BusinessChip, GlassCard, ConfirmDialog, Tooltip, Skeleton, Dialog, Button, Input, Label.

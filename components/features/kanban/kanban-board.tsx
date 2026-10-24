@@ -135,7 +135,7 @@ export function KanbanBoard({ lanes, viewer, people, now, today, accentFor, onOp
           return (
             <div key={lane.key}>
               {lane.label ? (
-                <button type="button" aria-expanded={!isCollapsed} onClick={() => toggle(lane.key)} className="mb-2 flex min-h-11 items-center gap-2 rounded-control px-1 font-display text-base font-bold hover:bg-surface-raised">
+                <button type="button" aria-expanded={!isCollapsed} onClick={() => toggle(lane.key)} className="mb-2 flex min-h-11 items-center gap-2 rounded-control px-1 font-display text-base font-semibold hover:bg-surface-raised">
                   <ChevronDown className={cn("size-4 transition-transform", isCollapsed && "-rotate-90")} aria-hidden />
                   {lane.label}
                   <span className="num rounded-full bg-surface-raised px-2 py-0.5 text-xs font-semibold text-muted">{lane.tasks.length}</span>

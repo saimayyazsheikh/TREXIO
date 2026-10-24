@@ -55,7 +55,7 @@ export function MyQuestionsView({ uid }: { uid: string }) {
                   <div className="min-w-0 flex-1 basis-56">
                     <p className="truncate font-semibold">
                       {x.subject}
-                      {x.unreadForEmployee ? <span className="ml-2 rounded-full bg-brand-gradient px-2 py-0.5 text-xs font-semibold text-white">New answer</span> : null}
+                      {x.unreadForEmployee ? <span className="ml-2 rounded-full bg-brand px-2 py-0.5 text-xs font-semibold text-brand-fg">New answer</span> : null}
                     </p>
                     <p className="num mt-0.5 text-sm text-muted">Last update {formatPkt(x.lastMessageAt.toDate(), "d MMM, h:mm a")}</p>
                   </div>

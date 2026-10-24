@@ -72,7 +72,7 @@ function Figures({ stats }: { stats: SummaryStats }) {
       {items.map(([label, value]) => (
         <div key={label}>
           <dt className="text-xs text-muted">{label}</dt>
-          <dd className="num font-display text-lg font-bold">{value}</dd>
+          <dd className="num font-display text-lg font-semibold">{value}</dd>
         </div>
       ))}
     </dl>

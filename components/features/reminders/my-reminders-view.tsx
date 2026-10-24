@@ -69,7 +69,7 @@ export function MyRemindersView({ uid }: { uid: string }) {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold">
                       {r.fromName}
-                      {!read ? <span className="ml-2 rounded-full bg-brand-gradient px-2 py-0.5 text-xs font-semibold text-white">New</span> : null}
+                      {!read ? <span className="ml-2 rounded-full bg-brand px-2 py-0.5 text-xs font-semibold text-brand-fg">New</span> : null}
                     </p>
                     <p className="num text-sm text-muted">{formatPkt(r.createdAt.toDate(), "EEE d MMM, h:mm a")}</p>
                   </div>

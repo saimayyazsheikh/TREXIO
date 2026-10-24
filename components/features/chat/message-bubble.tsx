@@ -52,7 +52,7 @@ export function MessageBubble({ message, chatId, viewerUid, showAuthor }: { mess
         ) : null}
 
         <div className={cn("flex items-start gap-1", mine && "flex-row-reverse")}>
-          <div className={cn("rounded-card px-3.5 py-2", message.deleted ? "border border-dashed border-border-solid text-muted" : mine ? "bg-brand-gradient text-white" : "bg-surface-raised")}>
+          <div className={cn("rounded-card px-3.5 py-2", message.deleted ? "border border-dashed border-border-solid text-muted" : mine ? "bg-brand text-brand-fg" : "bg-surface-raised")}>
             {message.deleted ? (
               <p className="text-sm italic">This message was deleted.</p>
             ) : editing ? (
@@ -85,7 +85,7 @@ export function MessageBubble({ message, chatId, viewerUid, showAuthor }: { mess
             ) : (
               <>
                 {message.body ? <p className="whitespace-pre-line break-words text-sm">{message.body}</p> : null}
-                {message.editedAt ? <p className={cn("text-[11px]", mine ? "text-white/80" : "text-muted")}>edited</p> : null}
+                {message.editedAt ? <p className={cn("text-[11px]", mine ? "text-brand-fg/80" : "text-muted")}>edited</p> : null}
               </>
             )}
           </div>

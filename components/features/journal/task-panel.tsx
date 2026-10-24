@@ -38,7 +38,7 @@ export function TaskPanel({ tasks, usedIds, editable }: { tasks: WithId<TaskDoc>
   const sorted = [...tasks].sort((a, b) => compareTasks({ ...a, dueAtMs: a.dueAt?.toMillis() ?? null }, { ...b, dueAtMs: b.dueAt?.toMillis() ?? null }));
   return (
     <GlassCard className="p-4">
-      <h2 className="flex items-center gap-2 font-display text-lg font-bold">
+      <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
         <ListChecks className="size-5" aria-hidden /> This day&apos;s tasks
       </h2>
       <p className="mt-1 text-sm text-muted">{editable ? "Drag a task into the hour you worked on it, or use “Add a task” inside an hour." : "The tasks that belonged to this day."}</p>

@@ -103,18 +103,18 @@ export function TodayView({ uid }: { uid: string }) {
           {todayTasks.length > 0 ? (
             <GlassCard className="p-4">
               <div className="flex items-center justify-between gap-3">
-                <p className="font-display text-lg font-bold">{allDone ? "All done for today. Nice work!" : `${doneCount} of ${todayTasks.length} done today`}</p>
+                <p className="font-display text-lg font-semibold">{allDone ? "All done for today. Nice work!" : `${doneCount} of ${todayTasks.length} done today`}</p>
                 {allDone ? <PartyPopper className="size-6 text-success" aria-hidden /> : <span className="num text-sm font-semibold text-muted">{pct}%</span>}
               </div>
               <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-surface-raised" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Today's progress">
-                <div className="h-full rounded-full bg-brand-gradient transition-[width] duration-300" style={{ width: `${pct}%` }} />
+                <div className="h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${pct}%` }} />
               </div>
             </GlassCard>
           ) : null}
 
           {overdue.length > 0 ? (
             <section aria-labelledby="overdue-heading">
-              <h2 id="overdue-heading" className="mb-3 font-display text-lg font-bold text-danger">
+              <h2 id="overdue-heading" className="mb-3 font-display text-lg font-semibold text-danger">
                 Carried over ({overdue.length})
               </h2>
               {renderList(overdue)}
@@ -122,7 +122,7 @@ export function TodayView({ uid }: { uid: string }) {
           ) : null}
           {daily.length > 0 ? (
             <section aria-labelledby="daily-heading">
-              <h2 id="daily-heading" className="mb-3 font-display text-lg font-bold">
+              <h2 id="daily-heading" className="mb-3 font-display text-lg font-semibold">
                 Daily routine
               </h2>
               {renderList(daily)}
@@ -130,7 +130,7 @@ export function TodayView({ uid }: { uid: string }) {
           ) : null}
           {oneoff.length > 0 ? (
             <section aria-labelledby="oneoff-heading">
-              <h2 id="oneoff-heading" className="mb-3 font-display text-lg font-bold">
+              <h2 id="oneoff-heading" className="mb-3 font-display text-lg font-semibold">
                 Assigned to you
               </h2>
               {renderList(oneoff)}

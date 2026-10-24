@@ -53,9 +53,12 @@ describe.each(Object.entries(themes))("%s theme contrast (WCAG 2.2 AA)", (_name,
     expect(ratio(toRgb(t["ring"]), bg)).toBeGreaterThanOrEqual(3);
   });
 
-  it("white text on the brand gradient and danger button >= 4.5:1", () => {
+  it("text on the primary button, on the soft brand fill, and white on the danger button >= 4.5:1", () => {
     const white: RGB = [255, 255, 255];
-    for (const k of ["brand-from", "brand-to", "danger-solid"]) expect(ratio(white, toRgb(t[k]))).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(toRgb(t["brand-fg"]), toRgb(t["brand"]))).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(toRgb(t["brand-fg"]), toRgb(t["brand-hover"]))).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(toRgb(t["brand-text"]), toRgb(t["brand-soft"]))).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(white, toRgb(t["danger-solid"]))).toBeGreaterThanOrEqual(4.5);
   });
 
   it("form control borders >= 3:1 against the surface", () => {
@@ -67,5 +70,12 @@ describe.each(Object.entries(themes))("%s theme contrast (WCAG 2.2 AA)", (_name,
     expect(ratio(fg, surface)).toBeGreaterThanOrEqual(4.5);
     expect(ratio(fg, blend(fg, surface, 0.15))).toBeGreaterThanOrEqual(4.5);
     expect(ratio(fg, blend(fg, bg, 0.15))).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("side panel", () => {
+  it("mint and sage text read on every stop of the forest gradient and on the dark-mode ink", () => {
+    for (const bgHex of ["#163832", "#0b2b26", "#051f20"])
+      for (const fg of ["#daf1de", "#8eb69b"]) expect(ratio(toRgb(fg), toRgb(bgHex))).toBeGreaterThanOrEqual(4.5);
   });
 });

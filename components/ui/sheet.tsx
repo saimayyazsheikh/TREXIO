@@ -25,8 +25,14 @@ export function SheetContent({
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px]" />
       <DialogPrimitive.Content
+        tabIndex={-1}
+        // Land on the panel itself, not on the close button, so no ring is drawn around it as the drawer opens.
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          (e.currentTarget as HTMLElement).focus();
+        }}
         className={cn(
-          "fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col bg-surface-solid shadow-[var(--shadow-3)] sm:rounded-l-card sm:border-l",
+          "outline-none fixed inset-y-0 right-0 z-50 flex w-full max-w-lg flex-col bg-surface-solid shadow-[var(--shadow-3)] sm:rounded-l-card sm:border-l",
           className,
         )}
         {...props}

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { TimeField } from "@/components/ui/time-field";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { AssigneePicker } from "@/components/features/tasks/assignee-picker";
 import { ChecklistEditor, type ChecklistItem } from "@/components/features/tasks/checklist-editor";
@@ -170,7 +171,7 @@ export function TaskSheet({
                   ] as const
                 ).map(([value, title, help]) => (
                   <label key={value} className="flex min-h-11 cursor-pointer items-start gap-3 rounded-control px-1 py-1.5 hover:bg-surface-raised">
-                    <input type="radio" value={value} className="mt-1 size-5 accent-[var(--brand-from)]" {...register("completionMode")} />
+                    <input type="radio" value={value} className="mt-1 size-5 accent-[var(--brand)]" {...register("completionMode")} />
                     <span>
                       <span className="block text-sm font-medium">{title}</span>
                       <span className="block text-sm text-muted">{help}</span>
@@ -193,7 +194,7 @@ export function TaskSheet({
               {(aria) => <Input {...aria} type="date" {...register("date")} />}
             </Field>
             <Field id="task-due" label="Due time" hint="Optional" error={errors.dueTime?.message}>
-              {(aria) => <Input {...aria} type="time" {...register("dueTime")} />}
+              {(aria) => <Controller control={control} name="dueTime" render={({ field }) => <TimeField {...aria} value={field.value ?? ""} onChange={field.onChange} onBlur={field.onBlur} />} />}
             </Field>
           </div>
 
@@ -238,7 +239,7 @@ export function TaskSheet({
           />
 
           <label className="flex min-h-11 items-start gap-3">
-            <input type="checkbox" className="mt-1 size-5 accent-[var(--brand-from)]" {...register("requiresReview")} />
+            <input type="checkbox" className="mt-1 size-5 accent-[var(--brand)]" {...register("requiresReview")} />
             <span>
               <span className="block text-sm font-medium">Needs my review</span>
               <span className="block text-sm text-muted">When they finish it, it waits for you to approve it instead of closing.</span>

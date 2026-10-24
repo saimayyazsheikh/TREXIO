@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { TimeField } from "@/components/ui/time-field";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ColorPicker } from "@/components/features/color-picker";
 import { getFirebase } from "@/lib/firebase/client";
@@ -93,10 +94,10 @@ export function BusinessSheet({
 
           <div className="grid grid-cols-2 gap-3">
             <Field id="biz-start" label="Opens" required error={errors.workStart?.message}>
-              {(aria) => <Input {...aria} type="time" {...register("workStart")} />}
+              {(aria) => <Controller control={control} name="workStart" render={({ field }) => <TimeField {...aria} value={field.value ?? ""} onChange={field.onChange} onBlur={field.onBlur} />} />}
             </Field>
             <Field id="biz-end" label="Closes" required error={errors.workEnd?.message}>
-              {(aria) => <Input {...aria} type="time" {...register("workEnd")} />}
+              {(aria) => <Controller control={control} name="workEnd" render={({ field }) => <TimeField {...aria} value={field.value ?? ""} onChange={field.onChange} onBlur={field.onBlur} />} />}
             </Field>
           </div>
 
@@ -132,7 +133,7 @@ export function BusinessSheet({
           </fieldset>
 
           <label className="flex min-h-11 items-start gap-3">
-            <input type="checkbox" className="mt-1 size-5 accent-[var(--brand-from)]" {...register("active")} />
+            <input type="checkbox" className="mt-1 size-5 accent-[var(--brand)]" {...register("active")} />
             <span>
               <span className="block text-sm font-medium">Active</span>
               <span className="block text-sm text-muted">Inactive businesses stop getting new daily tasks and are hidden from assignment lists.</span>

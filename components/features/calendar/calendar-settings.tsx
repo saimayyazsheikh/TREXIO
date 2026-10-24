@@ -90,10 +90,16 @@ export function CalendarSettings() {
         const business = e.businessId ? bById.get(e.businessId) : undefined;
         return (
           <li key={e.id}>
-            <GlassCard className="flex flex-wrap items-center gap-x-4 gap-y-1 p-3">
-              <p className="num w-36 shrink-0 text-sm font-semibold">{formatPkt(pktInstant(e.date, "12:00"), "EEE d MMM yyyy")}</p>
-              <p className="min-w-0 flex-1 basis-40 font-medium">{e.name}</p>
-              {business ? <BusinessChip name={business.name} color={business.color} /> : <span className="text-sm text-muted">All businesses</span>}
+            <GlassCard className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+              <span aria-hidden className="num flex size-12 shrink-0 flex-col items-center justify-center rounded-xl bg-brand-soft leading-none text-brand-text">
+                <span className="text-[10px] font-semibold uppercase tracking-wider">{formatPkt(pktInstant(e.date, "12:00"), "MMM")}</span>
+                <span className="mt-0.5 font-display text-lg font-semibold">{formatPkt(pktInstant(e.date, "12:00"), "d")}</span>
+              </span>
+              <div className="min-w-0 flex-1 basis-40">
+                <p className="truncate text-[15px] font-semibold leading-tight">{e.name}</p>
+                <p className="num mt-0.5 text-[13px] text-muted">{formatPkt(pktInstant(e.date, "12:00"), "EEEE d MMMM yyyy")}</p>
+              </div>
+              {business ? <BusinessChip name={business.name} color={business.color} /> : <span className="inline-flex h-6 items-center rounded-full bg-surface-raised px-2.5 text-xs font-semibold text-muted">All businesses</span>}
               <Tooltip label="Remove">
                 <Button variant="ghost" size="icon" aria-label={`Remove ${e.name}`} onClick={() => remove(e)}>
                   <Trash2 aria-hidden />

@@ -103,11 +103,11 @@ export function JournalsOverview() {
               const mine = (tasks.data ?? []).filter((t) => t.assigneeIds.includes(user.id));
               return (
                 <li key={user.id}>
-                  <GlassCard className="p-4">
-                    <button type="button" aria-expanded={open} aria-controls={`journal-${user.id}`} onClick={() => setOpenId(open ? null : user.id)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 text-left">
-                      <Avatar name={user.name} />
+                  <GlassCard className="px-4 py-3.5">
+                    <button type="button" aria-expanded={open} aria-controls={`journal-${user.id}`} onClick={() => setOpenId(open ? null : user.id)} className="flex w-full flex-wrap items-center gap-x-4 gap-y-2 rounded-xl text-left">
+                      <Avatar name={user.name} size="lg" />
                       <div className="min-w-0 flex-1 basis-44">
-                        <p className="truncate font-semibold">{user.name}</p>
+                        <p className="truncate text-[15px] font-semibold leading-tight">{user.name}</p>
                         <div className="mt-1">{business ? <BusinessChip name={business.name} color={business.color} /> : null}</div>
                       </div>
                       {isWorking ? (
@@ -125,7 +125,7 @@ export function JournalsOverview() {
                       <ChevronDown className={cn("size-5 shrink-0 text-muted transition-transform", open && "rotate-180")} aria-hidden />
                     </button>
                     {open ? (
-                      <div id={`journal-${user.id}`} className="mt-4 border-t pt-4">
+                      <div id={`journal-${user.id}`} className="mt-4 border-t border-border-solid pt-4">
                         {expected.length === 0 && Object.keys(slots).length === 0 ? (
                           <p className="text-sm text-muted">Nothing to show for this day.</p>
                         ) : (

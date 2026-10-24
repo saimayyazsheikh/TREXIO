@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Activity, Coffee, Moon, Radio, WifiOff } from "lucide-react";
+import { Activity, Coffee, Hourglass, UserCheck, UserX } from "lucide-react";
 import { orderBy, query, where } from "firebase/firestore";
 import { Avatar } from "@/components/ui/avatar";
 import { Select } from "@/components/ui/select";
@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import type { BusinessDoc, PresenceDailyDoc, UserDoc } from "@/types/models";
 
 const DOT: Record<PresenceState, string> = { online: "bg-success", idle: "bg-warning", break: "bg-info", offline: "bg-muted" };
+const PILL: Record<PresenceState, string> = { online: "bg-success/12 text-success", idle: "bg-warning/12 text-warning", break: "bg-info/12 text-info", offline: "bg-surface-raised text-muted" };
 const ORDER: Record<PresenceState, number> = { online: 0, idle: 1, break: 2, offline: 3 };
 
 export function PresenceBoard() {
@@ -89,10 +90,10 @@ export function PresenceBoard() {
 
           <TabsContent value="live">
             <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <StatCard label="Online" value={count("online")} icon={Radio} tone="success" loading={loading || !live.ready} />
-              <StatCard label="Idle" value={count("idle")} icon={Moon} tone="warning" loading={loading || !live.ready} />
+              <StatCard label="Online" value={count("online")} icon={UserCheck} tone="success" loading={loading || !live.ready} />
+              <StatCard label="Idle" value={count("idle")} icon={Hourglass} tone="warning" loading={loading || !live.ready} />
               <StatCard label="On break" value={count("break")} icon={Coffee} tone="info" loading={loading || !live.ready} />
-              <StatCard label="Offline" value={count("offline")} icon={WifiOff} tone="brand" loading={loading || !live.ready} />
+              <StatCard label="Offline" value={count("offline")} icon={UserX} tone="brand" loading={loading || !live.ready} />
             </div>
             {live.error ? (
               <ErrorState onRetry={live.retry} />
@@ -110,15 +111,18 @@ export function PresenceBoard() {
                   const business = user.businessId ? bById.get(user.businessId) : undefined;
                   return (
                     <li key={user.id}>
-                      <GlassCard className="flex flex-wrap items-center gap-x-4 gap-y-2 p-3">
-                        <Avatar name={user.name} />
+                      <GlassCard className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5">
+                        <span className="relative shrink-0">
+                          <Avatar name={user.name} size="lg" />
+                          <span aria-hidden className={cn("absolute -bottom-0.5 -right-0.5 size-3.5 rounded-full ring-[3px] ring-surface-solid", DOT[status.state])} />
+                        </span>
                         <div className="min-w-0 flex-1 basis-40">
-                          <p className="truncate font-semibold">{user.name}</p>
-                          <div className="mt-0.5">{business ? <BusinessChip name={business.name} color={business.color} /> : null}</div>
+                          <p className="truncate text-[15px] font-semibold leading-tight">{user.name}</p>
+                          <div className="mt-1">{business ? <BusinessChip name={business.name} color={business.color} /> : null}</div>
                         </div>
-                        <p className="inline-flex items-center gap-2 text-sm font-medium">
-                          <span aria-hidden className={cn("size-2.5 rounded-full", DOT[status.state])} />
-                          <span className="num">{statusLabel(status, now.getTime())}</span>
+                        <p className={cn("num inline-flex items-center gap-2 rounded-full px-3 py-1 text-[13px] font-semibold", PILL[status.state])}>
+                          <span aria-hidden className={cn("size-2 rounded-full", DOT[status.state])} />
+                          {statusLabel(status, now.getTime())}
                         </p>
                       </GlassCard>
                     </li>
@@ -150,9 +154,9 @@ export function PresenceBoard() {
                   const pct = (n: number) => (total ? Math.round((n / total) * 100) : 0);
                   return (
                     <li key={user.id}>
-                      <GlassCard className="p-3">
+                      <GlassCard className="px-4 py-3.5">
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                          <Avatar name={user.name} />
+                          <Avatar name={user.name} size="lg" />
                           <div className="min-w-0 flex-1 basis-40">
                             <p className="truncate font-semibold">{user.name}</p>
                             {t ? (

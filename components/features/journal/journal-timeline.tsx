@@ -40,19 +40,19 @@ function SlotCard({ slotKey, slot, editable, isNow, tasks, taskById, onChange, o
   return (
     <li>
       <GlassCard
-        className={cn("p-3.5 transition-shadow", isNow && "ring-2 ring-ring", isOver && "ring-2 ring-success", !editable && !filled && "opacity-70")}
+        className={cn("px-4 py-3.5 transition-shadow", isNow && "border-brand ring-1 ring-ring", isOver && "ring-2 ring-success", !editable && !filled && "bg-surface-raised/50 shadow-none")}
       >
         <div ref={setNodeRef}>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            <h3 className="font-display text-base font-semibold">{label}</h3>
+            <h3 className={cn("font-display text-[15px] font-semibold", !editable && !filled && "text-muted")}>{label}</h3>
             {isNow ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-brand px-2.5 py-0.5 text-xs font-semibold text-brand-fg">
+              <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-brand-soft px-2.5 text-xs font-semibold text-brand-text">
                 <Clock className="size-3.5" aria-hidden /> Now
               </span>
             ) : null}
             {filled ? (
-              <span className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-success">
-                <CircleCheck className="size-4" aria-hidden /> Logged
+              <span className="ml-auto inline-flex h-6 items-center gap-1.5 rounded-full bg-success/12 px-2.5 text-xs font-semibold text-success">
+                <CircleCheck className="size-3.5" aria-hidden /> Logged
               </span>
             ) : (
               <span className="ml-auto text-xs text-muted">{editable ? "Nothing yet" : "Nothing written"}</span>

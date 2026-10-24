@@ -3,8 +3,10 @@
 import { useMemo, useState } from "react";
 import { Inbox } from "lucide-react";
 import { limit, orderBy, query } from "firebase/firestore";
+import { Avatar } from "@/components/ui/avatar";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { pill } from "@/components/features/badges";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
@@ -74,18 +76,22 @@ export function InboxView({ adminUid }: { adminUid: string }) {
           {shown.map((x) => (
             <li key={x.id}>
               <button type="button" onClick={() => setOpenId(x.id)} className="block w-full text-left">
-                <GlassCard className={cn("flex flex-wrap items-center gap-x-3 gap-y-2 p-4 transition-colors hover:bg-surface-raised", x.unreadForAdmin && "ring-2 ring-ring")}>
+                <GlassCard className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5 transition-colors hover:bg-surface-raised">
+                  <span className="relative shrink-0">
+                    <Avatar name={x.employeeName} size="lg" />
+                    {x.unreadForAdmin ? <span aria-hidden className="absolute -right-0.5 -top-0.5 size-3.5 rounded-full bg-brand ring-[3px] ring-surface-solid" /> : null}
+                  </span>
                   <div className="min-w-0 flex-1 basis-56">
-                    <p className="truncate font-semibold">
+                    <p className={cn("truncate text-[15px] leading-tight", x.unreadForAdmin ? "font-semibold" : "font-medium")}>
                       {x.subject}
-                      {x.unreadForAdmin ? <span className="ml-2 rounded-full bg-brand px-2 py-0.5 text-xs font-semibold text-brand-fg">New</span> : null}
+                      {x.unreadForAdmin ? <span className={cn(pill, "ml-2 h-5 bg-brand-soft align-middle text-[11px] text-brand-text")}>New</span> : null}
                     </p>
-                    <p className="num mt-0.5 truncate text-sm text-muted">
+                    <p className="num mt-1 truncate text-[13px] text-muted">
                       {x.employeeName}
                       {x.taskTitle ? ` · about ${x.taskTitle}` : ""} · {formatPkt(x.lastMessageAt.toDate(), "d MMM, h:mm a")}
                     </p>
                   </div>
-                  {x.urgent ? <span className="rounded-full bg-danger/15 px-2.5 py-0.5 text-xs font-semibold text-danger">Urgent</span> : null}
+                  {x.urgent ? <span className={cn(pill, "bg-danger/12 text-danger")}>Urgent</span> : null}
                   <QuestionStatusBadge status={x.status} />
                 </GlassCard>
               </button>

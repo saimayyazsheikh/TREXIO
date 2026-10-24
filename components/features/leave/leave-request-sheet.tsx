@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { TimeField } from "@/components/ui/time-field";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { apiFetch } from "@/lib/api-client";
 import { assertValidLeave, leaveActionSchema, type NewLeave } from "@/lib/domain/timeoff";
@@ -115,10 +116,10 @@ export function LeaveRequestSheet({ open, onOpenChange }: { open: boolean; onOpe
                 {(aria) => <Input {...aria} type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />}
               </Field>
               <Field id="excuse-from" label="From" required>
-                {(aria) => <Input {...aria} type="time" value={fromTime} onChange={(e) => setFromTime(e.target.value)} />}
+                {(aria) => <TimeField {...aria} value={fromTime} onChange={setFromTime} />}
               </Field>
               <Field id="excuse-to" label="Until" required>
-                {(aria) => <Input {...aria} type="time" value={toTime} onChange={(e) => setToTime(e.target.value)} />}
+                {(aria) => <TimeField {...aria} value={toTime} onChange={setToTime} />}
               </Field>
             </div>
           )}

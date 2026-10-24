@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { TimeField } from "@/components/ui/time-field";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ChecklistEditor, type ChecklistItem } from "@/components/features/tasks/checklist-editor";
 import { DayPicker } from "@/components/features/tasks/day-picker";
@@ -127,7 +128,7 @@ export function TemplateSheet({
           </div>
 
           <Field id="tpl-due" label="Due time" hint="Optional. Shows as the deadline each day." error={errors.dueTime?.message}>
-            {(aria) => <Input {...aria} type="time" {...register("dueTime")} />}
+            {(aria) => <Controller control={control} name="dueTime" render={({ field }) => <TimeField {...aria} value={field.value ?? ""} onChange={field.onChange} onBlur={field.onBlur} />} />}
           </Field>
 
           <div>
@@ -142,7 +143,7 @@ export function TemplateSheet({
           </div>
 
           <label className="flex min-h-11 items-start gap-3">
-            <input type="checkbox" className="mt-1 size-5 accent-[var(--brand-from)]" {...register("active")} />
+            <input type="checkbox" className="mt-1 size-5 accent-[var(--brand)]" {...register("active")} />
             <span>
               <span className="block text-sm font-medium">Active</span>
               <span className="block text-sm text-muted">Untick to pause it. Nothing new is created until you turn it back on.</span>

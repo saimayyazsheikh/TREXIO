@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
-import { BusinessChip } from "@/components/features/badges";
+import { BusinessChip, pill } from "@/components/features/badges";
 import { ConfirmDialog } from "@/components/features/confirm-dialog";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
@@ -24,7 +24,6 @@ import { useCollection } from "@/hooks/use-collection";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection } from "@/lib/firebase/org";
-import { businessColorVar } from "@/lib/domain/business-colors";
 import { cn } from "@/lib/utils";
 import type { BusinessDoc, UserDoc, WithId } from "@/types/models";
 
@@ -143,25 +142,20 @@ export function TeamView() {
                 const off = u.status === "disabled";
                 return (
                   <li key={u.id}>
-                    <GlassCard accent={business ? businessColorVar(business.color) : undefined} className={cn("flex flex-wrap items-center gap-x-4 gap-y-3 p-4", off && "opacity-80")}>
-                      <Avatar name={u.name} ringColor={business ? businessColorVar(business.color) : undefined} />
+                    <GlassCard className={cn("flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3.5 transition-shadow hover:shadow-[var(--shadow-2)]", off && "opacity-80")}>
+                      <Avatar name={u.name} size="lg" />
                       <div className="min-w-0 flex-1 basis-48">
-                        <Link href={`/admin/employees/${u.id}`} className="block truncate font-semibold hover:underline">
+                        <Link href={`/admin/employees/${u.id}`} className="block truncate text-[15px] font-semibold leading-tight hover:underline">
                           {u.name}
                         </Link>
-                        <p className="truncate text-sm text-muted">
+                        <p className="mt-0.5 truncate text-[13px] text-muted">
                           @{u.username}
                           {u.designation ? ` · ${u.designation}` : ""}
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
                         {business ? <BusinessChip name={business.name} color={business.color} /> : <span className="text-sm text-muted">No business</span>}
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
-                            off ? "bg-danger/15 text-danger" : "bg-success/15 text-success",
-                          )}
-                        >
+                        <span className={cn(pill, off ? "bg-danger/12 text-danger" : "bg-success/12 text-success")}>
                           {off ? <CircleSlash className="size-3.5" aria-hidden /> : <CircleCheck className="size-3.5" aria-hidden />}
                           {off ? "Turned off" : "Active"}
                         </span>

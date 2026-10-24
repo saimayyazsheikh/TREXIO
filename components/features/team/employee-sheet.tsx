@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm, type Resolver } from "react-hook-form";
+import { Controller, useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { TimeField } from "@/components/ui/time-field";
 import { Select } from "@/components/ui/select";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { PasswordInput } from "@/components/features/team/password-input";
@@ -47,6 +48,7 @@ export function EmployeeSheet({
   const [formError, setFormError] = useState<string | null>(null);
   const {
     register,
+    control,
     handleSubmit,
     reset,
     setValue,
@@ -168,10 +170,10 @@ export function EmployeeSheet({
             <p className="mb-2 text-sm text-muted">Leave both blank to follow the business hours.</p>
             <div className="grid grid-cols-2 gap-3">
               <Field id="emp-start" label="Starts" error={errors.workStart?.message}>
-                {(aria) => <Input {...aria} type="time" {...register("workStart")} />}
+                {(aria) => <Controller control={control} name="workStart" render={({ field }) => <TimeField {...aria} value={field.value ?? ""} onChange={field.onChange} onBlur={field.onBlur} />} />}
               </Field>
               <Field id="emp-end" label="Ends" error={errors.workEnd?.message}>
-                {(aria) => <Input {...aria} type="time" {...register("workEnd")} />}
+                {(aria) => <Controller control={control} name="workEnd" render={({ field }) => <TimeField {...aria} value={field.value ?? ""} onChange={field.onChange} onBlur={field.onBlur} />} />}
               </Field>
             </div>
           </fieldset>

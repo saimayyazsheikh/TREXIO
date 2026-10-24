@@ -143,7 +143,7 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
                         <label className={cn("flex min-h-11 cursor-pointer items-center gap-3 rounded-control px-1 hover:bg-surface-raised", locked && "cursor-not-allowed opacity-70")}>
                           <input
                             type="checkbox"
-                            className="size-5 accent-[var(--brand-from)]"
+                            className="size-5 accent-[var(--brand)]"
                             checked={s.done}
                             disabled={locked || savingSubtasks.has(s.id)}
                             onChange={(e) => onToggleSubtask(task, s.id, e.target.checked)}

@@ -101,7 +101,7 @@ export function AskQuestionSheet({ open, onOpenChange, uid, defaultTaskId }: { o
             )}
           </Field>
           <label className="flex min-h-11 items-start gap-3">
-            <input type="checkbox" className="mt-1 size-5 accent-[var(--brand-from)]" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} />
+            <input type="checkbox" className="mt-1 size-5 accent-[var(--brand)]" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} />
             <span>
               <span className="block text-sm font-medium">This is urgent</span>
               <span className="block text-sm text-muted">It gets flagged so your admin sees it first.</span>

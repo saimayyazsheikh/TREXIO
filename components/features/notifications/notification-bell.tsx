@@ -23,7 +23,7 @@ export function NotificationBell({ uid, role }: { uid: string; role: Role }) {
   useEffect(() => setMounted(true), []);
   if (!mounted) {
     return (
-      <Button variant="ghost" size="icon" aria-label="Notifications" disabled>
+      <Button variant="ghost" size="icon" aria-label="Notifications" disabled className="rounded-full">
         <Bell aria-hidden />
       </Button>
     );
@@ -47,10 +47,10 @@ function BellMenu({ uid, role }: { uid: string; role: Role }) {
     <DropdownMenu>
       <Tooltip label="Notifications">
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" aria-label={count ? `Notifications, ${count} unread` : "Notifications"} className="relative">
+          <Button variant="ghost" size="icon" aria-label={count ? `Notifications, ${count} unread` : "Notifications"} className="relative rounded-full">
             <Bell aria-hidden />
             {count > 0 ? (
-              <span aria-hidden className="num absolute right-1 top-1 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-semibold leading-4 text-white">
+              <span aria-hidden className="num absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger-solid px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-surface-solid">
                 {count > 9 ? "9+" : count}
               </span>
             ) : null}

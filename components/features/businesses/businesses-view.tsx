@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
-import { Avatar } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/features/confirm-dialog";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
@@ -84,29 +84,42 @@ export function BusinessesView() {
             const people = headcount.get(b.id) ?? 0;
             return (
               <li key={b.id}>
-                <GlassCard accent={businessColorVar(b.color)} className="flex h-full flex-col gap-4 p-5">
-                  <div className="flex items-start gap-3">
-                    <Avatar name={b.name} size="lg" ringColor={businessColorVar(b.color)} />
+                <GlassCard className="flex h-full flex-col gap-5 p-5 transition-shadow hover:shadow-[var(--shadow-2)]">
+                  <div className="flex items-start gap-3.5">
+                    <span
+                      aria-hidden
+                      className="flex size-12 shrink-0 items-center justify-center rounded-xl font-display text-lg font-semibold"
+                      style={{ color: businessColorVar(b.color), backgroundColor: `color-mix(in srgb, ${businessColorVar(b.color)} 14%, transparent)` }}
+                    >
+                      {b.name.trim().charAt(0).toUpperCase()}
+                    </span>
                     <div className="min-w-0 flex-1">
-                      <h2 className="truncate font-display text-lg font-semibold">{b.name}</h2>
-                      <p className="text-sm text-muted">{b.active ? "Active" : "Inactive: no new daily tasks"}</p>
+                      <h2 className="truncate font-display text-lg font-semibold leading-tight">{b.name}</h2>
+                      <p className={cn("mt-1 inline-flex items-center gap-1.5 text-xs font-medium", b.active ? "text-success" : "text-muted")}>
+                        <span aria-hidden className={cn("size-1.5 rounded-full", b.active ? "bg-success" : "bg-muted")} />
+                        {b.active ? "Active" : "Inactive: no new daily tasks"}
+                      </p>
                     </div>
                   </div>
-                  <dl className="space-y-1.5 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Clock className="size-4 text-muted" aria-hidden />
+                  <dl className="space-y-2.5 text-sm">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-surface-raised text-muted">
+                        <Clock className="size-3.5" aria-hidden />
+                      </span>
                       <dt className="sr-only">Working hours</dt>
                       <dd className="num">
                         {b.workStart}–{b.workEnd} · {describeWorkDays(b.workDays)}
                       </dd>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="size-4 text-muted" aria-hidden />
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-surface-raised text-muted">
+                        <Users className="size-3.5" aria-hidden />
+                      </span>
                       <dt className="sr-only">Team size</dt>
                       <dd className="num">{employees.loading ? "…" : `${people} team member${people === 1 ? "" : "s"}`}</dd>
                     </div>
                   </dl>
-                  <div className="mt-auto flex justify-end gap-1">
+                  <div className="mt-auto flex justify-end gap-1 border-t border-border-solid pt-3">
                     <Tooltip label="Edit business">
                       <Button variant="ghost" size="icon" aria-label={`Edit ${b.name}`} onClick={() => openSheet(b)}>
                         <Pencil aria-hidden />

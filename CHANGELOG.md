@@ -1,5 +1,12 @@
 # Changelog
 
+## UI redesign: second pass
+- New logo and wordmark; collapse button moved to the top of the sidebar; account menu, theme switch and bell redone.
+- Stat tiles: clearer icons, red for blocked, full text, count-up and hover motion. Cleaner pills, kanban cards with the business name on top, task drawer chips.
+- Live activity, audit log, reminders, inbox, presence, journals, leave, team, business cards and holidays restyled.
+- A custom time chooser replaces the native clock picker. Tab and drawer focus rings no longer get clipped.
+- Automation: Run now shows a plain-words result under the buttons.
+
 ## UI redesign
 - New look from the supplied palette (ink, deep, forest, primary, sage, mint), light and dark: flat cards with hairline borders, a deep forest side panel, solid primary buttons, underline tabs, tinted pills and icon chips, slim scrollbars. Split-screen sign-in.
 - Look only: no change to routes, data, rules or behaviour. Plan in docs/09, notes in design-system/traxio/MASTER.md.

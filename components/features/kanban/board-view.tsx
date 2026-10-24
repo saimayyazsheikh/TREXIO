@@ -208,6 +208,7 @@ export function BoardView({ viewer }: { viewer: { uid: string; role: Role } }) {
           now={now}
           today={today}
           accentFor={(id) => (businessById.has(id) ? businessColorVar(businessById.get(id)!.color) : undefined)}
+          businessNameFor={(id) => businessById.get(id)?.name}
           onOpen={(t) => setSelectedId(t.id)}
           onMove={requestMove}
         />

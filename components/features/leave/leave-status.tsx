@@ -1,18 +1,19 @@
 import { Ban, CircleCheck, CircleX, Hourglass, type LucideIcon } from "lucide-react";
+import { pill } from "@/components/features/badges";
 import { cn } from "@/lib/utils";
 import type { LeaveRequestDoc } from "@/types/models";
 
 const STYLE: Record<LeaveRequestDoc["status"], { label: string; cls: string; icon: LucideIcon }> = {
-  pending: { label: "Waiting for a decision", cls: "bg-warning/15 text-warning", icon: Hourglass },
-  approved: { label: "Approved", cls: "bg-success/15 text-success", icon: CircleCheck },
-  rejected: { label: "Not approved", cls: "bg-danger/15 text-danger", icon: CircleX },
+  pending: { label: "Waiting for a decision", cls: "bg-warning/12 text-warning", icon: Hourglass },
+  approved: { label: "Approved", cls: "bg-success/12 text-success", icon: CircleCheck },
+  rejected: { label: "Not approved", cls: "bg-danger/12 text-danger", icon: CircleX },
   cancelled: { label: "Cancelled", cls: "bg-surface-raised text-muted", icon: Ban },
 };
 
 export function LeaveStatusBadge({ status }: { status: LeaveRequestDoc["status"] }) {
   const { label, cls, icon: Icon } = STYLE[status];
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold", cls)}>
+    <span className={cn(pill, cls)}>
       <Icon className="size-3.5" aria-hidden />
       {label}
     </span>

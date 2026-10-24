@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Bell, ChevronDown, CircleCheck, Clock, Link2, Send } from "lucide-react";
 import { limit, orderBy, query, where } from "firebase/firestore";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/features/empty-state";
@@ -58,42 +59,54 @@ export function AdminRemindersView() {
             const open = openId === r.id;
             return (
               <li key={r.id}>
-                <GlassCard className="p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <p className="num text-sm text-muted">{formatPkt(r.createdAt.toDate(), "EEE d MMM, h:mm a")}</p>
-                    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold", allRead ? "bg-success/15 text-success" : "bg-warning/15 text-warning")}>
-                      {allRead ? <CircleCheck className="size-3.5" aria-hidden /> : <Clock className="size-3.5" aria-hidden />}
-                      {readCount} of {r.toUids.length} read
+                <GlassCard className="p-5">
+                  <div className="flex items-start gap-4">
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-text">
+                      <Bell className="size-[18px]" aria-hidden />
                     </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+                        <p className="min-w-0 flex-1 basis-64 whitespace-pre-line text-[15px] font-medium leading-snug">{r.body}</p>
+                        <span className={cn("inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold", allRead ? "bg-success/12 text-success" : "bg-warning/12 text-warning")}>
+                          {allRead ? <CircleCheck className="size-3.5" aria-hidden /> : <Clock className="size-3.5" aria-hidden />}
+                          {readCount} of {r.toUids.length} read
+                        </span>
+                      </div>
+                      <p className="num mt-1 text-xs text-muted">
+                        {formatPkt(r.createdAt.toDate(), "EEE d MMM, h:mm a")} · to {r.toUids.length === 1 ? (r.toNames[r.toUids[0]] ?? "1 person") : `${r.toUids.length} people`}
+                      </p>
+                      {r.taskTitle ? (
+                        <p className="mt-2.5 inline-flex max-w-full items-center gap-1.5 rounded-md bg-surface-raised px-2 py-1 text-xs font-medium text-muted">
+                          <Link2 className="size-3.5 shrink-0" aria-hidden /> <span className="truncate">About: {r.taskTitle}</span>
+                        </p>
+                      ) : null}
+                      <div>
+                        <button
+                          type="button"
+                          aria-expanded={open}
+                          onClick={() => setOpenId(open ? null : r.id)}
+                          className="mt-3 flex min-h-9 items-center gap-1.5 rounded-control text-sm font-medium text-brand-text hover:underline"
+                        >
+                          <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
+                          {open ? "Hide who read it" : "Who has read it"}
+                        </button>
+                      </div>
+                      {open ? (
+                        <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+                          {r.toUids.map((uid) => {
+                            const at = r.readBy[uid];
+                            return (
+                              <li key={uid} className="flex items-center gap-2.5 rounded-xl border border-border-solid px-3 py-2 text-sm">
+                                <Avatar name={r.toNames[uid] ?? "Team member"} size="sm" />
+                                <span className="min-w-0 flex-1 truncate font-medium">{r.toNames[uid] ?? "Team member"}</span>
+                                {at ? <span className="num shrink-0 text-xs text-success">Read {formatPkt(at.toDate(), "d MMM, h:mm a")}</span> : <span className="shrink-0 text-xs text-warning">Not read yet</span>}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
+                    </div>
                   </div>
-                  <p className="mt-2 whitespace-pre-line">{r.body}</p>
-                  {r.taskTitle ? (
-                    <p className="mt-2 inline-flex items-center gap-1.5 text-sm text-muted">
-                      <Link2 className="size-4" aria-hidden /> About: {r.taskTitle}
-                    </p>
-                  ) : null}
-                  <button
-                    type="button"
-                    aria-expanded={open}
-                    onClick={() => setOpenId(open ? null : r.id)}
-                    className="mt-3 flex min-h-11 items-center gap-1.5 rounded-control px-1 text-sm font-medium text-brand-text hover:bg-surface-raised"
-                  >
-                    <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
-                    {open ? "Hide who read it" : "Who has read it"}
-                  </button>
-                  {open ? (
-                    <ul className="mt-1 grid gap-1 sm:grid-cols-2">
-                      {r.toUids.map((uid) => {
-                        const at = r.readBy[uid];
-                        return (
-                          <li key={uid} className="flex items-center justify-between gap-2 rounded-control bg-surface-raised px-3 py-2 text-sm">
-                            <span className="truncate font-medium">{r.toNames[uid] ?? "Team member"}</span>
-                            {at ? <span className="num shrink-0 text-xs text-success">Read {formatPkt(at.toDate(), "d MMM, h:mm a")}</span> : <span className="shrink-0 text-xs text-warning">Not read yet</span>}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : null}
                 </GlassCard>
               </li>
             );

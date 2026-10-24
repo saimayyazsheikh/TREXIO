@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { orderBy, query } from "firebase/firestore";
-import { BarChart3, CircleCheck, Clock3, Download, NotebookPen, OctagonAlert, Printer, Timer } from "lucide-react";
+import { Activity, BarChart3, CalendarCheck2, CircleCheckBig, Download, NotebookPen, OctagonX, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -136,11 +136,11 @@ function AnalyticsBody({ range, businessId }: { range: { from: string; to: strin
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-5">
-        <StatCard label="Tasks completed" value={`${k.completedPct}%`} hint={`${k.completed} of ${k.total}`} icon={CircleCheck} tone="success" />
-        <StatCard label="Finished on time" value={`${k.onTimePct}%`} hint={`${k.onTime} on time, ${k.late} late`} icon={Clock3} tone={k.late > k.onTime ? "warning" : "info"} />
-        <StatCard label="Active per day" value={`${k.avgActiveHours}h`} hint="Average per person seen" icon={Timer} tone="brand" />
+        <StatCard label="Tasks completed" value={`${k.completedPct}%`} hint={`${k.completed} of ${k.total}`} icon={CircleCheckBig} tone="success" />
+        <StatCard label="Finished on time" value={`${k.onTimePct}%`} hint={`${k.onTime} on time, ${k.late} late`} icon={CalendarCheck2} tone={k.late > k.onTime ? "warning" : "info"} />
+        <StatCard label="Active per day" value={`${k.avgActiveHours}h`} hint="Average per person seen" icon={Activity} tone="brand" />
         <StatCard label="Journal filled" value={`${k.journalPct}%`} hint="Of expected working hours" icon={NotebookPen} tone="info" />
-        <StatCard label="Times blocked" value={k.blocked} hint="Tasks marked blocked" icon={OctagonAlert} tone={k.blocked ? "warning" : "info"} />
+        <StatCard label="Times blocked" value={k.blocked} hint="Tasks marked blocked" icon={OctagonX} tone="danger" alert={k.blocked > 0} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">

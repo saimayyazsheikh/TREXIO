@@ -56,7 +56,7 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
             ))}
           </nav>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2 sm:gap-3">
           <PresencePill uid={uid} name={userName} idleMin={hours.user?.idleThresholdMin ?? settings.idleMin} />
           <NotificationBell uid={uid} role="employee" />
           <ThemeToggle />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BellRing, CalendarClock, MessageCircleMore, Play } from "lucide-react";
+import { BellRing, CalendarClock, CircleCheck, Info, MessageCircleMore, Play } from "lucide-react";
 import { setDoc } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,26 @@ const toDraft = (s: AutomationSettings): Draft => ({
 
 const num = (text: string) => (text.trim() === "" ? NaN : Number(text));
 
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+type Outcome = { done: boolean; text: string };
+
+/** Says in plain words what a "Run now" press did, including when the honest answer is "nothing to do". */
+function lateTasksOutcome(r: Record<string, number>): Outcome {
+  if (r.checked === 0) return { done: false, text: "No late tasks right now, so nobody needed an alert." };
+  const head = `Looked at ${plural(r.checked, "late task", "late tasks")}.`;
+  if (r.level1 + r.level2 === 0) return { done: false, text: `${head} Everyone was already alerted, or is on leave or a day off, so nothing new was sent.` };
+  return { done: true, text: `${head} Sent ${plural(r.level1, "first alert", "first alerts")} to the people and ${plural(r.level2, "second alert", "second alerts")} to you.` };
+}
+
+function briefingOutcome(r: Record<string, number>): Outcome {
+  if (r.eligible + r.skipped === 0) return { done: false, text: "Nobody to brief. Check that the 9:00 AM briefing is switched on above and that you have active team members." };
+  const failed = r.failed > 0 ? ` ${plural(r.failed, "person couldn't", "people couldn't")} be reached.` : "";
+  if (r.sent === 0) return { done: false, text: `Nobody new to brief: the ${plural(r.skipped, "person was", "people were")} already briefed today, on leave, or not working today.${failed}` };
+  const skipped = r.skipped > 0 ? ` ${plural(r.skipped, "person was", "people were")} skipped (already briefed, on leave, or not working today).` : "";
+  return { done: true, text: `Briefing sent to ${plural(r.sent, "person", "people")}.${skipped}${failed}` };
+}
+
 export function AutomationSettingsView() {
   const { db } = getFirebase();
   const { settings, loading, error: settingsError, retry } = useGlobalSettings();
@@ -37,6 +57,7 @@ export function AutomationSettingsView() {
   const [errors, setErrors] = useState<Partial<Record<keyof AutomationSettings, string>>>({});
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
 
   useEffect(() => setDraft(toDraft(settings)), [settings]);
   const dirty = JSON.stringify(draft) !== JSON.stringify(toDraft(settings));
@@ -73,8 +94,11 @@ export function AutomationSettingsView() {
     setRunning(job);
     try {
       const r = await apiFetch<Record<string, number>>("/api/admin/automation/run", "POST", { job });
-      toast.success(job === "escalations" ? `Checked ${r.checked} late tasks: ${r.level1} first alerts, ${r.level2} second alerts.` : `Briefing: ${r.sent} told, ${r.skipped} skipped, ${r.failed} failed.`);
+      const result = job === "escalations" ? lateTasksOutcome(r) : briefingOutcome(r);
+      setOutcome(result);
+      toast.success(result.text);
     } catch (err) {
+      setOutcome(null);
       toast.error(err instanceof Error ? err.message : "Couldn't run that right now.");
     } finally {
       setRunning(null);
@@ -153,6 +177,12 @@ export function AutomationSettingsView() {
             <Play aria-hidden /> Send today&apos;s briefing
           </Button>
         </div>
+        {outcome ? (
+          <p role="status" className="mt-3 flex items-start gap-2.5 rounded-control border border-border-solid bg-surface-solid px-3.5 py-3 text-sm">
+            {outcome.done ? <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden /> : <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />}
+            <span>{outcome.text}</span>
+          </p>
+        ) : null}
       </section>
 
       <section aria-labelledby="wa-briefing" className="mt-10">

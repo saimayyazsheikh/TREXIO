@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarCheck, Check, X } from "lucide-react";
+import { CalendarCheck, CalendarDays, Check, X } from "lucide-react";
 import { limit, orderBy, query } from "firebase/firestore";
 import { toast } from "sonner";
+import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,18 +27,22 @@ type Decision = { request: WithId<LeaveRequestDoc>; decision: "approve" | "rejec
 
 function RequestCard({ r, onDecide }: { r: WithId<LeaveRequestDoc>; onDecide?: (d: Decision) => void }) {
   return (
-    <GlassCard className="p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-semibold">
-          {r.employeeName} <span className="font-normal text-muted">· {r.kind === "leave" ? "Days off" : "Short excuse"}</span>
-        </p>
+    <GlassCard className="p-5">
+      <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2">
+        <Avatar name={r.employeeName} size="lg" />
+        <div className="min-w-0 flex-1 basis-40">
+          <p className="truncate text-[15px] font-semibold leading-tight">{r.employeeName}</p>
+          <p className="mt-0.5 text-xs text-muted">{r.kind === "leave" ? "Days off" : "Short excuse"} · sent <span className="num">{formatPkt(r.createdAt.toDate(), "EEE d MMM, h:mm a")}</span></p>
+        </div>
         <LeaveStatusBadge status={r.status} />
       </div>
-      <p className="num mt-1 text-sm font-medium">{describeRequest(r, fmtDay, daysBetween(r.fromDate, r.toDate))}</p>
-      <p className="mt-2 whitespace-pre-line">{r.reason}</p>
-      <p className="num mt-2 text-xs text-muted">Sent {formatPkt(r.createdAt.toDate(), "EEE d MMM, h:mm a")}</p>
+      <p className="num mt-4 inline-flex items-center gap-2 rounded-md bg-surface-raised px-2.5 py-1.5 text-sm font-medium">
+        <CalendarDays className="size-4 text-muted" aria-hidden />
+        {describeRequest(r, fmtDay, daysBetween(r.fromDate, r.toDate))}
+      </p>
+      <p className="mt-3 whitespace-pre-line border-l-2 border-border-solid pl-3 text-sm">{r.reason}</p>
       {r.decidedByName && r.status !== "pending" && r.status !== "cancelled" ? (
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-3 text-xs text-muted">
           {r.status === "approved" ? "Approved" : "Declined"} by {r.decidedByName}
           {r.decisionNote ? `: “${r.decisionNote}”` : "."}
         </p>

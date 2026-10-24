@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tooltip } from "@/components/ui/tooltip";
-import { BusinessChip, PriorityBadge, StatusBadge } from "@/components/features/badges";
+import { BusinessChip, PriorityBadge, StatusBadge, pill } from "@/components/features/badges";
 import { DueChip } from "@/components/features/tasks/due-chip";
 import { NudgeDialog } from "@/components/features/tasks/nudge-dialog";
 import { useCollection } from "@/hooks/use-collection";
@@ -110,7 +110,7 @@ export function TaskDrawer({
               <DueChip task={task} status={status} now={now} today={today} />
               {business ? <BusinessChip name={business.name} color={business.color} /> : null}
               {task.kind === "daily" ? (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-muted">
+                <span className={cn(pill, "bg-surface-raised text-muted")}>
                   <Repeat className="size-3.5" aria-hidden /> Daily
                 </span>
               ) : null}
@@ -210,7 +210,7 @@ export function TaskDrawer({
                       <label className={cn("flex min-h-11 cursor-pointer items-center gap-3 rounded-control px-1 hover:bg-surface-raised", locked && "cursor-not-allowed opacity-70")}>
                         <input
                           type="checkbox"
-                          className="size-5 accent-[var(--brand-from)]"
+                          className="size-5 accent-[var(--brand)]"
                           checked={s.done}
                           disabled={locked || savingSubtasks.has(s.id)}
                           onChange={(e) => onToggleSubtask(task, s.id, e.target.checked)}

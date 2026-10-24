@@ -29,6 +29,11 @@
   --brand-soft: #daf1de;
   --ring: #235347;
 
+  /* Logo: tile, glyph and the accent letter (the side panel overrides these, see bg-sidebar) */
+  --logo-tile: #235347;
+  --logo-glyph: #daf1de;
+  --logo-x: #2f7d68;
+
   /* Side panel (deep forest in both modes) */
   --sidebar-bg: linear-gradient(180deg, #163832 0%, #0b2b26 55%, #051f20 100%);
   --sidebar-fg: #daf1de;
@@ -95,6 +100,10 @@
   --brand-text: #8eb69b;
   --brand-soft: #163832;
   --ring: #8eb69b;
+
+  --logo-tile: #8eb69b;
+  --logo-glyph: #051f20;
+  --logo-x: #8eb69b;
 
   --sidebar-bg: #051f20;
   --sidebar-fg: #daf1de;
@@ -170,6 +179,7 @@
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-jakarta), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-brand: var(--font-sora), var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 
   /* Type scale: 12 / 14 / 16 / 20 / 24 / 32 */
   --text-xs: 0.75rem;
@@ -219,7 +229,7 @@
     touch-action: manipulation;
   }
   :focus-visible {
-    outline: 3px solid var(--ring);
+    outline: 2px solid var(--ring);
     outline-offset: 2px;
   }
 }
@@ -250,11 +260,37 @@
 @utility bg-sidebar {
   background: var(--sidebar-bg);
   color: var(--sidebar-fg);
+  --logo-tile: #daf1de;
+  --logo-glyph: #163832;
+  --logo-x: #8eb69b;
 }
 
 /* Tabular figures keep columns, timers and counters from shifting. */
 @utility num {
   font-variant-numeric: tabular-nums;
+}
+
+/* Cards slide up as a row appears, one after the other; an alert icon gives off a slow soft pulse. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.rise-in {
+  animation: rise-in 0.5s var(--ease-out) backwards;
+}
+.rise-in:nth-child(2) { animation-delay: 60ms; }
+.rise-in:nth-child(3) { animation-delay: 120ms; }
+.rise-in:nth-child(4) { animation-delay: 180ms; }
+.rise-in:nth-child(5) { animation-delay: 240ms; }
+.rise-in:nth-child(6) { animation-delay: 300ms; }
+@keyframes ring-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 38%, transparent); }
+  70%, 100% { box-shadow: 0 0 0 9px transparent; }
+}
+.ring-pulse {
+  animation: ring-pulse 2.2s ease-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

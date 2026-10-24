@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Activity } from "lucide-react";
+import { Activity, ArrowRightLeft, ArrowUpRight, CircleCheck, Pencil, Plus, Trash2, type LucideIcon } from "lucide-react";
 import { limit, orderBy, query, type Timestamp } from "firebase/firestore";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BusinessChip } from "@/components/features/badges";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
@@ -14,11 +15,29 @@ import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection } from "@/lib/firebase/org";
 import { ACTION_GROUPS, groupOf, timeAgo } from "@/lib/domain/audit-log";
 import { formatPkt } from "@/lib/time";
+import { cn } from "@/lib/utils";
 import type { BusinessDoc, UserDoc, WithId } from "@/types/models";
 
 type ActivityDoc = { actorId: string; actorName: string; businessId: string; type: string; text: string; createdAt: Timestamp };
 
 const FEED_SIZE = 100;
+
+/** The icon and colour that say what kind of change a row is, so the list can be scanned without reading every line. */
+export function kindOf(type: string): { icon: LucideIcon; cls: string } {
+  if (type === "task.complete") return { icon: CircleCheck, cls: "bg-success/14 text-success" };
+  switch (groupOf(type)) {
+    case "created":
+      return { icon: Plus, cls: "bg-brand-soft text-brand-text" };
+    case "status":
+      return { icon: ArrowRightLeft, cls: "bg-info/14 text-info" };
+    case "edits":
+      return { icon: Pencil, cls: "bg-warning/14 text-warning" };
+    case "deleted":
+      return { icon: Trash2, cls: "bg-danger/14 text-danger" };
+    default:
+      return { icon: Activity, cls: "bg-surface-raised text-muted" };
+  }
+}
 
 /** Live "who did what" stream: the last 100 task events, filterable by business, person and kind of change. */
 export function ActivityFeed({ businesses, employees, now }: { businesses: WithId<BusinessDoc>[]; employees: WithId<UserDoc>[]; now: Date }) {
@@ -28,7 +47,7 @@ export function ActivityFeed({ businesses, employees, now }: { businesses: WithI
   const [actorId, setActorId] = useState("");
   const [group, setGroup] = useState("");
 
-  const bName = useMemo(() => new Map(businesses.map((b) => [b.id, b.name])), [businesses]);
+  const bById = useMemo(() => new Map(businesses.map((b) => [b.id, b])), [businesses]);
   const rows = useMemo(
     () =>
       (feed.data ?? []).filter((e) => (!businessId || e.businessId === businessId) && (!actorId || e.actorId === actorId) && (!group || groupOf(e.type) === group)),
@@ -36,15 +55,21 @@ export function ActivityFeed({ businesses, employees, now }: { businesses: WithI
   );
 
   return (
-    <GlassCard className="p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-display text-lg font-semibold">Live activity</h2>
-        <Link href="/admin/audit" className="text-sm font-medium text-brand-text underline-offset-4 hover:underline">
-          Open the full audit log
+    <GlassCard className="p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
+          Live activity
+          <span aria-hidden className="relative flex size-2">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
+            <span className="relative inline-flex size-2 rounded-full bg-success" />
+          </span>
+        </h2>
+        <Link href="/admin/audit" className="inline-flex items-center gap-1 text-sm font-medium text-brand-text underline-offset-4 hover:underline">
+          Open the full audit log <ArrowUpRight className="size-3.5" aria-hidden />
         </Link>
       </div>
-      <div className="mb-4 grid gap-2 sm:grid-cols-3">
-        <Select aria-label="Filter by business" value={businessId} onChange={(e) => setBusinessId(e.target.value)}>
+      <div className="mb-3 grid gap-2 sm:grid-cols-3">
+        <Select aria-label="Filter by business" className="h-9 text-[13px]" value={businessId} onChange={(e) => setBusinessId(e.target.value)}>
           <option value="">All businesses</option>
           {businesses.map((b) => (
             <option key={b.id} value={b.id}>
@@ -52,7 +77,7 @@ export function ActivityFeed({ businesses, employees, now }: { businesses: WithI
             </option>
           ))}
         </Select>
-        <Select aria-label="Filter by person" value={actorId} onChange={(e) => setActorId(e.target.value)}>
+        <Select aria-label="Filter by person" className="h-9 text-[13px]" value={actorId} onChange={(e) => setActorId(e.target.value)}>
           <option value="">Everyone</option>
           <option value="system">Traxio (automatic)</option>
           {employees.map((u) => (
@@ -61,7 +86,7 @@ export function ActivityFeed({ businesses, employees, now }: { businesses: WithI
             </option>
           ))}
         </Select>
-        <Select aria-label="Filter by kind of change" value={group} onChange={(e) => setGroup(e.target.value)}>
+        <Select aria-label="Filter by kind of change" className="h-9 text-[13px]" value={group} onChange={(e) => setGroup(e.target.value)}>
           <option value="">All changes</option>
           {ACTION_GROUPS.map((g) => (
             <option key={g.id} value={g.id}>
@@ -86,17 +111,32 @@ export function ActivityFeed({ businesses, employees, now }: { businesses: WithI
           description={(feed.data?.length ?? 0) === 0 ? "As your team moves tasks, you'll see it here as it happens." : "Try a different business, person or kind of change."}
         />
       ) : (
-        <ul aria-live="polite" className="max-h-[28rem] divide-y overflow-y-auto">
+        <ul aria-live="polite" className="max-h-[28rem] divide-y divide-border-solid overflow-y-auto">
           {rows.map((e) => {
             const at = e.createdAt?.toDate();
+            const { icon: Icon, cls } = kindOf(e.type);
+            const business = bById.get(e.businessId);
+            const byActor = e.actorName && e.text.startsWith(e.actorName);
             return (
-              <li key={e.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2.5">
-                <p className="min-w-0 flex-1 basis-60 text-sm">
-                  {e.text}
-                  {bName.get(e.businessId) ? <span className="text-muted"> · {bName.get(e.businessId)}</span> : null}
-                </p>
+              <li key={e.id} className="flex items-start gap-3 py-3">
+                <span className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full", cls)}>
+                  <Icon className="size-4" aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm leading-snug">
+                    {byActor ? (
+                      <>
+                        <span className="font-semibold">{e.actorName}</span>
+                        {e.text.slice(e.actorName.length)}
+                      </>
+                    ) : (
+                      e.text
+                    )}
+                  </p>
+                  {business ? <BusinessChip name={business.name} color={business.color} className="mt-1.5 h-5 px-2 text-[11px]" /> : null}
+                </div>
                 {at ? (
-                  <p className="num text-xs text-muted" title={formatPkt(at, "EEE d MMM, h:mm a")}>
+                  <p className="num shrink-0 pt-0.5 text-xs text-muted" title={formatPkt(at, "EEE d MMM, h:mm a")}>
                     {now.getTime() - at.getTime() > 7 * 86_400_000 ? formatPkt(at, "d MMM") : timeAgo(at.getTime(), now.getTime())}
                   </p>
                 ) : null}

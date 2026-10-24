@@ -6,6 +6,7 @@ import { orderBy, query } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { pill } from "@/components/features/badges";
 import { useCollection } from "@/hooks/use-collection";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
@@ -16,15 +17,15 @@ import { cn } from "@/lib/utils";
 import type { QuestionDoc, QuestionMessageDoc, QuestionStatus, WithId } from "@/types/models";
 
 const STATUS: Record<QuestionStatus, { label: string; cls: string; icon: typeof CircleHelp }> = {
-  open: { label: "Open", cls: "bg-warning/15 text-warning", icon: CircleHelp },
-  answered: { label: "Answered", cls: "bg-success/15 text-success", icon: CircleCheck },
+  open: { label: "Open", cls: "bg-warning/12 text-warning", icon: CircleHelp },
+  answered: { label: "Answered", cls: "bg-success/12 text-success", icon: CircleCheck },
   closed: { label: "Closed", cls: "bg-surface-raised text-muted", icon: Lock },
 };
 
 export function QuestionStatusBadge({ status }: { status: QuestionStatus }) {
   const { label, cls, icon: Icon } = STATUS[status];
   return (
-    <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold", cls)}>
+    <span className={cn(pill, cls)}>
       <Icon className="size-3.5" aria-hidden />
       {label}
     </span>
@@ -87,8 +88,8 @@ export function QuestionThread({ question, viewer }: { question: WithId<Question
     <div className="flex h-full flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <QuestionStatusBadge status={question.status} />
-        {question.urgent ? <span className="inline-flex items-center gap-1 rounded-full bg-danger/15 px-2.5 py-0.5 text-xs font-semibold text-danger">Urgent</span> : null}
-        {question.taskTitle ? <span className="text-sm text-muted">About: {question.taskTitle}</span> : null}
+        {question.urgent ? <span className={cn(pill, "bg-danger/12 text-danger")}>Urgent</span> : null}
+        {question.taskTitle ? <span className={cn(pill, "max-w-full bg-surface-raised font-medium text-muted")}><span className="truncate">About: {question.taskTitle}</span></span> : null}
         {isAdmin ? (
           <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setStatus(closed ? "open" : "closed")}>
             {closed ? <LockOpen aria-hidden /> : <Lock aria-hidden />} {closed ? "Reopen" : "Close question"}

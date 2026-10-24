@@ -76,23 +76,23 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
           collapsed ? "w-[76px]" : "w-60",
         )}
       >
-        <div className={cn("mb-6 flex items-center", collapsed ? "justify-center" : "justify-between")}>
+        <div className={cn("mb-6 flex", collapsed ? "flex-col items-center gap-3" : "items-center justify-between")}>
           <Brand compact={collapsed} />
+          <Tooltip label={collapsed ? "Expand sidebar" : "Collapse sidebar"} side="right">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 text-sidebar-muted hover:bg-[var(--sidebar-hover)] hover:text-sidebar-fg"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              onClick={() => setCollapsed((c) => !c)}
+            >
+              {collapsed ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />}
+            </Button>
+          </Tooltip>
         </div>
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           <NavList collapsed={collapsed} badges={badges} />
         </div>
-        <Tooltip label={collapsed ? "Expand sidebar" : "Collapse sidebar"} side="right">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="self-start text-sidebar-muted hover:bg-[var(--sidebar-hover)] hover:text-sidebar-fg"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            onClick={() => setCollapsed((c) => !c)}
-          >
-            {collapsed ? <PanelLeftOpen aria-hidden /> : <PanelLeftClose aria-hidden />}
-          </Button>
-        </Tooltip>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -105,7 +105,7 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
             </Tooltip>
             <Brand compact />
           </div>
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <NotificationBell uid={uid} role="admin" />
             <ThemeToggle />
             <UserMenu name={userName} roleLabel="Admin" />

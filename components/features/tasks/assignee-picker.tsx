@@ -65,7 +65,7 @@ export function AssigneePicker({
                   <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-control px-1 hover:bg-surface-raised">
                     <input
                       type="checkbox"
-                      className="size-5 accent-[var(--brand-from)]"
+                      className="size-5 accent-[var(--brand)]"
                       checked={checked}
                       onChange={() => onChange(checked ? value.filter((id) => id !== p.id) : [...value, p.id])}
                     />

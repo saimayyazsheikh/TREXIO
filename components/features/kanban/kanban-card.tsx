@@ -25,14 +25,16 @@ type Props = {
   people: ReadonlyMap<string, Person>;
   now: Date;
   today: string;
-  /** Business accent colour (CSS value), shown as a left border. */
+  /** Business accent colour (CSS value), used for the business name at the top of the card. */
   accent?: string;
+  /** The business the task belongs to, shown at the top of the card. */
+  businessName?: string;
   onOpen: (task: WithId<TaskDoc>) => void;
   onMove: (task: WithId<TaskDoc>, status: TaskStatus, opts?: { kind?: "untick" }) => void;
 };
 
 /** The visual card, used both in the column and in the drag overlay. */
-export function KanbanCardBody({ task, status, viewer, people, now, today, accent, onMove, dragging }: Omit<Props, "laneKey" | "onOpen"> & { dragging?: boolean }) {
+export function KanbanCardBody({ task, status, viewer, people, now, today, accent, businessName, onMove, dragging }: Omit<Props, "laneKey" | "onOpen"> & { dragging?: boolean }) {
   const moves = availableMoves({ ...task, status }, viewer);
   const done = task.assigneeIds.filter((uid) => task.completion[uid]?.done).length;
   const waiting = task.waitingOnIds.map((id) => task.linkTitles[id] ?? "another task");
@@ -40,12 +42,15 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
   const canNudge = viewer.role === "admin" && status !== "completed" && task.assigneeIds.length > 0;
 
   return (
-    <div
-      className={cn("glass rounded-xl border-l-4 p-3.5 text-left transition-shadow", dragging && "shadow-[var(--shadow-3)] ring-2 ring-ring")}
-      style={accent ? { borderLeftColor: accent, borderLeftWidth: 4 } : undefined}
-    >
+    <div className={cn("glass rounded-xl p-3.5 text-left transition-shadow hover:shadow-[var(--shadow-2)]", dragging && "shadow-[var(--shadow-3)] ring-2 ring-ring")}>
+      {businessName ? (
+        <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase leading-none tracking-wider" style={accent ? { color: accent } : undefined}>
+          <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-current" />
+          <span className="truncate">{businessName}</span>
+        </p>
+      ) : null}
       <div className="flex items-start gap-2">
-        <p className="line-clamp-2 min-w-0 flex-1 text-sm font-semibold leading-snug">{task.title}</p>
+        <p className="line-clamp-2 min-w-0 flex-1 text-[15px] font-semibold leading-snug">{task.title}</p>
         {task.kind === "daily" ? <Repeat className="mt-0.5 size-3.5 shrink-0 text-muted" aria-label="Daily routine" /> : null}
         {/* Keyboard- and touch-friendly alternative to dragging. */}
         <span className="flex items-start" onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
@@ -84,7 +89,7 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
         </span>
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
         <PriorityBadge priority={task.priority} />
         <DueChip task={task} status={status} now={now} today={today} />
       </div>
@@ -97,7 +102,7 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
         </p>
       ) : null}
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-border-solid pt-3">
         <ul className="flex -space-x-2" aria-label={`Assigned to ${task.assigneeIds.map((u) => people.get(u)?.name ?? task.assigneeNames[u] ?? "teammate").join(", ")}`}>
           {task.assigneeIds.slice(0, 4).map((uid) => {
             const p = people.get(uid);

@@ -2,9 +2,10 @@ import { AlarmClock, Clock } from "lucide-react";
 import { dueState } from "@/lib/domain/tasks";
 import { formatPkt } from "@/lib/time";
 import { cn } from "@/lib/utils";
+import { pill } from "@/components/features/badges";
 import type { TaskDoc } from "@/types/models";
 
-/** Shows state, not just data: overdue (red), due soon (amber), later (muted). Always icon + words. */
+/** Shows state, not just data: overdue (red pill), due soon (amber), later (quiet text). Always icon + words. */
 export function DueChip({ task, status, now, today }: { task: Pick<TaskDoc, "dueAt" | "date">; status: TaskDoc["status"]; now: Date; today: string }) {
   const dueAt = task.dueAt?.toDate() ?? null;
   const state = dueState({ status, dueAt, date: task.date }, now, today);
@@ -18,10 +19,10 @@ export function DueChip({ task, status, now, today }: { task: Pick<TaskDoc, "due
   return (
     <span
       className={cn(
-        "num inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold",
-        state === "overdue" && "bg-danger/15 text-danger",
-        state === "soon" && "bg-warning/15 text-warning",
-        state === "later" && "bg-surface-raised text-muted",
+        "num",
+        state === "overdue" && cn(pill, "bg-danger/12 text-danger"),
+        state === "soon" && cn(pill, "bg-warning/12 text-warning"),
+        state === "later" && "inline-flex h-6 shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium leading-none text-muted",
       )}
     >
       <Icon className="size-3.5" aria-hidden />

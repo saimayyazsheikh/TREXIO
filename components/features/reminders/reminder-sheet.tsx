@@ -84,7 +84,7 @@ export function ReminderSheet({
               Who should get it? <span aria-hidden className="text-danger">*</span>
             </legend>
             <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-control px-1 hover:bg-surface-raised">
-              <input type="checkbox" className="size-5 accent-[var(--brand-from)]" checked={everyone} onChange={(e) => setEveryone(e.target.checked)} />
+              <input type="checkbox" className="size-5 accent-[var(--brand)]" checked={everyone} onChange={(e) => setEveryone(e.target.checked)} />
               <span className="text-sm font-medium">Everyone ({active.length} active)</span>
             </label>
             <div className={cn("mt-1 space-y-3", everyone && "pointer-events-none opacity-50")} aria-disabled={everyone}>
@@ -95,7 +95,7 @@ export function ReminderSheet({
                     {people.map((p) => (
                       <li key={p.id}>
                         <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-control px-1 hover:bg-surface-raised">
-                          <input type="checkbox" className="size-5 accent-[var(--brand-from)]" disabled={everyone} checked={everyone || picked.includes(p.id)} onChange={() => toggle(p.id)} />
+                          <input type="checkbox" className="size-5 accent-[var(--brand)]" disabled={everyone} checked={everyone || picked.includes(p.id)} onChange={() => toggle(p.id)} />
                           <span className="text-sm">
                             {p.name}
                             {p.designation ? <span className="text-muted"> · {p.designation}</span> : null}

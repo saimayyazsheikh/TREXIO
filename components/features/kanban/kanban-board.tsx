@@ -73,11 +73,12 @@ type Props = {
   now: Date;
   today: string;
   accentFor: (businessId: string) => string | undefined;
+  businessNameFor?: (businessId: string) => string | undefined;
   onOpen: (task: WithId<TaskDoc>) => void;
   onMove: (task: WithId<TaskDoc>, status: TaskStatus, opts?: { kind?: "untick" }) => void;
 };
 
-export function KanbanBoard({ lanes, viewer, people, now, today, accentFor, onOpen, onMove }: Props) {
+export function KanbanBoard({ lanes, viewer, people, now, today, accentFor, businessNameFor, onOpen, onMove }: Props) {
   const [active, setActive] = useState<{ task: WithId<TaskDoc>; status: TaskStatus; laneKey: string } | null>(null);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 
@@ -158,6 +159,7 @@ export function KanbanBoard({ lanes, viewer, people, now, today, accentFor, onOp
                             now={now}
                             today={today}
                             accent={accentFor(row.businessId)}
+                            businessName={businessNameFor?.(row.businessId)}
                             onOpen={onOpen}
                             onMove={onMove}
                           />
@@ -175,7 +177,7 @@ export function KanbanBoard({ lanes, viewer, people, now, today, accentFor, onOp
       <DragOverlay dropAnimation={null}>
         {active ? (
           <div className="w-72 rotate-1">
-            <KanbanCardBody task={active.task} status={active.status} viewer={viewer} people={people} now={now} today={today} accent={accentFor(active.task.businessId)} onMove={onMove} dragging />
+            <KanbanCardBody task={active.task} status={active.status} viewer={viewer} people={people} now={now} today={today} accent={accentFor(active.task.businessId)} businessName={businessNameFor?.(active.task.businessId)} onMove={onMove} dragging />
           </div>
         ) : null}
       </DragOverlay>

@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { AlarmClock, Building2, CircleCheck, Eye, OctagonAlert, Radio, Sparkles, Users, ListChecks } from "lucide-react";
+import { AlarmClock, Building2, CircleCheckBig, ClipboardCheck, ClipboardList, OctagonX, Sparkles, UserCheck, Users } from "lucide-react";
 import { limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { ActivityFeed } from "@/components/features/activity/activity-feed";
@@ -65,12 +65,12 @@ export function AdminDashboard({ firstName }: { firstName: string }) {
       ) : (
         <>
           <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-6">
-            <StatCard loading={loading || !live.ready} label="Online now" value={onlineNow} hint={`of ${employees.data?.length ?? 0} team members`} icon={Radio} tone="success" />
-            <StatCard loading={loading} label="Tasks today" value={stats.total} hint={`${employees.data?.length ?? 0} team members`} icon={ListChecks} tone="brand" />
-            <StatCard loading={loading} label="Completed" value={`${stats.completedPct}%`} hint={`${stats.completed} of ${stats.total}`} icon={CircleCheck} tone="success" />
-            <StatCard loading={loading} label="Overdue" value={stats.overdue} hint="Including earlier days" icon={AlarmClock} tone={stats.overdue ? "danger" : "info"} />
-            <StatCard loading={loading} label="Blocked" value={stats.blocked} hint="Need a decision" icon={OctagonAlert} tone={stats.blocked ? "warning" : "info"} />
-            <StatCard loading={loading} label="Waiting for review" value={stats.inReview} hint="Finished, not approved" icon={Eye} tone="info" />
+            <StatCard loading={loading || !live.ready} label="Online now" value={onlineNow} hint={`of ${employees.data?.length ?? 0} team members`} icon={UserCheck} tone="success" />
+            <StatCard loading={loading} label="Tasks today" value={stats.total} hint={`${employees.data?.length ?? 0} team members`} icon={ClipboardList} tone="brand" />
+            <StatCard loading={loading} label="Completed" value={`${stats.completedPct}%`} hint={`${stats.completed} of ${stats.total}`} icon={CircleCheckBig} tone="success" />
+            <StatCard loading={loading} label="Overdue" value={stats.overdue} hint="Including earlier days" icon={AlarmClock} tone={stats.overdue ? "danger" : "info"} alert={stats.overdue > 0} />
+            <StatCard loading={loading} label="Blocked" value={stats.blocked} hint="Need a decision" icon={OctagonX} tone="danger" alert={stats.blocked > 0} />
+            <StatCard loading={loading} label="Waiting for review" value={stats.inReview} hint="Finished, not approved" icon={ClipboardCheck} tone="info" />
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild>

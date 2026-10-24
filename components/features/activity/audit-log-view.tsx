@@ -12,6 +12,7 @@ import { BusinessChip } from "@/components/features/badges";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
+import { kindOf } from "@/components/features/activity/activity-feed";
 import { PageHeader } from "@/components/features/page-header";
 import { useCollection } from "@/hooks/use-collection";
 import { useNow } from "@/hooks/use-now";
@@ -19,6 +20,7 @@ import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection } from "@/lib/firebase/org";
 import { ACTION_GROUPS, NO_FILTERS, auditCsv, auditSentence, dayStartMs, filterAudit, type ActionGroupId, type AuditRow } from "@/lib/domain/audit-log";
 import { formatPkt, pktDateString, pktDayBounds } from "@/lib/time";
+import { cn } from "@/lib/utils";
 import type { BusinessDoc, WithId } from "@/types/models";
 
 type AuditDoc = Omit<AuditRow, "id" | "createdAtMs"> & { createdAt: Timestamp };
@@ -140,26 +142,34 @@ export function AuditLogView() {
           <p className="mb-2 text-sm text-muted" aria-live="polite">
             Showing <span className="num font-semibold text-foreground">{visible.length}</span> of <span className="num">{rows.length}</span> loaded entries
           </p>
-          <ul className="space-y-2">
-            {visible.map((r) => {
-              const business = bById.get(r.businessId);
-              return (
-                <li key={r.id}>
-                  <GlassCard className="flex flex-wrap items-center gap-x-4 gap-y-1 p-3">
-                    <p className="num w-40 shrink-0 text-sm text-muted">{formatPkt(new Date(r.createdAtMs), "EEE d MMM, h:mm:ss a")}</p>
+          <GlassCard className="overflow-hidden">
+            <ul className="divide-y divide-border-solid">
+              {visible.map((r) => {
+                const business = bById.get(r.businessId);
+                const at = new Date(r.createdAtMs);
+                const { icon: Icon, cls } = kindOf(r.action);
+                return (
+                  <li key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3.5 transition-colors hover:bg-surface-raised/60">
+                    <div className="num w-[8.5rem] shrink-0 leading-tight">
+                      <p className="text-sm font-medium">{formatPkt(at, "EEE d MMM")}</p>
+                      <p className="text-xs text-muted">{formatPkt(at, "h:mm:ss a")}</p>
+                    </div>
+                    <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full", cls)}>
+                      <Icon className="size-4" aria-hidden />
+                    </span>
                     <div className="min-w-0 flex-1 basis-64">
-                      <p className="text-sm">{auditSentence(r)}</p>
-                      <p className="text-xs text-muted">
+                      <p className="text-sm leading-snug">{auditSentence(r)}</p>
+                      <p className="mt-0.5 text-xs text-muted">
                         {r.actorName}
-                        {r.actorRole === "system" ? " (automatic)" : ""} · {r.action}
+                        {r.actorRole === "system" ? " (automatic)" : ""} · <span className="font-mono">{r.action}</span>
                       </p>
                     </div>
                     {business ? <BusinessChip name={business.name} color={business.color} /> : null}
-                  </GlassCard>
-                </li>
-              );
-            })}
-          </ul>
+                  </li>
+                );
+              })}
+            </ul>
+          </GlassCard>
           {maybeMore ? (
             <div className="mt-4 flex justify-center">
               <Button variant="secondary" onClick={() => setSize((s) => s + PAGE)}>

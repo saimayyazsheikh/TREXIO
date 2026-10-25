@@ -25,7 +25,8 @@ export type PerformanceInput = {
   to: string;
   today: string;
   nowMs: number;
-  person: { id: string; name: string; workStart: string | null; workEnd: string | null };
+  /** `joinedOn` is the day they were added; nothing before it is counted against them. */
+  person: { id: string; name: string; workStart: string | null; workEnd: string | null; joinedOn?: string };
   business: { id: string; name: string; workDays: number[]; workStart: string; workEnd: string } | null;
   tasks: PerformanceTask[];
   journals: { date: string; slots: Slots }[];
@@ -62,7 +63,9 @@ const minuteOfDay = (ms: number) => pktHour(new Date(ms)) * 60 + pktMinute(new D
 
 /** One person's report for a period: tasks finished and not, journal, attendance and time in Traxio. */
 export function buildPerformance(i: PerformanceInput): PerformanceReport {
-  const dates = datesBetween(i.from, i.to);
+  // The report starts on the day the person joined, so days before that are neither absent nor an empty journal.
+  const first = i.person.joinedOn && i.person.joinedOn > i.from ? i.person.joinedOn : i.from;
+  const dates = datesBetween(first, i.to);
   const tasks = i.tasks.filter((t) => t.date >= i.from && t.date <= i.to);
   const isDone = (t: PerformanceTask) => t.status === "completed" || t.doneByMe;
   const missedOf = (t: PerformanceTask) => !isDone(t) && isMissed({ kind: t.kind, status: t.status as never, dueAtMs: t.dueAtMs, date: t.date }, i.nowMs, i.today);
@@ -149,7 +152,7 @@ export type TeamInput = {
   to: string;
   today: string;
   nowMs: number;
-  people: { id: string; name: string; businessId: string | null; workStart: string | null; workEnd: string | null }[];
+  people: { id: string; name: string; businessId: string | null; workStart: string | null; workEnd: string | null; joinedOn?: string }[];
   businesses: { id: string; name: string; workDays: number[]; workStart: string; workEnd: string }[];
   tasks: (Omit<PerformanceTask, "doneByMe"> & { assigneeIds: string[]; doneBy: string[]; businessId: string })[];
   journals: { employeeId: string; date: string; slots: Slots }[];

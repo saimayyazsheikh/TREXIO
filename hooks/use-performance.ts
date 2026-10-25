@@ -7,6 +7,7 @@ import { useDocument } from "@/hooks/use-document";
 import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection, orgDocument } from "@/lib/firebase/org";
 import type { PerformanceInput } from "@/lib/domain/performance";
+import { pktDateString } from "@/lib/time";
 import type { BusinessDoc, CalendarDoc, JournalDoc, LeaveRequestDoc, PresenceDailyDoc, TaskDoc, UserDoc } from "@/types/models";
 
 /** Everything one person's performance report needs for a period, as live queries scoped to that person. */
@@ -45,7 +46,7 @@ export function usePerformanceInput(employeeId: string, range: { from: string; t
       to,
       today,
       nowMs,
-      person: { id: u.id, name: u.name, workStart: u.workStart, workEnd: u.workEnd },
+      person: { id: u.id, name: u.name, workStart: u.workStart, workEnd: u.workEnd, joinedOn: u.createdAt ? pktDateString(u.createdAt.toDate()) : undefined },
       business: business.data ? { id: business.data.id, name: business.data.name, workDays: business.data.workDays, workStart: business.data.workStart, workEnd: business.data.workEnd } : null,
       tasks: tasks.data!.map((t) => ({
         id: t.id,

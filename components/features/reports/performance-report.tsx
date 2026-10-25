@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlarmClock, CalendarCheck2, CircleCheckBig, Download, NotebookPen } from "lucide-react";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -78,6 +78,16 @@ export function PerformanceReport({ employeeId, initialPeriod = "week", fixedRan
   const { input, user, loading, error, retry } = usePerformanceInput(employeeId, range, today, now.getTime());
   const report = useMemo(() => (input ? buildPerformance(input) : null), [input]);
 
+  // The first time a new kind of report is opened, Firebase may still be preparing it for a minute. Keep trying quietly.
+  const preparing = (error as { code?: string } | null)?.code === "failed-precondition";
+  const again = useRef(retry);
+  again.current = retry;
+  useEffect(() => {
+    if (!preparing) return;
+    const timer = setInterval(() => again.current(), 15_000);
+    return () => clearInterval(timer);
+  }, [preparing]);
+
   const periodText = range.from === range.to ? dayLabel(range.from) : `${dayLabel(range.from)} to ${dayLabel(range.to)}`;
 
   return (
@@ -89,7 +99,13 @@ export function PerformanceReport({ employeeId, initialPeriod = "week", fixedRan
         </Button>
       </div>
 
-      {error ? (
+      {preparing ? (
+        <GlassCard role="status" className="flex flex-col items-center px-6 py-12 text-center">
+          <Skeleton className="mb-4 size-12 rounded-xl" />
+          <h2 className="font-display text-lg font-semibold">Getting your report ready</h2>
+          <p className="mt-1 max-w-md text-sm text-muted">This is the first time it has been opened, so it needs about a minute to set up. It will load by itself.</p>
+        </GlassCard>
+      ) : error ? (
         <ErrorState onRetry={retry} />
       ) : loading || !report || !user ? (
         <div aria-busy aria-label="Loading the report" className="space-y-4">

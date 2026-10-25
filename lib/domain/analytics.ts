@@ -2,7 +2,7 @@ import { csvCell } from "@/lib/domain/audit-log";
 import { effectiveHours, fillStats, isWorkingDay, workSlots, type Slots } from "@/lib/domain/journal";
 import { dateStringFromDayIndex, dayIndexFromDateString, isoWeekdayOfDate } from "@/lib/time";
 
-export type AnalyticsPerson = { id: string; name: string; businessId: string | null; workStart: string | null; workEnd: string | null };
+export type AnalyticsPerson = { id: string; name: string; businessId: string | null; workStart: string | null; workEnd: string | null; joinedOn?: string };
 export type AnalyticsBusiness = { id: string; name: string; workDays: number[]; workStart: string; workEnd: string };
 export type AnalyticsTask = {
   date: string;
@@ -145,6 +145,7 @@ export function computeAnalytics(input: AnalyticsInput): Analytics {
       for (const d of dates) {
         // Only days that have started: a day in the future can't have been logged yet.
         if (Date.parse(`${d}T00:00:00+05:00`) > nowMs) continue;
+        if (p.joinedOn && d < p.joinedOn) continue;
         if (!isWorkingDay(business.workDays, d) || closedOn(d, p.businessId)) continue;
         const stats = fillStats(docs.get(d), slotKeys);
         journalFilled += stats.filled;

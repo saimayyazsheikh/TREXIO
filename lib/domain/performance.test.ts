@@ -55,6 +55,20 @@ describe("buildPerformance: tasks", () => {
   });
 });
 
+describe("buildPerformance: someone who just joined", () => {
+  it("counts nothing before the day they were added", () => {
+    const r = buildPerformance(base({ person: { id: "ali", name: "Ali", workStart: null, workEnd: null, joinedOn: "2026-10-22" } }));
+    expect(r.attendance.days.map((d) => d.date)).toEqual(["2026-10-22"]);
+    expect(r.attendance.absent).toBe(1);
+    expect(r.journal).toMatchObject({ expected: 2 });
+    expect(r.journal.days.map((d) => d.date)).toEqual(["2026-10-22"]);
+  });
+  it("covers the whole period for someone who was already there", () => {
+    const r = buildPerformance(base({ person: { id: "ali", name: "Ali", workStart: null, workEnd: null, joinedOn: "2026-01-01" } }));
+    expect(r.attendance.days).toHaveLength(3);
+  });
+});
+
 describe("buildPerformance: journal, attendance and time", () => {
   it("measures the journal over working days that have started", () => {
     const r = buildPerformance(

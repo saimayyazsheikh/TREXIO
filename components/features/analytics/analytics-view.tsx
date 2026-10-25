@@ -138,7 +138,7 @@ function AnalyticsBody({ range, businessId, employeeId, tab, today, nowMs }: { r
     if (!data.team) return null;
     const people = data.people
       .filter((u) => u.status === "active" && (!businessId || u.businessId === businessId) && (!employeeId || u.id === employeeId))
-      .map((u) => ({ id: u.id, name: u.name, businessId: u.businessId, workStart: u.workStart, workEnd: u.workEnd }))
+      .map((u) => ({ id: u.id, name: u.name, businessId: u.businessId, workStart: u.workStart, workEnd: u.workEnd, joinedOn: u.createdAt ? pktDateString(u.createdAt.toDate()) : undefined }))
       .sort((x, y) => x.name.localeCompare(y.name));
     return buildTeamReports({
       from: range.from,

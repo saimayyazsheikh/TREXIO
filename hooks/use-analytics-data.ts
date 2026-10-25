@@ -7,7 +7,7 @@ import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection } from "@/lib/firebase/org";
 import type { AnalyticsInput } from "@/lib/domain/analytics";
 import type { TeamInput } from "@/lib/domain/performance";
-import { pktDayBounds } from "@/lib/time";
+import { pktDateString, pktDayBounds } from "@/lib/time";
 import type { BusinessDoc, CalendarDoc, JournalDoc, LeaveRequestDoc, PresenceDailyDoc, TaskDoc, UserDoc } from "@/types/models";
 
 const CAP = 3000;
@@ -53,7 +53,7 @@ export function useAnalyticsData(range: { from: string; to: string }, businessId
       to,
       businessId,
       nowMs: Date.now(),
-      people: users.data!.filter((u) => u.status === "active").map((u) => ({ id: u.id, name: u.name, businessId: u.businessId, workStart: u.workStart, workEnd: u.workEnd })),
+      people: users.data!.filter((u) => u.status === "active").map((u) => ({ id: u.id, name: u.name, businessId: u.businessId, workStart: u.workStart, workEnd: u.workEnd, joinedOn: u.createdAt ? pktDateString(u.createdAt.toDate()) : undefined })),
       businesses: businesses.data!.map((b) => ({ id: b.id, name: b.name, workDays: b.workDays, workStart: b.workStart, workEnd: b.workEnd })),
       tasks: tasks.data!.map((t) => ({
         date: t.date,

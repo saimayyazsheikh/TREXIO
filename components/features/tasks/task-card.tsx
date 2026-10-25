@@ -132,42 +132,42 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
 
 
           {task.subtaskTotal > 0 ? (
-            <div className="mt-3">
+            <div className="mt-3 rounded-xl border border-border-solid bg-surface-raised/40">
               <button
                 type="button"
                 aria-expanded={open}
                 aria-controls={checklistId}
                 onClick={() => setOpen((o) => !o)}
-                className="flex min-h-11 w-full items-center gap-3 rounded-control text-left text-sm font-medium hover:bg-surface-raised"
+                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium outline-none transition-colors hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-ring/60"
               >
                 <span className="num shrink-0">
-                  Checklist {task.subtaskDone}/{task.subtaskTotal}
+                  Checklist <span className="text-muted">{task.subtaskDone}/{task.subtaskTotal}</span>
                 </span>
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-surface-raised" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Checklist progress">
+                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-border-solid" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Checklist progress">
                   <span className="block h-full rounded-full bg-brand transition-[width] duration-200" style={{ width: `${pct}%` }} />
                 </span>
                 <ChevronDown className={cn("size-4 shrink-0 text-muted transition-transform", open && "rotate-180")} aria-hidden />
               </button>
               {open ? (
-                <ul id={checklistId} className="mt-1 space-y-1">
+                <ul id={checklistId} className="divide-y divide-border-solid border-t border-border-solid">
                   {task.subtasks.map((s) => {
                     const locked = done || inReview;
                     return (
                       <li key={s.id}>
-                        <label className={cn("flex min-h-11 cursor-pointer items-center gap-3 rounded-control px-1 hover:bg-surface-raised", locked && "cursor-not-allowed opacity-70")}>
+                        <label className={cn("flex min-h-11 cursor-pointer items-start gap-3 px-3 py-2.5 transition-colors hover:bg-surface-raised", locked && "cursor-not-allowed opacity-70")}>
                           <input
                             type="checkbox"
-                            className="size-5 accent-[var(--brand)]"
+                            className="mt-px size-[18px] shrink-0 accent-[var(--brand)]"
                             checked={s.done}
                             disabled={locked || savingSubtasks.has(s.id)}
                             onChange={(e) => onToggleSubtask(task, s.id, e.target.checked)}
                           />
-                          <span className={cn("text-sm", s.done && "text-muted line-through")}>{s.title}</span>
+                          <span className={cn("min-w-0 flex-1 text-sm leading-snug", s.done && "text-muted line-through")}>{s.title}</span>
                         </label>
                       </li>
                     );
                   })}
-                  {done ? <li className="px-1 text-sm text-muted">Undo the task to change its checklist.</li> : null}
+                  {done ? <li className="px-3 py-2.5 text-sm text-muted">Undo the task to change its checklist.</li> : null}
                 </ul>
               ) : null}
             </div>

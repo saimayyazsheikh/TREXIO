@@ -233,7 +233,7 @@ export function planSubtaskToggle(task: TaskData, subtaskId: string, done: boole
   const { total, done: doneCount } = countSubtasks(subtasks);
   return {
     patch: { subtasks, subtaskTotal: total, subtaskDone: doneCount, updatedAt: now },
-    audit: { action: "task.subtask", from: String(target.done), to: String(done), meta: { subtaskId, title: target.title, progress: `${doneCount}/${total}` } },
+    audit: { action: "task.subtask", from: String(target.done), to: String(done), meta: { subtaskId, subtaskTitle: target.title, progress: `${doneCount}/${total}` } },
     activityText: `${actor.name} ${done ? "ticked" : "unticked"} “${target.title}” on “${task.title}” (${doneCount}/${total})`,
   };
 }

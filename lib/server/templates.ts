@@ -34,7 +34,7 @@ export async function createTemplate(db: TaskDb, actor: Actor, input: CreateTemp
     };
     const plan: TaskPlan = {
       patch: {},
-      audit: { action: "template.create", from: null, to: null, meta: { employeeId: data.employeeId, days: data.activeDays } },
+      audit: { action: "template.create", from: null, to: null, meta: { title: data.title, employeeId: data.employeeId, days: data.activeDays } },
       activityText: `${actor.name} added the daily routine “${data.title}” for ${user.name}`,
     };
     const { audit, activity } = auditAndActivity(actor, { entityType: "template", entityId: templateId, businessId: data.businessId }, plan, now);
@@ -71,7 +71,7 @@ export async function updateTemplate(db: TaskDb, actor: Actor, input: UpdateTemp
     };
     const plan: TaskPlan = {
       patch: {},
-      audit: { action: "template.update", from: current.active ? "active" : "paused", to: next.active ? "active" : "paused", meta: { employeeId: current.employeeId } },
+      audit: { action: "template.update", from: current.active ? "active" : "paused", to: next.active ? "active" : "paused", meta: { title: next.title, employeeId: current.employeeId } },
       activityText: `${actor.name} ${current.active && !next.active ? "paused" : !current.active && next.active ? "resumed" : "updated"} the daily routine “${next.title}”`,
     };
     const { audit, activity } = auditAndActivity(actor, { entityType: "template", entityId: input.templateId, businessId: current.businessId }, plan, now);

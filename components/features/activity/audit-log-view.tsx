@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, ScrollText, Search } from "lucide-react";
-import { Timestamp, limit, orderBy, query, where } from "firebase/firestore";
+import { Timestamp, documentId, getDocs, limit, orderBy, query, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +47,35 @@ export function AuditLogView() {
   const log = useCollection<AuditDoc>(logQ);
   const businesses = useCollection<BusinessDoc>(businessesQ);
 
-  const rows = useMemo<AuditRow[]>(() => (log.data ?? []).map(({ createdAt, ...r }) => ({ ...r, createdAtMs: createdAt?.toMillis() ?? 0 })), [log.data]);
+  const loaded = useMemo<AuditRow[]>(() => (log.data ?? []).map(({ createdAt, ...r }) => ({ ...r, createdAtMs: createdAt?.toMillis() ?? 0 })), [log.data]);
+
+  // Entries written before titles were recorded get their task's name looked up (null once the task is gone).
+  const [found, setFound] = useState<Record<string, string | null>>({});
+  const untitled = useMemo(
+    () => [...new Set(loaded.filter((r) => !r.meta.title && !r.meta.taskTitle && r.action !== "task.generate" && r.entityId && !(r.entityId in found)).map((r) => `${r.entityType}:${r.entityId}`))],
+    [loaded, found],
+  );
+  useEffect(() => {
+    if (untitled.length === 0) return;
+    let live = true;
+    (async () => {
+      const next: Record<string, string | null> = {};
+      for (const kind of ["task", "template"] as const) {
+        const ids = untitled.filter((u) => u.startsWith(`${kind}:`)).map((u) => u.slice(kind.length + 1));
+        for (let i = 0; i < ids.length; i += 30) {
+          const chunk = ids.slice(i, i + 30);
+          const snap = await getDocs(query(orgCollection(db, kind === "task" ? "tasks" : "taskTemplates"), where(documentId(), "in", chunk))).catch(() => null);
+          for (const id of chunk) next[id] = null;
+          snap?.docs.forEach((d) => (next[d.id] = String(d.get("title") ?? "") || null));
+        }
+      }
+      if (live) setFound((f) => ({ ...f, ...next }));
+    })();
+    return () => {
+      live = false;
+    };
+  }, [untitled, db]);
+  const rows = useMemo<AuditRow[]>(() => loaded.map((r) => (r.meta.title || r.meta.taskTitle || !found[r.entityId] ? r : { ...r, meta: { ...r.meta, taskTitle: found[r.entityId] } })), [loaded, found]);
   const visible = useMemo(() => filterAudit(rows, filters), [rows, filters]);
   const people = useMemo(() => [...new Map(rows.map((r) => [r.actorId, r.actorName])).entries()].sort((a, b) => a[1].localeCompare(b[1])), [rows]);
   const bById = useMemo(() => new Map<string, WithId<BusinessDoc>>((businesses.data ?? []).map((b) => [b.id, b])), [businesses.data]);

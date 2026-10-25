@@ -40,7 +40,7 @@ export type AuditFilters = {
 export const NO_FILTERS: AuditFilters = { businessId: "", actorId: "", group: "", search: "" };
 
 /** The sentence shown for a row; also what the search box looks through. */
-export const auditSentence = (r: AuditRow) => describeAudit(r);
+export const auditSentence = (r: AuditRow) => describeAudit(r, { named: true });
 
 export function filterAudit(rows: AuditRow[], f: AuditFilters): AuditRow[] {
   const needle = f.search.trim().toLowerCase();

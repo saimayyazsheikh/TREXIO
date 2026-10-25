@@ -11,7 +11,8 @@ const POINTS = [
   { icon: MessageCircle, title: "Talk without leaving", text: "Reminders, questions and chat sit next to the task they are about." },
 ];
 
-export default function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ reason?: string }> }) {
+  const { reason } = await searchParams;
   return (
     <main id="main" className="grid min-h-dvh lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
       <aside className="bg-sidebar relative hidden flex-col justify-between overflow-hidden p-12 lg:flex">
@@ -41,6 +42,11 @@ export default function LoginPage() {
           <Brand className="mb-8 lg:hidden" />
           <h1 className="font-display text-3xl font-semibold tracking-tight">Welcome back</h1>
           <p className="mt-1 text-sm text-muted">Sign in to see today&apos;s work.</p>
+          {reason === "idle" ? (
+            <p role="status" className="mt-4 rounded-control bg-warning/12 px-3 py-2 text-sm text-warning">
+              You were signed out after an hour with no activity. Sign in to carry on.
+            </p>
+          ) : null}
           <div className="mt-8">
             <LoginForm />
           </div>

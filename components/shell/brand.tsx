@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 /** The Traxio mark: a rounded tile holding an "x" with a tracked-item dot, so it reads as "crossed off". Colours come from the logo tokens. */
@@ -22,5 +23,14 @@ export function Brand({ className, compact = false }: { className?: string; comp
         </span>
       )}
     </span>
+  );
+}
+
+/** The logo as a link to the signed-in home page. */
+export function BrandLink({ href, className, compact, onClick }: { href: string; className?: string; compact?: boolean; onClick?: () => void }) {
+  return (
+    <Link href={href} onClick={onClick} aria-label="Traxio home" className={cn("rounded-lg", className)}>
+      <Brand compact={compact} />
+    </Link>
   );
 }

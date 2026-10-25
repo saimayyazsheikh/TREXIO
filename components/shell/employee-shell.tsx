@@ -11,7 +11,8 @@ import { ThemeToggle } from "@/components/features/theme-toggle";
 import { NotificationBell } from "@/components/features/notifications/notification-bell";
 import { HourlyPrompt } from "@/components/features/journal/hourly-prompt";
 import { PresencePill, goOffline } from "@/components/features/presence/presence-pill";
-import { Brand } from "@/components/shell/brand";
+import { BrandLink } from "@/components/shell/brand";
+import { IdleLogout } from "@/components/shell/idle-logout";
 import { EMPLOYEE_NAV } from "@/components/shell/nav-config";
 import { NavBadge } from "@/components/shell/nav-badge";
 import { UserMenu } from "@/components/shell/user-menu";
@@ -34,6 +35,7 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
 
   return (
     <div className="flex min-h-dvh pb-20 md:pb-0">
+      <IdleLogout onBeforeSignOut={() => goOffline(uid)} />
       {/* From tablet width up the pages sit in a side panel, the same as the admin's; phones keep the tab bar below. */}
       <aside
         className={cn(
@@ -42,7 +44,7 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
         )}
       >
         <div className={cn("mb-6 flex", collapsed ? "flex-col items-center gap-3" : "items-center justify-between")}>
-          <Brand compact={collapsed} />
+          <BrandLink href="/me" compact={collapsed} />
           <Tooltip label={collapsed ? "Expand sidebar" : "Collapse sidebar"} side="right">
             <Button
               variant="ghost"
@@ -88,7 +90,7 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border-solid bg-surface-solid/90 px-4 backdrop-blur sm:px-6">
-          <Brand compact className="md:hidden" />
+          <BrandLink href="/me" compact className="md:hidden" />
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <PresencePill uid={uid} name={userName} idleMin={hours.user?.idleThresholdMin ?? settings.idleMin} />
             <NotificationBell uid={uid} role="employee" />

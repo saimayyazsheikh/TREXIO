@@ -9,7 +9,8 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { NotificationBell } from "@/components/features/notifications/notification-bell";
 import { ThemeToggle } from "@/components/features/theme-toggle";
-import { Brand } from "@/components/shell/brand";
+import { BrandLink } from "@/components/shell/brand";
+import { IdleLogout } from "@/components/shell/idle-logout";
 import { NavBadge } from "@/components/shell/nav-badge";
 import { UserMenu } from "@/components/shell/user-menu";
 import { useNavBadges } from "@/hooks/use-nav-badges";
@@ -70,6 +71,7 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
 
   return (
     <div className="flex min-h-dvh">
+      <IdleLogout />
       <aside
         className={cn(
           "bg-sidebar sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-[var(--sidebar-line)] p-4 transition-[width] duration-200 lg:flex print:!hidden",
@@ -77,7 +79,7 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
         )}
       >
         <div className={cn("mb-6 flex", collapsed ? "flex-col items-center gap-3" : "items-center justify-between")}>
-          <Brand compact={collapsed} />
+          <BrandLink href="/admin" compact={collapsed} />
           <Tooltip label={collapsed ? "Expand sidebar" : "Collapse sidebar"} side="right">
             <Button
               variant="ghost"
@@ -103,7 +105,7 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
                 <Menu aria-hidden />
               </Button>
             </Tooltip>
-            <Brand compact />
+            <BrandLink href="/admin" compact />
           </div>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <NotificationBell uid={uid} role="admin" />
@@ -119,7 +121,7 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
       <Dialog open={drawerOpen} onOpenChange={setDrawerOpen}>
         <DialogContent className="bg-sidebar left-0 top-0 h-dvh overflow-y-auto w-72 max-w-[85vw] translate-x-0 translate-y-0 rounded-none rounded-r-card border-[var(--sidebar-line)] text-sidebar-fg [&>button]:text-sidebar-muted [&>button]:hover:bg-[var(--sidebar-hover)]">
           <DialogTitle className="mb-6">
-            <Brand />
+            <BrandLink href="/admin" onClick={() => setDrawerOpen(false)} />
           </DialogTitle>
           <NavList collapsed={false} badges={badges} onNavigate={() => setDrawerOpen(false)} />
         </DialogContent>

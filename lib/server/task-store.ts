@@ -97,7 +97,9 @@ export function commitTaskPlan(
   plan: TaskPlan,
   now: Date,
 ): void {
-  const { audit, activity } = auditAndActivity(actor, { entityType: "task", entityId: taskId, businessId: plan.patch.businessId ?? task.businessId }, plan, now);
+  // Every audit line names its task, so the log can say which one without looking it up.
+  const named: TaskPlan = { ...plan, audit: { ...plan.audit, meta: { title: plan.patch.title ?? task.title, ...plan.audit.meta } } };
+  const { audit, activity } = auditAndActivity(actor, { entityType: "task", entityId: taskId, businessId: plan.patch.businessId ?? task.businessId }, named, now);
   tx.updateTask(taskId, plan.patch);
   tx.addAudit(audit);
   tx.addActivity(activity);
@@ -197,7 +199,7 @@ export async function createOneOffTask(db: TaskDb, actor: Actor, input: CreateTa
         action: "task.create",
         from: null,
         to: "todo",
-        meta: { assigneeIds: data.assigneeIds, priority: data.priority, date: data.date, ...(data.dependsOnIds.length ? { dependsOnIds: data.dependsOnIds } : {}) },
+        meta: { title: data.title, assigneeIds: data.assigneeIds, assigneeNames: assignees.map((a) => a.name), priority: data.priority, date: data.date, ...(data.dependsOnIds.length ? { dependsOnIds: data.dependsOnIds } : {}) },
       },
       activityText: `${actor.name} assigned “${data.title}” to ${names}`,
     };

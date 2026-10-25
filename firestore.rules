@@ -94,10 +94,10 @@ service cloud.firestore {
       }
     }
 
-    // Chat: the admin everywhere; an employee only in "everyone" and their own direct chat (dm_<uid>).
+    // Chat: the admin everywhere; an employee in "everyone", their own direct chat (dm_<uid>) and their business's room (biz_<businessId>).
     // Messages are written by the server; the only client write is your own "typing" marker.
     function chatAccess(chatId) {
-      return isAdmin() || (isEmployee() && (chatId == 'everyone' || chatId == 'dm_' + request.auth.uid));
+      return isAdmin() || (isEmployee() && (chatId == 'everyone' || chatId == 'dm_' + request.auth.uid || chatId == 'biz_' + request.auth.token.businessId));
     }
 
     match /chats/{chatId} {

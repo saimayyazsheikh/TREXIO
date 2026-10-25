@@ -6,9 +6,9 @@ import { useCollection } from "@/hooks/use-collection";
 import { useDocument } from "@/hooks/use-document";
 import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection, orgDocument } from "@/lib/firebase/org";
-import { EVERYONE_CHAT, dmChatId, unreadKey } from "@/lib/domain/communication";
+import { EVERYONE_CHAT, bizChatId, dmChatId, unreadKey } from "@/lib/domain/communication";
 import type { Role } from "@/lib/domain/constants";
-import type { ChatDoc, LeaveRequestDoc, QuestionDoc, ReminderDoc } from "@/types/models";
+import type { ChatDoc, LeaveRequestDoc, QuestionDoc, ReminderDoc, UserDoc } from "@/types/models";
 
 /** Live unread counts keyed by nav href: questions waiting, unread chat, unread reminders. */
 export function useNavBadges(viewer: { uid: string; role: Role }): Record<string, number> {
@@ -23,6 +23,10 @@ export function useNavBadges(viewer: { uid: string; role: Role }): Record<string
   const remindersQ = useMemo(() => (isAdmin ? null : query(orgCollection(db, "reminders"), where("toUids", "array-contains", viewer.uid), orderBy("createdAt", "desc"), limit(50))), [db, isAdmin, viewer.uid]);
   const everyoneRef = useMemo(() => (isAdmin ? null : orgDocument(db, "chats", EVERYONE_CHAT)), [db, isAdmin]);
   const dmRef = useMemo(() => (isAdmin ? null : orgDocument(db, "chats", dmChatId(viewer.uid))), [db, isAdmin, viewer.uid]);
+  const meRef = useMemo(() => (isAdmin ? null : orgDocument(db, "users", viewer.uid)), [db, isAdmin, viewer.uid]);
+  const me = useDocument<UserDoc>(meRef);
+  const bizRef = useMemo(() => (me.data?.businessId ? orgDocument(db, "chats", bizChatId(me.data.businessId)) : null), [db, me.data?.businessId]);
+  const biz = useDocument<ChatDoc>(bizRef);
 
   const adminQuestions = useCollection<QuestionDoc>(adminQuestionsQ);
   const adminChats = useCollection<ChatDoc>(adminChatsQ);
@@ -41,8 +45,8 @@ export function useNavBadges(viewer: { uid: string; role: Role }): Record<string
     } else {
       counts["/me/reminders"] = (reminders.data ?? []).filter((r) => !r.readBy[viewer.uid]).length;
       counts["/me/ask"] = myQuestions.data?.length ?? 0;
-      counts["/me/chat"] = (everyone.data?.unread?.[key] ?? 0) + (dm.data?.unread?.[key] ?? 0);
+      counts["/me/chat"] = (everyone.data?.unread?.[key] ?? 0) + (dm.data?.unread?.[key] ?? 0) + (biz.data?.unread?.[key] ?? 0);
     }
     return counts;
-  }, [isAdmin, key, viewer.uid, adminQuestions.data, adminChats.data, pendingLeave.data, reminders.data, myQuestions.data, everyone.data, dm.data]);
+  }, [isAdmin, key, viewer.uid, adminQuestions.data, adminChats.data, pendingLeave.data, reminders.data, myQuestions.data, everyone.data, dm.data, biz.data]);
 }

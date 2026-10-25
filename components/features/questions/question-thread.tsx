@@ -90,6 +90,7 @@ export function QuestionThread({ question, viewer }: { question: WithId<Question
         <QuestionStatusBadge status={question.status} />
         {question.urgent ? <span className={cn(pill, "bg-danger/12 text-danger")}>Urgent</span> : null}
         {question.taskTitle ? <span className={cn(pill, "max-w-full bg-surface-raised font-medium text-muted")}><span className="truncate">About: {question.taskTitle}</span></span> : null}
+        {question.reminderBody ? <span className={cn(pill, "max-w-full bg-surface-raised font-medium text-muted")}><span className="truncate">Reminder: {question.reminderBody}</span></span> : null}
         {isAdmin ? (
           <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setStatus(closed ? "open" : "closed")}>
             {closed ? <LockOpen aria-hidden /> : <Lock aria-hidden />} {closed ? "Reopen" : "Close question"}

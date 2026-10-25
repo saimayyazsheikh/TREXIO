@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { handleChat, handleQuestion, sendReminder, type DocDb } from "@/lib/server/communication";
+import { handleChat, handleQuestion, respondToReminder, sendReminder, type DocDb } from "@/lib/server/communication";
 import { makeDocDb, seedDocs } from "@/lib/server/test-support/memory-doc-db";
-import { chatActionSchema, questionActionSchema, reminderSchema } from "@/lib/domain/communication";
+import { chatActionSchema, questionActionSchema, reminderResponseSchema, reminderSchema } from "@/lib/domain/communication";
 import type { Actor } from "@/lib/domain/tasks";
 
 const now = new Date("2026-10-21T06:00:00Z");
 const admin: Actor = { uid: "admin1", name: "Boss", role: "admin" };
 const ali: Actor = { uid: "ali12345", name: "Ali Khan", role: "employee" };
 const sara: Actor = { uid: "sara9999", name: "Sara Ahmed", role: "employee" };
+const omar = (): Actor => ({ uid: "omar1234", name: "Omar Farooq", role: "employee" });
 
 
 let docs: Map<string, Record<string, unknown>>;
@@ -41,6 +42,52 @@ describe("reminders", () => {
   it("tells you when nobody is active", async () => {
     for (const [p, d] of docs) if (p.startsWith("users/") && d.role === "employee") d.status = "disabled";
     await expect(sendReminder(db, admin, send({ toUids: [], toAll: true }))).rejects.toThrow(/nobody active/);
+  });
+});
+
+describe("answering a reminder", () => {
+  const respond = (over: Record<string, unknown>) => reminderResponseSchema.parse({ reminderId: "rem0000001", ...over });
+  beforeEach(async () => {
+    await sendReminder(db, admin, reminderSchema.parse({ id: "rem0000001", body: "Match the ledger with Khan", toUids: ["ali12345", "sara9999"] }));
+  });
+
+  it("'Got it' records only that person, and saying it twice changes nothing", async () => {
+    await respondToReminder(db, ali, respond({ action: "seen" }));
+    const first = (docs.get("reminders/rem0000001")!.readBy as Record<string, unknown>).ali12345;
+    expect(first).toBeInstanceOf(Date);
+    expect(docs.get("reminders/rem0000001")!.readBy).not.toHaveProperty("sara9999");
+    await respondToReminder(db, ali, respond({ action: "seen" }));
+    expect((docs.get("reminders/rem0000001")!.readBy as Record<string, unknown>).ali12345).toBe(first);
+  });
+
+  it("completing marks it seen too, tells the admin once, and keeps teammates' states apart", async () => {
+    await respondToReminder(db, ali, respond({ action: "complete" }));
+    await respondToReminder(db, ali, respond({ action: "complete" }));
+    const r = docs.get("reminders/rem0000001")!;
+    expect(r.doneBy).toHaveProperty("ali12345");
+    expect(r.doneBy).not.toHaveProperty("sara9999");
+    expect(r.readBy).toHaveProperty("ali12345");
+    const told = [...docs].filter(([p, d]) => p.startsWith("notifications/") && d.toUid === "admin" && String(d.title).includes("finished a reminder"));
+    expect(told).toHaveLength(1);
+  });
+
+  it("asking opens a linked thread in Ask with the person's question, once while it is open", async () => {
+    const { questionId } = await respondToReminder(db, ali, respond({ action: "ask", body: "Which Khan?" }));
+    expect(docs.get(`questions/${questionId}`)).toMatchObject({ employeeId: "ali12345", status: "open", unreadForAdmin: true, reminderId: "rem0000001", reminderBody: "Match the ledger with Khan" });
+    expect(docs.get("reminders/rem0000001")!.askedBy).toEqual({ ali12345: questionId });
+    expect(docs.get("reminders/rem0000001")!.readBy).toHaveProperty("ali12345");
+    const messages = [...docs].filter(([p]) => p.startsWith(`questions/${questionId}/messages/`));
+    expect(messages[0][1]).toMatchObject({ body: "Which Khan?", authorRole: "employee" });
+    await expect(respondToReminder(db, ali, respond({ action: "ask", body: "Again?" }))).rejects.toMatchObject({ status: 409 });
+    docs.get(`questions/${questionId}`)!.status = "closed";
+    await expect(respondToReminder(db, ali, respond({ action: "ask", body: "One more thing" }))).resolves.toHaveProperty("questionId");
+  });
+
+  it("is for the people it was sent to, and for team members only", async () => {
+    await expect(respondToReminder(db, admin, respond({ action: "seen" }))).rejects.toMatchObject({ status: 403 });
+    docs.get("reminders/rem0000001")!.toUids = ["sara9999"];
+    await expect(respondToReminder(db, ali, respond({ action: "seen" }))).rejects.toMatchObject({ status: 404 });
+    await expect(respondToReminder(db, ali, respond({ action: "seen", reminderId: "nope" }))).rejects.toMatchObject({ status: 404 });
   });
 });
 
@@ -120,6 +167,29 @@ describe("chat", () => {
     await expect(handleChat(db, admin, send("dm_off11111"))).rejects.toThrow(/turned off/);
     await expect(handleChat(db, admin, send("dm_ghost0000"))).rejects.toMatchObject({ status: 404 });
   });
+  describe("business rooms", () => {
+    beforeEach(() => {
+      docs.set("users/omar1234", { name: "Omar Farooq", role: "employee", status: "active", businessId: "b2" });
+      docs.set("businesses/b2", { name: "Beta Foods" });
+    });
+
+    it("a message in a business room reaches that business's team and the admin, and nobody else", async () => {
+      await handleChat(db, ali, send("biz_b1", "Stock arrives at 3"));
+      expect(docs.get("chats/biz_b1")).toMatchObject({ type: "group", title: "Alpha Traders", businessId: "b1", lastMessage: { text: "Stock arrives at 3", authorName: "Ali Khan" } });
+      expect(unread("biz_b1")).toEqual({ sara9999: 1, admin: 1 });
+      await handleChat(db, admin, send("biz_b2", "Welcome Beta"));
+      expect(docs.get("chats/biz_b2")).toMatchObject({ title: "Beta Foods" });
+      expect(unread("biz_b2")).toEqual({ omar1234: 1 });
+    });
+
+    it("employees only use their own business's room", async () => {
+      await expect(handleChat(db, ali, send("biz_b2"))).rejects.toMatchObject({ status: 403 });
+      await expect(handleChat(db, omar(), send("biz_b1"))).rejects.toMatchObject({ status: 403 });
+      await expect(handleChat(db, ali, act({ action: "read", chatId: "biz_b2" }))).rejects.toMatchObject({ status: 403 });
+      await expect(handleChat(db, admin, send("biz_nope0000"))).rejects.toMatchObject({ status: 404 });
+    });
+  });
+
   it("a message needs text", () => {
     expect(chatActionSchema.safeParse({ action: "send", chatId: "everyone", body: "   " }).success).toBe(false);
   });

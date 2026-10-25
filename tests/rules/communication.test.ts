@@ -30,6 +30,10 @@ beforeEach(async () => {
     await setDoc(doc(db, "orgs/o1/chats/everyone/messages/m1"), { authorId: "ali", body: "hi all" });
     await setDoc(doc(db, "orgs/o1/chats/dm_ali"), { type: "direct", title: "Ali" });
     await setDoc(doc(db, "orgs/o1/chats/dm_ali/messages/m1"), { authorId: "admin1", body: "private to Ali" });
+    await setDoc(doc(db, "orgs/o1/chats/biz_b1"), { type: "group", title: "Alpha", businessId: "b1" });
+    await setDoc(doc(db, "orgs/o1/chats/biz_b1/messages/m1"), { authorId: "ali", body: "for Alpha only" });
+    await setDoc(doc(db, "orgs/o1/chats/biz_b2"), { type: "group", title: "Beta", businessId: "b2" });
+    await setDoc(doc(db, "orgs/o1/chats/biz_b2/messages/m1"), { authorId: "omar", body: "for Beta only" });
     await setDoc(doc(db, "orgs/o1/chats/dm_sara"), { type: "direct", title: "Sara" });
     await setDoc(doc(db, "orgs/o1/chats/dm_sara/messages/m1"), { authorId: "sara", body: "private to Sara" });
   });
@@ -91,7 +95,15 @@ describe("chat", () => {
     await assertFails(getDoc(doc(emp("ali"), "orgs/o1/chats/dm_sara/messages/m1")));
     await assertFails(getDoc(doc(stranger(), "orgs/o1/chats/everyone")));
   });
+  it("an employee reads their own business's room and no other", async () => {
+    await assertSucceeds(getDoc(doc(emp("ali"), "orgs/o1/chats/biz_b1")));
+    await assertSucceeds(getDoc(doc(emp("ali"), "orgs/o1/chats/biz_b1/messages/m1")));
+    await assertFails(getDoc(doc(emp("ali"), "orgs/o1/chats/biz_b2")));
+    await assertFails(getDoc(doc(emp("ali"), "orgs/o1/chats/biz_b2/messages/m1")));
+    await assertFails(addDoc(collection(emp("ali"), "orgs/o1/chats/biz_b1/messages"), { authorId: "ali", body: "forged" }));
+  });
   it("the admin reads every chat", async () => {
+    await assertSucceeds(getDoc(doc(admin(), "orgs/o1/chats/biz_b2/messages/m1")));
     await assertSucceeds(getDocs(collection(admin(), "orgs/o1/chats")));
     await assertSucceeds(getDoc(doc(admin(), "orgs/o1/chats/dm_sara/messages/m1")));
   });

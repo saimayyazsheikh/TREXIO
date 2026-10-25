@@ -88,6 +88,10 @@ export type ReminderDoc = {
   taskId: string | null;
   taskTitle: string | null;
   readBy: Record<string, Timestamp>;
+  /** When each person finished the work in the reminder. */
+  doneBy?: Record<string, Timestamp>;
+  /** The Ask conversation each person opened about the reminder. */
+  askedBy?: Record<string, string>;
   createdAt: Timestamp;
 };
 
@@ -107,6 +111,9 @@ export type QuestionDoc = {
   lastMessageAt: Timestamp;
   lastAuthorRole: Role;
   createdAt: Timestamp;
+  /** Set when the thread was opened from a reminder. */
+  reminderId?: string | null;
+  reminderBody?: string | null;
 };
 
 export type QuestionMessageDoc = { authorId: string; authorName: string; authorRole: Role; body: string; createdAt: Timestamp };
@@ -115,6 +122,8 @@ export type ChatDoc = {
   type: "direct" | "group";
   title: string;
   employeeId: string | null;
+  /** Set on a business's room. */
+  businessId?: string | null;
   lastMessage: { text: string; authorName: string } | null;
   lastAt: Timestamp | null;
   unread: Record<string, number>;

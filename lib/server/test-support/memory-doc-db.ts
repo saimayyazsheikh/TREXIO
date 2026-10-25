@@ -23,7 +23,7 @@ export function makeDocDb(docs: Map<string, Doc>, now: Date, pushed: Notice[] = 
           return limit ? hits.slice(0, limit) : hits;
         },
         activeEmployees: async () =>
-          [...docs].filter(([p, d]) => /^users\/[^/]+$/.test(p) && d.role === "employee" && d.status === "active").map(([p, d]) => ({ id: p.slice(6), name: String(d.name) })),
+          [...docs].filter(([p, d]) => /^users\/[^/]+$/.test(p) && d.role === "employee" && d.status === "active").map(([p, d]) => ({ id: p.slice(6), name: String(d.name), businessId: (d.businessId as string | null | undefined) ?? null })),
       });
       writes.forEach((w) => w());
       await Promise.allSettled(after.map(async (cb) => cb()));
@@ -39,5 +39,6 @@ export function seedDocs(): Map<string, Doc> {
     ["users/off11111", { name: "Off Person", role: "employee", status: "disabled", businessId: "b1" }],
     ["users/admin1", { name: "Boss", role: "admin", status: "active", businessId: null }],
     ["tasks/t1", { title: "Count stock", assigneeIds: ["ali12345"] }],
+    ["businesses/b1", { name: "Alpha Traders" }],
   ]);
 }

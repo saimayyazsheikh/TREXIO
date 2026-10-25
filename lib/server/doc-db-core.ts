@@ -30,7 +30,7 @@ export function createDocDb(db: OrgDb, push: (orgId: string, notice: Notice) => 
           },
           activeEmployees: async () => {
             const snap = await t.get(db.collection("users").where("role", "==", "employee").where("status", "==", "active"));
-            return snap.docs.map((d) => ({ id: d.id, name: String(d.get("name")) }));
+            return snap.docs.map((d) => ({ id: d.id, name: String(d.get("name")), businessId: (d.get("businessId") as string | null | undefined) ?? null }));
           },
         });
       });

@@ -28,6 +28,14 @@ export const reminderSchema = z
   .refine((r) => r.toAll || r.toUids.length > 0, { path: ["toUids"], message: "Choose who should get it" });
 export type ReminderInput = z.infer<typeof reminderSchema>;
 
+/** What a team member does with a reminder: say they have seen it and are on it, finish it, or ask about it. */
+export const reminderResponseSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("seen"), reminderId: id }),
+  z.object({ action: z.literal("complete"), reminderId: id }),
+  z.object({ action: z.literal("ask"), reminderId: id, body: z.string().trim().min(1, "Write your question").max(MAX_BODY) }),
+]);
+export type ReminderResponse = z.infer<typeof reminderResponseSchema>;
+
 /* ---------- Questions (employee -> admin, a formal help thread) ---------- */
 
 export const questionActionSchema = z.discriminatedUnion("action", [
@@ -50,7 +58,7 @@ export type QuestionAction = z.infer<typeof questionActionSchema>;
 
 /* ---------- Chat ---------- */
 
-export const chatIdSchema = z.string().regex(/^(everyone|dm_[A-Za-z0-9]{6,40})$/, "Unknown chat");
+export const chatIdSchema = z.string().regex(/^(everyone|dm_[A-Za-z0-9]{6,40}|biz_[A-Za-z0-9]{2,40})$/, "Unknown chat");
 
 export const chatActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("send"), chatId: chatIdSchema, body: z.string().trim().min(1, "Write a message").max(MAX_BODY) }),
@@ -64,14 +72,18 @@ export type ChatAction = z.infer<typeof chatActionSchema>;
 /* ---------- Pure rules ---------- */
 
 export const dmChatId = (employeeUid: string) => `dm_${employeeUid}`;
+/** One room per business: its team members and the admin. */
+export const bizChatId = (businessId: string) => `biz_${businessId}`;
+export const isBusinessChat = (chatId: string) => chatId.startsWith("biz_");
 
-/** Who may use which chat: the admin everywhere, an employee only in Everyone and their own direct chat. */
-export function canUseChat(chatId: string, actor: { uid: string; role: Role }): boolean {
+/** Who may use which chat: the admin everywhere; an employee in Everyone, their own direct chat, and their own business's room. */
+export function canUseChat(chatId: string, actor: { uid: string; role: Role; businessId?: string | null }): boolean {
   if (actor.role === "admin") return true;
-  return chatId === EVERYONE_CHAT || chatId === dmChatId(actor.uid);
+  if (chatId === EVERYONE_CHAT || chatId === dmChatId(actor.uid)) return true;
+  return !!actor.businessId && chatId === bizChatId(actor.businessId);
 }
 
-export function assertCanUseChat(chatId: string, actor: { uid: string; role: Role }) {
+export function assertCanUseChat(chatId: string, actor: { uid: string; role: Role; businessId?: string | null }) {
   if (!canUseChat(chatId, actor)) throw new DomainError("You don't have access to that chat.", 403);
 }
 

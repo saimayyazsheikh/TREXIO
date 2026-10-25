@@ -2,8 +2,8 @@ import { DomainError } from "@/lib/domain/errors";
 import { ADMIN_MAILBOX, queueNotification } from "@/lib/server/notify";
 import type { Actor } from "@/lib/domain/tasks";
 import {
-  EVERYONE_CHAT, assertCanUseChat, dmChatId, questionStatusAfterReply, toggleReaction, unreadKey,
-  type ChatAction, type QuestionAction, type ReminderInput,
+  EVERYONE_CHAT, assertCanUseChat, bizChatId, dmChatId, isBusinessChat, questionStatusAfterReply, toggleReaction, unreadKey,
+  type ChatAction, type QuestionAction, type ReminderInput, type ReminderResponse,
 } from "@/lib/domain/communication";
 
 type Doc = Record<string, unknown>;
@@ -17,7 +17,7 @@ export type DocTx = {
   update(path: string, patch: Doc): void;
   /** Documents of a top-level collection whose fields all equal the given values (null matches a null field). */
   find(collection: string, filters: [field: string, value: string | number | boolean | null][], limit?: number): Promise<{ id: string; data: Doc }[]>;
-  activeEmployees(): Promise<{ id: string; name: string }[]>;
+  activeEmployees(): Promise<{ id: string; name: string; businessId: string | null }[]>;
   /** Runs once the transaction has committed (never for a failed or retried attempt). Failures are swallowed. */
   afterCommit(fn: () => Promise<void> | void): void;
 };
@@ -78,6 +78,60 @@ export function sendReminder(db: DocDb, actor: Actor, input: ReminderInput): Pro
     });
     for (const uid of toUids) queueNotification(db, tx, { toUid: uid, title: `Reminder from ${actor.name}`, body: input.body, link: "/me/reminders" });
     return { id: input.id, recipients: toUids.length };
+  });
+}
+
+type ReminderRec = { toUids: string[]; body: string; readBy?: Record<string, Date>; doneBy?: Record<string, Date>; askedBy?: Record<string, string> };
+
+const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text);
+
+/**
+ * A team member answers a reminder: "Got it" (seen, and on it), "Complete" (the work is done), or "Ask" (opens a help thread in
+ * Ask, linked to the reminder, so there can be two-way talk before it is finished). Each person's state is kept separately.
+ */
+export function respondToReminder(db: DocDb, actor: Actor, input: ReminderResponse): Promise<{ questionId?: string }> {
+  return db.transaction(async (tx) => {
+    requireEmployee(actor, "respond to reminders");
+    const path = `reminders/${input.reminderId}`;
+    const r = (await tx.get(path)) as ReminderRec | null;
+    if (!r || !r.toUids.includes(actor.uid)) throw new DomainError("That reminder doesn't exist.", 404);
+    const now = db.now();
+    const readBy = { ...(r.readBy ?? {}) };
+    const doneBy = { ...(r.doneBy ?? {}) };
+    const askedBy = { ...(r.askedBy ?? {}) };
+    if (!readBy[actor.uid]) readBy[actor.uid] = now;
+
+    if (input.action === "seen") {
+      if (!r.readBy?.[actor.uid]) tx.update(path, { readBy });
+      return {};
+    }
+
+    if (input.action === "complete") {
+      if (doneBy[actor.uid]) return {};
+      doneBy[actor.uid] = now;
+      tx.update(path, { readBy, doneBy });
+      queueNotification(db, tx, { toUid: ADMIN_MAILBOX, title: `${actor.name} finished a reminder`, body: clip(r.body, 120), link: "/admin/reminders" });
+      return {};
+    }
+
+    // ask: one open conversation per person per reminder
+    const existing = askedBy[actor.uid];
+    if (existing) {
+      const q = (await tx.get(`questions/${existing}`)) as { status?: string } | null;
+      if (q && q.status !== "closed") throw new DomainError("You already have a conversation open about this reminder. Find it in Ask.", 409);
+    }
+    const me = await getUser(tx, actor.uid);
+    const questionId = db.newId();
+    tx.create(`questions/${questionId}`, {
+      employeeId: actor.uid, employeeName: actor.name, businessId: me?.businessId ?? null, taskId: null, taskTitle: null, subject: clip(`About a reminder: ${r.body}`, 120),
+      reminderId: input.reminderId, reminderBody: clip(r.body, 300),
+      status: "open", urgent: false, unreadForAdmin: true, unreadForEmployee: false, lastMessageAt: now, lastAuthorRole: "employee", createdAt: now,
+    });
+    tx.create(`questions/${questionId}/messages/${db.newId()}`, { authorId: actor.uid, authorName: actor.name, authorRole: "employee", body: input.body, createdAt: now });
+    askedBy[actor.uid] = questionId;
+    tx.update(path, { readBy, askedBy });
+    queueNotification(db, tx, { toUid: ADMIN_MAILBOX, title: `Question about a reminder from ${actor.name}`, body: clip(input.body, 120), link: "/admin/inbox" });
+    return { questionId };
   });
 }
 
@@ -156,17 +210,27 @@ const preview = (body: string) => (body.length > 80 ? `${body.slice(0, 80)}…` 
 
 export function handleChat(db: DocDb, actor: Actor, input: ChatAction): Promise<unknown> {
   return db.transaction(async (tx) => {
-    assertCanUseChat(input.chatId, actor);
+    const me = actor.role === "employee" ? await getUser(tx, actor.uid) : null;
+    assertCanUseChat(input.chatId, { ...actor, businessId: me?.businessId ?? null });
     const now = db.now();
     const chatPath = `chats/${input.chatId}`;
 
     if (input.action === "send") {
 
       const isEveryone = input.chatId === EVERYONE_CHAT;
+      const isBusiness = isBusinessChat(input.chatId);
       const chat = (await tx.get(chatPath)) as ChatDoc | null;
-      const employees = isEveryone ? await tx.activeEmployees() : [];
+      const everyEmployee = isEveryone || isBusiness ? await tx.activeEmployees() : [];
+      let business: { id: string; name: string } | null = null;
+      if (isBusiness) {
+        const id = input.chatId.slice(4);
+        const b = (await tx.get(`businesses/${id}`)) as { name?: string } | null;
+        if (!b) throw new DomainError("That business doesn't exist.", 404);
+        business = { id, name: String(b.name ?? "Business") };
+      }
+      const employees = isBusiness ? everyEmployee.filter((e) => e.businessId === business!.id) : everyEmployee;
       let dmEmployee: { id: string; name: string } | null = null;
-      if (!isEveryone) {
+      if (!isEveryone && !isBusiness) {
         const id = input.chatId.slice(3);
         const u = await getUser(tx, id);
         if (!u || u.role !== "employee") throw new DomainError("That team member doesn't exist.", 404);
@@ -176,7 +240,7 @@ export function handleChat(db: DocDb, actor: Actor, input: ChatAction): Promise<
 
       const unread = { ...(chat?.unread ?? {}) };
       const bump = (key: string) => void (unread[key] = (unread[key] ?? 0) + 1);
-      if (isEveryone) {
+      if (isEveryone || isBusiness) {
         for (const e of employees) if (e.id !== actor.uid) bump(e.id);
         if (actor.role !== "admin") bump("admin");
       } else {
@@ -188,7 +252,7 @@ export function handleChat(db: DocDb, actor: Actor, input: ChatAction): Promise<
       if (chat) tx.update(chatPath, { lastMessage, lastAt: now, unread });
       else {
         tx.create(chatPath, {
-          type: isEveryone ? "group" : "direct", title: isEveryone ? "Everyone" : dmEmployee!.name, employeeId: dmEmployee?.id ?? null,
+          type: isEveryone || isBusiness ? "group" : "direct", title: isEveryone ? "Everyone" : isBusiness ? business!.name : dmEmployee!.name, employeeId: dmEmployee?.id ?? null, businessId: business?.id ?? null,
           lastMessage, lastAt: now, unread, createdAt: now,
         });
       }
@@ -222,4 +286,4 @@ export function handleChat(db: DocDb, actor: Actor, input: ChatAction): Promise<
   });
 }
 
-export { dmChatId };
+export { bizChatId, dmChatId };

@@ -112,8 +112,8 @@ async function loadTask(tx: TaskTx, taskId: string): Promise<TaskData> {
   return task;
 }
 
-/** Active employees from one business, in the order given. */
-async function loadAssignees(tx: TaskTx, uids: string[]): Promise<Assignee[]> {
+/** Active employees, in the order given. Unless `anyBusiness`, they must all be from one business. */
+async function loadAssignees(tx: TaskTx, uids: string[], opts: { anyBusiness?: boolean } = {}): Promise<Assignee[]> {
   const assignees: Assignee[] = [];
   for (const uid of uids) {
     const user = await tx.getUser(uid);
@@ -121,7 +121,7 @@ async function loadAssignees(tx: TaskTx, uids: string[]): Promise<Assignee[]> {
     if (user.status !== "active") throw new DomainError(`${user.name} is turned off. Turn them back on first.`, 409);
     assignees.push({ uid, name: user.name, businessId: user.businessId });
   }
-  if (new Set(assignees.map((a) => a.businessId)).size > 1) throw new DomainError("Everyone on a task must be from the same business.", 400);
+  if (!opts.anyBusiness && new Set(assignees.map((a) => a.businessId)).size > 1) throw new DomainError("Everyone on a task must be from the same business.", 400);
   return assignees;
 }
 
@@ -232,35 +232,52 @@ export function explainMissedRoutine(db: TaskDb, actor: Actor, input: { taskId: 
   });
 }
 
-export async function createOneOffTask(db: TaskDb, actor: Actor, input: CreateTaskInput): Promise<{ taskId: string }> {
+/**
+ * Assigns a one-off task. People from several businesses are allowed: each business gets its own copy of the task (its own
+ * colour, status and completion), shared by the people chosen from that business. Returns every task made, first one first.
+ */
+export async function createOneOffTask(db: TaskDb, actor: Actor, input: CreateTaskInput): Promise<{ taskId: string; taskIds: string[] }> {
   if (actor.role !== "admin") throw new DomainError("Only the admin can assign tasks.", 403);
   return db.transaction(async (tx) => {
-    const assignees = await loadAssignees(tx, input.assigneeIds);
+    const everyone = await loadAssignees(tx, input.assigneeIds, { anyBusiness: true });
     const { links, targets } = await resolveLinks(tx, null, input.dependsOnIds, input.relatedTaskIds);
     const now = db.now();
-    const taskId = db.newId();
-    const data = buildOneOffTask(input, assignees, actor, now, db.newId, links);
-    const names = assignees.map((a) => a.name).join(", ");
-    const plan: TaskPlan = {
-      patch: {},
-      audit: {
-        action: "task.create",
-        from: null,
-        to: "todo",
-        meta: { title: data.title, assigneeIds: data.assigneeIds, assigneeNames: assignees.map((a) => a.name), priority: data.priority, date: data.date, ...(data.dependsOnIds.length ? { dependsOnIds: data.dependsOnIds } : {}) },
-      },
-      activityText: `${actor.name} assigned “${data.title}” to ${names}`,
-    };
-    const { audit, activity } = auditAndActivity(actor, { entityType: "task", entityId: taskId, businessId: data.businessId }, plan, now);
-    tx.setTask(taskId, data);
-    // Related links are two-way: each linked task learns about the new one.
+
+    const groups = new Map<string, Assignee[]>();
+    for (const a of everyone) groups.set(a.businessId, [...(groups.get(a.businessId) ?? []), a]);
+
+    const made: { taskId: string; title: string }[] = [];
+    for (const assignees of groups.values()) {
+      const taskId = db.newId();
+      const data = buildOneOffTask({ ...input, assigneeIds: assignees.map((a) => a.uid) }, assignees, actor, now, db.newId, links);
+      const names = assignees.map((a) => a.name).join(", ");
+      const plan: TaskPlan = {
+        patch: {},
+        audit: {
+          action: "task.create",
+          from: null,
+          to: "todo",
+          meta: { title: data.title, assigneeIds: data.assigneeIds, assigneeNames: assignees.map((a) => a.name), priority: data.priority, date: data.date, ...(data.dependsOnIds.length ? { dependsOnIds: data.dependsOnIds } : {}) },
+        },
+        activityText: `${actor.name} assigned “${data.title}” to ${names}`,
+      };
+      const { audit, activity } = auditAndActivity(actor, { entityType: "task", entityId: taskId, businessId: data.businessId }, plan, now);
+      tx.setTask(taskId, data);
+      tx.addAudit(audit);
+      tx.addActivity(activity);
+      made.push({ taskId, title: data.title });
+    }
+
+    // Related links are two-way: each linked task learns about every new copy (one write per linked task).
     for (const id of input.relatedTaskIds) {
       const t = targets.get(id)!;
-      tx.updateTask(id, { relatedTaskIds: [...new Set([...t.relatedTaskIds, taskId])], linkTitles: { ...t.linkTitles, [taskId]: data.title }, updatedAt: now });
+      tx.updateTask(id, {
+        relatedTaskIds: [...new Set([...t.relatedTaskIds, ...made.map((m) => m.taskId)])],
+        linkTitles: { ...t.linkTitles, ...Object.fromEntries(made.map((m) => [m.taskId, m.title])) },
+        updatedAt: now,
+      });
     }
-    tx.addAudit(audit);
-    tx.addActivity(activity);
-    return { taskId };
+    return { taskId: made[0].taskId, taskIds: made.map((m) => m.taskId) };
   });
 }
 

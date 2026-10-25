@@ -37,7 +37,8 @@ const uniqueIds = (max: number, what: string) =>
     .max(max, `Up to ${max} ${what}`)
     .transform((ids) => [...new Set(ids)]);
 
-const assigneeIds = uniqueIds(10, "people per task").pipe(z.array(z.string()).min(1, "Choose who it's for"));
+/** Up to the workspace size: a task can go to several businesses at once (one copy per business). */
+const assigneeIds = uniqueIds(25, "people per task").pipe(z.array(z.string()).min(1, "Choose who it's for"));
 
 /** Shared by create and edit: who, how it completes, and links to other tasks. */
 const taskRelations = {

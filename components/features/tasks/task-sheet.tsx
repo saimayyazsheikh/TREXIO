@@ -103,9 +103,10 @@ export function TaskSheet({
     try {
       const subtasks = values.subtasks.map((s) => ({ ...(s.id ? { id: s.id } : {}), title: s.title }));
       if (task) await apiFetch("/api/admin/tasks", "PATCH", { ...base, taskId: task.id, subtasks });
-      else await apiFetch("/api/admin/tasks", "POST", { ...base, subtasks: values.subtasks.map((s) => s.title) });
+      let copies = 1;
+      if (!task) copies = (await apiFetch<{ taskIds?: string[] }>("/api/admin/tasks", "POST", { ...base, subtasks: values.subtasks.map((s) => s.title) })).taskIds?.length ?? 1;
 
-      toast.success(editing ? "Task updated" : "Task assigned");
+      toast.success(editing ? "Task updated" : copies > 1 ? `Task assigned in ${copies} businesses` : "Task assigned");
       onOpenChange(false);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Something went wrong. Please try again.");
@@ -156,6 +157,7 @@ export function TaskSheet({
                 employees={employees}
                 businesses={businesses}
                 error={errors.assigneeIds?.message}
+                multi={!editing}
               />
             )}
           />

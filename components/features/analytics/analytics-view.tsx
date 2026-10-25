@@ -1,12 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { orderBy, query } from "firebase/firestore";
+import { orderBy, query, where } from "firebase/firestore";
 import { Activity, BarChart3, CalendarCheck2, CircleCheckBig, Download, NotebookPen, OctagonX, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AttendanceReport, JournalsReport, PresenceReport, TasksReport } from "@/components/features/analytics/team-reports";
+import { PerformanceReport } from "@/components/features/reports/performance-report";
+import { PeriodPicker, type PeriodState } from "@/components/features/reports/period-picker";
 import { ChartCard } from "@/components/features/analytics/chart-card";
 import { Heatmap, HBarChart, OnTimeChart, SERIES, TimeUseChart, TrendChart } from "@/components/features/analytics/charts";
 import { EmptyState } from "@/components/features/empty-state";
@@ -14,40 +18,49 @@ import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
 import { PageHeader } from "@/components/features/page-header";
 import { StatCard } from "@/components/features/stat-card";
-import { shiftDate } from "@/components/features/journal/date-nav";
 import { useAnalyticsData } from "@/hooks/use-analytics-data";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection } from "@/lib/firebase/org";
-import type { BusinessDoc } from "@/types/models";
+import type { BusinessDoc, UserDoc } from "@/types/models";
 import { useNow } from "@/hooks/use-now";
-import { computeAnalytics, employeesCsv, toHours, WEEKDAY_LABELS } from "@/lib/domain/analytics";
+import { computeAnalytics, employeesCsv, toHours, WEEKDAY_LABELS, type AnalyticsInput } from "@/lib/domain/analytics";
+import { buildTeamReports } from "@/lib/domain/performance";
+import { rangeForPeriod } from "@/lib/domain/periods";
 import { pktDateString } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-const PRESETS = [
-  { days: 7, label: "Last 7 days" },
-  { days: 14, label: "Last 14 days" },
-  { days: 30, label: "Last 30 days" },
-  { days: 90, label: "Last 90 days" },
-] as const;
+type TabId = "overview" | "tasks" | "journals" | "attendance" | "presence" | "person";
+const TABS: { id: TabId; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "tasks", label: "Tasks" },
+  { id: "journals", label: "Journals" },
+  { id: "attendance", label: "Attendance" },
+  { id: "presence", label: "Presence" },
+  { id: "person", label: "One person" },
+];
 
-/** Filters live in one row above everything they scope. Changing the period remounts the body so numbers never mix periods. */
+/** Period, business and person filters sit in one row above everything they scope; each report has its own tab. */
 export function AnalyticsView() {
   const now = useNow();
   const today = pktDateString(now);
-  const [days, setDays] = useState<number>(30);
+  const [period, setPeriod] = useState<PeriodState>({ id: "last30", custom: { from: today, to: today } });
   const [businessId, setBusinessId] = useState("");
-  const range = { from: shiftDate(today, -(days - 1)), to: today };
+  const [employeeId, setEmployeeId] = useState("");
+  const [tab, setTab] = useState<TabId>("overview");
+  const range = useMemo(() => rangeForPeriod(period.id, today, period.custom), [period, today]);
   const { db } = getFirebase();
   const businessesQ = useMemo(() => query(orgCollection(db, "businesses"), orderBy("createdAt", "asc")), [db]);
   const businesses = useCollection<BusinessDoc>(businessesQ);
+  const staffQ = useMemo(() => query(orgCollection(db, "users"), where("role", "==", "employee")), [db]);
+  const staff = useCollection<UserDoc>(staffQ);
+  const choices = (staff.data ?? []).filter((u) => u.status === "active" && (!businessId || u.businessId === businessId)).sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <>
       <PageHeader
         title="Analytics"
-        subtitle="How work is going: completion, timing, time use, journals and what keeps getting blocked."
+        subtitle="How work is going. Pick a period, a business or a person, then open the report you need."
         actions={
           <Button variant="secondary" className="print:hidden" onClick={() => window.print()}>
             <Printer aria-hidden /> Print or save as PDF
@@ -55,22 +68,16 @@ export function AnalyticsView() {
         }
       />
       <div className="mb-5 flex flex-wrap items-center gap-3 print:hidden" role="group" aria-label="Filters">
-        <div role="radiogroup" aria-label="Period" className="flex flex-wrap gap-1 rounded-control border border-border-solid p-0.5">
-          {PRESETS.map((p) => (
-            <button
-              key={p.days}
-              type="button"
-              role="radio"
-              aria-checked={days === p.days}
-              onClick={() => setDays(p.days)}
-              className={cn("min-h-10 rounded-lg px-3 text-sm font-medium transition-colors", days === p.days ? "bg-brand text-brand-fg" : "text-muted hover:bg-surface-raised hover:text-foreground")}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-        <div className="w-full sm:w-56">
-          <Select aria-label="Filter by business" value={businessId} onChange={(e) => setBusinessId(e.target.value)}>
+        <PeriodPicker value={period} today={today} onChange={setPeriod} />
+        <div className="w-full sm:w-52">
+          <Select
+            aria-label="Filter by business"
+            value={businessId}
+            onChange={(e) => {
+              setBusinessId(e.target.value);
+              setEmployeeId("");
+            }}
+          >
             <option value="">All businesses</option>
             {(businesses.data ?? []).map((b) => (
               <option key={b.id} value={b.id}>
@@ -79,20 +86,72 @@ export function AnalyticsView() {
             ))}
           </Select>
         </div>
+        <div className="w-full sm:w-52">
+          <Select aria-label="Filter by person" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+            <option value="">Everyone</option>
+            {choices.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </Select>
+        </div>
       </div>
       <p className="mb-4 hidden text-sm text-muted print:block">
         {range.from} to {range.to}
       </p>
-      <AnalyticsBody key={`${range.from}_${range.to}`} range={range} businessId={businessId} />
+      <Tabs value={tab} onValueChange={(v) => setTab(v as TabId)}>
+        <TabsList className="print:hidden" aria-label="Reports">
+          {TABS.map((t) => (
+            <TabsTrigger key={t.id} value={t.id}>
+              {t.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        <TabsContent value={tab}>
+          <AnalyticsBody key={`${range.from}_${range.to}`} range={range} businessId={businessId} employeeId={employeeId} tab={tab} today={today} nowMs={now.getTime()} />
+        </TabsContent>
+      </Tabs>
     </>
   );
 }
 
-function AnalyticsBody({ range, businessId }: { range: { from: string; to: string }; businessId: string }) {
+function AnalyticsBody({ range, businessId, employeeId, tab, today, nowMs }: { range: { from: string; to: string }; businessId: string; employeeId: string; tab: TabId; today: string; nowMs: number }) {
   const data = useAnalyticsData(range, businessId);
   const bName = useMemo(() => new Map(data.businesses.map((b) => [b.id, b.name])), [data.businesses]);
 
-  const a = useMemo(() => (data.input ? computeAnalytics(data.input) : null), [data.input]);
+  // One person: everything is narrowed to them (tasks they are on, their time and journal).
+  const input = useMemo<AnalyticsInput | null>(() => {
+    if (!data.input || !employeeId) return data.input;
+    const i = data.input;
+    return {
+      ...i,
+      people: i.people.filter((p) => p.id === employeeId),
+      tasks: i.tasks.filter((t) => t.assigneeIds.includes(employeeId)),
+      presence: i.presence.filter((p) => p.employeeId === employeeId),
+      journals: i.journals.filter((j) => j.employeeId === employeeId),
+    };
+  }, [data.input, employeeId]);
+  const a = useMemo(() => (input ? computeAnalytics(input) : null), [input]);
+
+  const reports = useMemo(() => {
+    if (!data.team) return null;
+    const people = data.people
+      .filter((u) => u.status === "active" && (!businessId || u.businessId === businessId) && (!employeeId || u.id === employeeId))
+      .map((u) => ({ id: u.id, name: u.name, businessId: u.businessId, workStart: u.workStart, workEnd: u.workEnd }))
+      .sort((x, y) => x.name.localeCompare(y.name));
+    return buildTeamReports({
+      from: range.from,
+      to: range.to,
+      today,
+      nowMs,
+      people,
+      businesses: data.businesses.map((b) => ({ id: b.id, name: b.name, workDays: b.workDays, workStart: b.workStart, workEnd: b.workEnd })),
+      ...data.team,
+    });
+    // The clock only matters to the minute for these reports.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.team, data.people, data.businesses, businessId, employeeId, range.from, range.to, today, Math.floor(nowMs / 60_000)]);
 
   if (data.error) return <ErrorState onRetry={data.retry} />;
   if (data.loading || !a) {
@@ -105,6 +164,20 @@ function AnalyticsBody({ range, businessId }: { range: { from: string; to: strin
         </div>
         <Skeleton className="h-72 rounded-card" />
         <Skeleton className="h-72 rounded-card" />
+      </div>
+    );
+  }
+  if (tab === "person") {
+    return employeeId ? <PerformanceReport employeeId={employeeId} fixedRange={range} /> : <EmptyState icon={BarChart3} title="Choose a person" description="Pick someone in the Person filter above to see their own report: tasks finished and not, journal, attendance and time in Traxio." />;
+  }
+  if (tab !== "overview") {
+    if (!reports) return <Skeleton className="h-72 rounded-card" />;
+    return (
+      <div>
+        {tab === "tasks" ? <TasksReport reports={reports} range={range} /> : null}
+        {tab === "journals" ? <JournalsReport reports={reports} range={range} /> : null}
+        {tab === "attendance" ? <AttendanceReport reports={reports} range={range} /> : null}
+        {tab === "presence" ? <PresenceReport reports={reports} range={range} /> : null}
       </div>
     );
   }

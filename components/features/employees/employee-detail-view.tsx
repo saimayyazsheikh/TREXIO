@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
 import { EmployeeJournalTab } from "@/components/features/journal/employee-journal-tab";
+import { PerformanceReport } from "@/components/features/reports/performance-report";
 import { TaskSheet } from "@/components/features/tasks/task-sheet";
 import { TemplateSheet } from "@/components/features/tasks/template-sheet";
 import { DueChip } from "@/components/features/tasks/due-chip";
@@ -166,6 +167,7 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
             Daily routines <span className="num ml-1 text-xs opacity-70">{sortedTemplates.length}</span>
           </TabsTrigger>
           <TabsTrigger value="journal">Journal</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
         </TabsList>
 
         <TabsContent value="tasks">
@@ -343,6 +345,9 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
         </TabsContent>
         <TabsContent value="journal">
           <EmployeeJournalTab employee={person} business={business} />
+        </TabsContent>
+        <TabsContent value="performance">
+          <PerformanceReport employeeId={employeeId} />
         </TabsContent>
       </Tabs>
 

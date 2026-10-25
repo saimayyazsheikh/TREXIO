@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ListChecks, PartyPopper } from "lucide-react";
+import Link from "next/link";
+import { ChartColumn, ListChecks, PartyPopper } from "lucide-react";
 import { limit, orderBy, query, where } from "firebase/firestore";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/features/empty-state";
@@ -110,7 +112,17 @@ export function TodayView({ uid }: { uid: string }) {
 
   return (
     <>
-      <PageHeader title="Today" subtitle={`${formatPkt(now, "EEEE, d MMMM")} · tick things off as you finish them.`} />
+      <PageHeader
+        title="Today"
+        subtitle={`${formatPkt(now, "EEEE, d MMMM")} · tick things off as you finish them.`}
+        actions={
+          <Button asChild variant="secondary">
+            <Link href="/me/performance">
+              <ChartColumn aria-hidden /> My performance
+            </Link>
+          </Button>
+        }
+      />
 
       <DayNotice uid={uid} today={today} />
       {error ? (

@@ -39,7 +39,7 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
       {/* From tablet width up the pages sit in a side panel, the same as the admin's; phones keep the tab bar below. */}
       <aside
         className={cn(
-          "bg-sidebar sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-[var(--sidebar-line)] p-4 transition-[width] duration-200 md:flex",
+          "bg-sidebar sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-[var(--sidebar-line)] p-4 transition-[width] duration-200 md:flex print:!hidden",
           collapsed ? "w-[76px]" : "w-60",
         )}
       >
@@ -89,7 +89,7 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border-solid bg-surface-solid/90 px-4 backdrop-blur sm:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border-solid bg-surface-solid/90 px-4 backdrop-blur sm:px-6 print:hidden">
           <BrandLink href="/me" compact className="md:hidden" />
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <PresencePill uid={uid} name={userName} idleMin={hours.user?.idleThresholdMin ?? settings.idleMin} />
@@ -102,7 +102,7 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
           {children}
         </main>
         <HourlyPrompt uid={uid} promptMinute={settings.promptMinute} />
-        <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border-solid bg-surface-solid md:hidden">
+        <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-30 flex border-t border-border-solid bg-surface-solid md:hidden print:hidden">
           {primary.map((item) => (
             <Link
               key={item.href}

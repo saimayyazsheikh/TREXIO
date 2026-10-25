@@ -48,9 +48,31 @@ describe("shared task writer", () => {
     await expect(createOneOffTask(db, admin, make({ assigneeIds: ["off"] }))).rejects.toThrow(/turned off/);
     await expect(createOneOffTask(db, admin, make({ assigneeIds: ["admin1"] }))).rejects.toThrow(/doesn't exist/);
     await expect(createOneOffTask(db, admin, make({ assigneeIds: ["ghost"] }))).rejects.toThrow(/doesn't exist/);
-    await expect(createOneOffTask(db, admin, make({ assigneeIds: ["ali", "sara"] }))).rejects.toThrow(/same business/);
     expect(world.tasks.size).toBe(0);
     expect(world.audits).toHaveLength(0);
+  });
+
+  it("people from several businesses get one copy of the task per business, each with its own trail", async () => {
+    const { taskId, taskIds } = await createOneOffTask(db, admin, make({ assigneeIds: ["ali", "sara", "omar"] }));
+    expect(taskIds).toHaveLength(2);
+    expect(taskIds[0]).toBe(taskId);
+    const copies = taskIds.map((id) => world.tasks.get(id)!);
+    expect(copies.map((t) => [t.businessId, t.assigneeIds])).toEqual([["b1", ["ali", "omar"]], ["b2", ["sara"]]]);
+    expect(copies.every((t) => t.title === "Count stock" && t.status === "todo")).toBe(true);
+    expect(world.audits.map((a) => [a.action, a.businessId])).toEqual([["task.create", "b1"], ["task.create", "b2"]]);
+    expect(world.activities.map((a) => a.text)).toEqual(["Boss assigned “Count stock” to Ali Khan, Omar", "Boss assigned “Count stock” to Sara"]);
+  });
+
+  it("links on a multi-business task point at every copy", async () => {
+    const { taskId: base } = await createOneOffTask(db, admin, make({ assigneeIds: ["ali"] }));
+    const { taskIds } = await createOneOffTask(db, admin, make({ assigneeIds: ["ali", "sara"], relatedTaskIds: [base] }));
+    expect(world.tasks.get(base)!.relatedTaskIds).toEqual(taskIds);
+    expect(taskIds.every((id) => world.tasks.get(id)!.relatedTaskIds.includes(base))).toBe(true);
+  });
+
+  it("editing a task still keeps everyone in one business", async () => {
+    const { taskId } = await createOneOffTask(db, admin, create);
+    await expect(updateOneOffTask(db, admin, editOf(world, taskId, { assigneeIds: ["ali", "sara"] }))).rejects.toThrow(/same business/);
   });
 
   describe("changes to an existing task", () => {

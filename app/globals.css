@@ -270,6 +270,30 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A printed report is always black on white, whichever theme is on screen. */
+@media print {
+  html.dark {
+    color-scheme: light;
+    --background: #ffffff;
+    --surface-solid: #ffffff;
+    --surface-raised: #f1f5f2;
+    --border-solid: #d9e7dd;
+    --foreground: #0b2b26;
+    --muted: #4a6358;
+    --brand: #235347;
+    --brand-fg: #ffffff;
+    --brand-text: #235347;
+    --brand-soft: #daf1de;
+    --success: #17653e;
+    --warning: #84560a;
+    --danger: #b3261e;
+    --info: #1f5f86;
+  }
+  body {
+    background: #ffffff;
+  }
+}
+
 /* Cards slide up as a row appears, one after the other; an alert icon gives off a slow soft pulse. */
 @keyframes rise-in {
   from {

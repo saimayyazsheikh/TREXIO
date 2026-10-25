@@ -1,9 +1,10 @@
 import { DomainError } from "@/lib/domain/errors";
 import type { TaskStatus } from "@/lib/domain/constants";
 import { assertNoDependencyCycle, diffIds } from "@/lib/domain/dependencies";
-import { planSubtaskToggle, planTransition, type Actor, type DependencySnapshot, type TaskData, type TaskPlan } from "@/lib/domain/tasks";
-import { buildOneOffTask, planTaskUpdate, type Assignee, type ResolvedLinks, type TemplateData } from "@/lib/domain/task-builders";
-import type { CreateTaskInput, UpdateTaskInput } from "@/lib/domain/task-schemas";
+import { planComment, planMissedReason, planSubtaskToggle, planTransition, type Actor, type DependencySnapshot, type TaskData, type TaskNote, type TaskPlan } from "@/lib/domain/tasks";
+import { pktDateString } from "@/lib/time";
+import { buildOneOffTask, planDailyEdit, planTaskUpdate, type Assignee, type ResolvedLinks, type TemplateData } from "@/lib/domain/task-builders";
+import type { CreateTaskInput, UpdateDailyTodayInput, UpdateTaskInput } from "@/lib/domain/task-schemas";
 
 export const ACTIVITY_TTL_DAYS = 90;
 
@@ -176,11 +177,58 @@ export function transitionTask(db: TaskDb, actor: Actor, input: { taskId: string
   });
 }
 
+/**
+ * Ticks or unticks a step. When an assigned person ticks the LAST step, their part of the task is finished too, the same as if
+ * they had pressed the circle (so it can land in Under Review, or wait for teammates). If finishing isn't allowed yet, for
+ * example while it waits on another task, the step is still ticked and nothing else happens.
+ */
 export function toggleSubtask(db: TaskDb, actor: Actor, input: { taskId: string; subtaskId: string; done: boolean }) {
   return db.transaction(async (tx) => {
     const task = await loadTask(tx, input.taskId);
     const now = db.now();
-    commitTaskPlan(tx, actor, input.taskId, task, planSubtaskToggle(task, input.subtaskId, input.done, actor, now), now);
+    const toggled = planSubtaskToggle(task, input.subtaskId, input.done, actor, now);
+    const after: TaskData = { ...task, ...toggled.patch };
+
+    // Reads first (a transaction may not read after it has written).
+    let finish: { plan: TaskPlan; dependents: { id: string; task: TaskData }[]; completes: boolean } | null = null;
+    const lastStep = input.done && after.subtaskTotal > 0 && after.subtaskDone === after.subtaskTotal;
+    if (lastStep && actor.role === "employee" && (after.status === "todo" || after.status === "in_progress") && !after.completion[actor.uid]?.done) {
+      try {
+        const deps = await loadDependencySnapshots(tx, after.dependsOnIds);
+        const plan = planTransition(after, "completed", actor, { now, deps });
+        const completes = (plan.patch.status ?? after.status) === "completed";
+        const dependents = completes ? (await tx.getTasksLinkingTo(input.taskId)).filter((d) => d.task.dependsOnIds.includes(input.taskId)) : [];
+        finish = { plan, dependents, completes };
+      } catch (error) {
+        if (!(error instanceof DomainError)) throw error;
+      }
+    }
+
+    if (!finish) return commitTaskPlan(tx, actor, input.taskId, task, toggled, now);
+    // One write for the task, two lines in the trail: the tick, then the finish.
+    commitTaskPlan(tx, actor, input.taskId, task, { ...toggled, patch: { ...toggled.patch, ...finish.plan.patch } }, now);
+    const second = auditAndActivity(actor, { entityType: "task", entityId: input.taskId, businessId: task.businessId }, { ...finish.plan, audit: { ...finish.plan.audit, meta: { title: task.title, ...finish.plan.audit.meta } } }, now);
+    tx.addAudit(second.audit);
+    tx.addActivity(second.activity);
+    for (const d of finish.dependents) tx.updateTask(d.id, { waitingOnIds: without(d.task.waitingOnIds, input.taskId), updatedAt: now });
+  });
+}
+
+/** Adds a comment to a task (see planComment). */
+export function commentOnTask(db: TaskDb, actor: Actor, input: { taskId: string; text: string; about?: TaskNote["about"]; subtaskTitle?: string | null }) {
+  return db.transaction(async (tx) => {
+    const task = await loadTask(tx, input.taskId);
+    const now = db.now();
+    commitTaskPlan(tx, actor, input.taskId, task, planComment(task, input, actor, now, db.newId), now);
+  });
+}
+
+/** The person a missed daily routine was for says why it wasn't done. */
+export function explainMissedRoutine(db: TaskDb, actor: Actor, input: { taskId: string; reason: string }) {
+  return db.transaction(async (tx) => {
+    const task = await loadTask(tx, input.taskId);
+    const now = db.now();
+    commitTaskPlan(tx, actor, input.taskId, task, planMissedReason(task, input.reason, actor, now, pktDateString(now)), now);
   });
 }
 
@@ -255,6 +303,15 @@ export function updateOneOffTask(db: TaskDb, actor: Actor, input: UpdateTaskInpu
       edits.set(id, { ...edits.get(id), linkTitles: { ...t.linkTitles, [input.taskId]: input.title }, updatedAt: now });
     }
     for (const [id, patch] of edits) tx.updateTask(id, patch);
+  });
+}
+
+/** Edits one day's copy of a daily routine. The routine, and every other day, are left alone. */
+export function updateDailyForToday(db: TaskDb, actor: Actor, input: UpdateDailyTodayInput) {
+  return db.transaction(async (tx) => {
+    const task = await loadTask(tx, input.taskId);
+    const now = db.now();
+    commitTaskPlan(tx, actor, input.taskId, task, planDailyEdit(task, input, actor, now, db.newId), now);
   });
 }
 

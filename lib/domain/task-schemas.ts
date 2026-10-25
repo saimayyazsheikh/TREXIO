@@ -75,6 +75,17 @@ export const updateTaskSchema = z.object({
 });
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 
+/** An edit to one day's copy of a daily routine: its words, priority, time and checklist. The routine itself and the person are untouched. */
+export const updateDailyTodaySchema = z.object({
+  taskId: z.string().min(1),
+  title,
+  description,
+  priority: z.enum(PRIORITIES),
+  dueTime: hhmmOrEmpty,
+  subtasks: editedSubtasks,
+});
+export type UpdateDailyTodayInput = z.infer<typeof updateDailyTodaySchema>;
+
 export const deleteTaskSchema = z.object({ taskId: z.string().min(1) });
 
 export const transitionSchema = z.object({
@@ -82,6 +93,15 @@ export const transitionSchema = z.object({
   status: z.enum(TASK_STATUSES),
   reason: z.string().max(500).optional(),
 });
+
+export const commentSchema = z.object({
+  taskId: z.string().min(1),
+  text: z.string().trim().min(1, "Write a note first").max(500, "Keep the note under 500 characters"),
+  about: z.enum(["comment", "finish", "step"]).default("comment"),
+  subtaskTitle: z.string().trim().max(120).optional(),
+});
+
+export const missedReasonSchema = z.object({ taskId: z.string().min(1), reason: z.string().trim().min(3, "Tell us why it wasn't done (a few words is enough)").max(300, "Keep the reason under 300 characters") });
 
 export const subtaskToggleSchema = z.object({ taskId: z.string().min(1), subtaskId: z.string().min(1), done: z.boolean() });
 

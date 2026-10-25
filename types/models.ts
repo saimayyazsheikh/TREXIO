@@ -59,6 +59,11 @@ export type TaskDoc = {
   subtaskDone: number;
   createdAt: Timestamp;
   completedAt: Timestamp | null;
+  /** Comments on the task, oldest first. */
+  notes?: { id: string; by: string; byName: string; text: string; at: Timestamp; about: "comment" | "finish" | "step"; subtaskTitle: string | null }[];
+  /** Why a daily routine wasn't done, written by the person it was for. */
+  missedReason?: string | null;
+  missedReasonAt?: Timestamp | null;
 };
 
 export type TemplateDoc = {

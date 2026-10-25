@@ -12,6 +12,7 @@ import { DueChip } from "@/components/features/tasks/due-chip";
 import { NudgeDialog } from "@/components/features/tasks/nudge-dialog";
 import { TASK_STATUS_LABEL, type Role, type TaskStatus } from "@/lib/domain/constants";
 import { availableMoves } from "@/lib/domain/task-moves";
+import { isMissed } from "@/lib/domain/tasks";
 import { cn } from "@/lib/utils";
 import type { TaskDoc, WithId } from "@/types/models";
 
@@ -94,6 +95,11 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
         <DueChip task={task} status={status} now={now} today={today} />
       </div>
 
+      {isMissed({ kind: task.kind, status, dueAtMs: task.dueAt?.toMillis() ?? null, date: task.date }, now.getTime(), today) ? (
+        <p className="mt-2 line-clamp-2 rounded-lg bg-danger/12 px-2 py-1 text-xs text-danger">
+          <span className="font-semibold">Not done.</span> {task.missedReason ? task.missedReason : "No reason given yet."}
+        </p>
+      ) : null}
       {status === "blocked" && task.blockedReason ? <p className="mt-2 line-clamp-2 rounded-lg bg-status-blocked/15 px-2 py-1 text-xs text-status-blocked">Blocked: {task.blockedReason}</p> : null}
       {waiting.length > 0 ? (
         <p className="mt-2 flex items-start gap-1 text-xs text-warning">

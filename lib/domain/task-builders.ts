@@ -1,7 +1,7 @@
 import { DomainError } from "@/lib/domain/errors";
 import type { Priority } from "@/lib/domain/constants";
 import { countSubtasks, type Actor, type DependencySnapshot, type Subtask, type TaskData, type TaskPlan } from "@/lib/domain/tasks";
-import type { CreateTaskInput, UpdateTaskInput } from "@/lib/domain/task-schemas";
+import type { CreateTaskInput, UpdateDailyTodayInput, UpdateTaskInput } from "@/lib/domain/task-schemas";
 import { isoWeekdayOfDate, pktInstant } from "@/lib/time";
 
 export type TemplateData = {
@@ -117,6 +117,37 @@ export function planTaskUpdate(task: TaskData, input: UpdateTaskInput, assignees
     patch: next,
     audit: { action: "task.update", from: null, to: null, meta: { changed } },
     activityText: `${actor.name} edited “${input.title}”`,
+  };
+}
+
+/** Admin edit of ONE day's copy of a daily routine (words, priority, time, checklist). Tomorrow's copy still comes from the routine. */
+export function planDailyEdit(task: TaskData, input: UpdateDailyTodayInput, actor: Actor, now: Date, newId: () => string): TaskPlan {
+  if (actor.role !== "admin") throw new DomainError("Only the admin can edit tasks.", 403);
+  if (task.kind !== "daily") throw new DomainError("This is a one-off task. Edit it from its own form.", 409);
+  if (task.status === "completed") throw new DomainError("Reopen the task before editing it.", 409);
+
+  const existing = new Map(task.subtasks.map((s) => [s.id, s]));
+  const subtasks = input.subtasks.map((s) => {
+    const kept = s.id ? existing.get(s.id) : undefined;
+    return kept ? { ...kept, title: s.title } : freshSubtask(newId(), s.title);
+  });
+  const { total, done } = countSubtasks(subtasks);
+  const next: Partial<TaskData> = {
+    title: input.title,
+    description: input.description,
+    priority: input.priority,
+    dueAt: dueAtFor(task.date, input.dueTime),
+    subtasks,
+    subtaskTotal: total,
+    subtaskDone: done,
+    updatedAt: now,
+  };
+  const changed = (Object.keys(next) as (keyof TaskData)[]).filter((k) => k !== "updatedAt" && JSON.stringify(next[k]) !== JSON.stringify(task[k]));
+  if (changed.length === 0) throw new DomainError("Nothing changed.", 409);
+  return {
+    patch: next,
+    audit: { action: "task.update", from: null, to: null, meta: { changed, scope: "today" } },
+    activityText: `${actor.name} edited today's “${input.title}”`,
   };
 }
 

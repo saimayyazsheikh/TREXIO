@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronDown, Hand, Hourglass, Link2, Play, Repeat, Undo2, Unlock, Users } from "lucide-react";
+import { Check, ChevronDown, Hand, Hourglass, Link2, MessageSquarePlus, Play, Repeat, Undo2, Unlock, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -25,10 +25,12 @@ export type TaskCardProps = {
   onMove: (task: WithId<TaskDoc>, status: TaskStatus, opts?: { kind?: "untick" }) => void;
   onBlock: (task: WithId<TaskDoc>) => void;
   onToggleSubtask: (task: WithId<TaskDoc>, subtaskId: string, done: boolean) => void;
+  /** Opens the note box for this task. */
+  onNote?: (task: WithId<TaskDoc>) => void;
 };
 
 /** One task on the employee's Today screen: check it off, start it, tick its steps, flag a blocker. */
-export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onMove, onBlock, onToggleSubtask }: TaskCardProps) {
+export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onMove, onBlock, onToggleSubtask, onNote }: TaskCardProps) {
   const [open, setOpen] = useState(false);
   const shared = task.assigneeIds.length > 1;
   const done = status === "completed";
@@ -113,6 +115,18 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
           ) : null}
 
           {task.description ? <p className="mt-2 whitespace-pre-line text-sm text-muted">{task.description}</p> : null}
+          {(task.notes?.length ?? 0) > 0 ? (
+            <ul className="mt-2 space-y-1" aria-label="Notes">
+              {task.notes!.slice(-2).map((n) => (
+                <li key={n.id} className="border-l-2 border-border-solid pl-3 text-sm">
+                  <span className="font-medium">{n.by === viewer.uid ? "You" : n.byName}</span>
+                  {n.about === "step" && n.subtaskTitle ? <span className="text-muted"> on “{n.subtaskTitle}”</span> : null}
+                  <span className="text-muted">: </span>
+                  {n.text}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {blocked && task.blockedReason ? <p className="mt-2 rounded-control bg-status-blocked/15 px-3 py-2 text-sm text-status-blocked">Blocked: {task.blockedReason}</p> : null}
           {inReview ? <p className="mt-2 text-sm text-muted">Sent for review. Your admin will approve it or send it back.</p> : null}
 
@@ -172,6 +186,13 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
             <Tooltip label="Put it back on your list">
               <Button variant="ghost" size="sm" onClick={() => onMove(task, shared ? "in_progress" : "todo")}>
                 <Undo2 aria-hidden /> Undo
+              </Button>
+            </Tooltip>
+          ) : null}
+          {onNote ? (
+            <Tooltip label="Leave a note for your admin">
+              <Button variant="ghost" size="sm" onClick={() => onNote(task)}>
+                <MessageSquarePlus aria-hidden /> Note
               </Button>
             </Tooltip>
           ) : null}

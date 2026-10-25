@@ -27,10 +27,11 @@ import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection, orgDocument } from "@/lib/firebase/org";
 import { businessColorVar } from "@/lib/domain/business-colors";
+import { isMissed } from "@/lib/domain/tasks";
 import { compareTasks } from "@/lib/domain/task-sort";
 import { describeWorkDays } from "@/lib/domain/work-days";
 import { transitionTask } from "@/lib/tasks-client";
-import { formatPkt, pktDateString } from "@/lib/time";
+import { dateStringFromDayIndex, dayIndexFromDateString, formatPkt, pktDateString } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import type { BusinessDoc, TaskDoc, TemplateDoc, UserDoc, WithId } from "@/types/models";
 
@@ -58,7 +59,7 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
   const tasks = useCollection<TaskDoc>(tasksQ);
 
   const [taskSheet, setTaskSheet] = useState<{ open: boolean; task?: WithId<TaskDoc> }>({ open: false });
-  const [templateSheet, setTemplateSheet] = useState<{ open: boolean; template?: WithId<TemplateDoc> }>({ open: false });
+  const [templateSheet, setTemplateSheet] = useState<{ open: boolean; template?: WithId<TemplateDoc>; todayTask?: WithId<TaskDoc> }>({ open: false });
   const [deletingTask, setDeletingTask] = useState<WithId<TaskDoc> | null>(null);
   const [deletingTemplate, setDeletingTemplate] = useState<WithId<TemplateDoc> | null>(null);
   const [statusFilter, setStatusFilter] = useState<"" | "open" | "review" | "completed">("");
@@ -66,7 +67,7 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
   const business = employee.data?.businessId ? businesses.data?.find((b) => b.id === employee.data?.businessId) : undefined;
 
   const groups = useMemo(() => {
-    const visible = (tasks.data ?? []).filter((t) => (statusFilter === "open" ? t.status !== "completed" : statusFilter === "review" ? t.status === "under_review" : statusFilter === "completed" ? t.status === "completed" : true));
+    const visible = (tasks.data ?? []).filter((t) => t.kind === "oneoff").filter((t) => (statusFilter === "open" ? t.status !== "completed" : statusFilter === "review" ? t.status === "under_review" : statusFilter === "completed" ? t.status === "completed" : true));
     const byDate = new Map<string, WithId<TaskDoc>[]>();
     for (const t of visible) byDate.set(t.date, [...(byDate.get(t.date) ?? []), t]);
     return [...byDate.entries()].map(([date, list]) => ({
@@ -74,6 +75,19 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
       list: [...list].sort((a, b) => compareTasks({ ...a, dueAtMs: a.dueAt?.toMillis() ?? null }, { ...b, dueAtMs: b.dueAt?.toMillis() ?? null })),
     }));
   }, [tasks.data, statusFilter]);
+
+  // Daily routines are shown on their own tab: the routine itself, how today's copy is going, and the last week of copies.
+  const weekAgo = dateStringFromDayIndex(dayIndexFromDateString(today) - 6);
+  const oneoffCount = (tasks.data ?? []).filter((t) => t.kind === "oneoff").length;
+  const copies = useMemo(
+    () =>
+      (tasks.data ?? [])
+        .filter((t) => t.kind === "daily" && t.date >= weekAgo)
+        .sort((a, b) => b.date.localeCompare(a.date) || (a.dueAt?.toMillis() ?? Infinity) - (b.dueAt?.toMillis() ?? Infinity)),
+    [tasks.data, weekAgo],
+  );
+  const todaysCopy = (templateId: string) => copies.find((c) => c.templateId === templateId && c.date === today);
+  const copyState = (t: WithId<TaskDoc>) => (t.status === "completed" ? "done" : isMissed({ kind: t.kind, status: t.status, dueAtMs: t.dueAt?.toMillis() ?? null, date: t.date }, now.getTime(), today) ? "missed" : "open");
 
   async function run(action: () => Promise<unknown>, success: string) {
     try {
@@ -145,12 +159,17 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
 
       <Tabs defaultValue="tasks">
         <TabsList aria-label="Work">
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          <TabsTrigger value="routines">Daily routines</TabsTrigger>
+          <TabsTrigger value="tasks">
+            One-off tasks <span className="num ml-1 text-xs opacity-70">{oneoffCount}</span>
+          </TabsTrigger>
+          <TabsTrigger value="routines">
+            Daily routines <span className="num ml-1 text-xs opacity-70">{sortedTemplates.length}</span>
+          </TabsTrigger>
           <TabsTrigger value="journal">Journal</TabsTrigger>
         </TabsList>
 
         <TabsContent value="tasks">
+          <p className="mb-4 text-sm text-muted">Work you gave {person.name.split(" ")[0]} for a single day. Things that repeat every day are on the Daily routines tab.</p>
           {tasks.error ? (
             <ErrorState onRetry={tasks.retry} />
           ) : tasks.loading ? (
@@ -159,8 +178,8 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
                 <Skeleton key={i} className="h-20 rounded-card" />
               ))}
             </div>
-          ) : (tasks.data?.length ?? 0) === 0 ? (
-            <EmptyState icon={ClipboardList} title="No tasks yet" description={`Assign ${person.name.split(" ")[0]} a one-off task, or add a daily routine so their day fills itself.`} action={<Button onClick={() => setTaskSheet({ open: true })} disabled={off}><Plus aria-hidden /> Assign task</Button>} />
+          ) : oneoffCount === 0 ? (
+            <EmptyState icon={ClipboardList} title="No one-off tasks yet" description={`Assign ${person.name.split(" ")[0]} a task for a single day. For work that repeats, add a daily routine.`} action={<Button onClick={() => setTaskSheet({ open: true })} disabled={off}><Plus aria-hidden /> Assign task</Button>} />
           ) : (
             <>
               <div className="mb-4 max-w-56">
@@ -187,7 +206,6 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
                               <div className="min-w-0 flex-1 basis-56">
                                 <p className="flex items-center gap-2 font-semibold">
                                   <span className="truncate">{t.title}</span>
-                                  {t.kind === "daily" ? <Repeat className="size-3.5 shrink-0 text-muted" aria-label="Daily routine" /> : null}
                                 </p>
                                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
                                   <PriorityBadge priority={t.priority} />
@@ -214,8 +232,8 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
                                     </Tooltip>
                                   </>
                                 ) : null}
-                                <Tooltip label={t.kind === "daily" ? "Edit its daily routine instead" : "Edit task"}>
-                                  <Button variant="ghost" size="icon" aria-label={`Edit ${t.title}`} aria-disabled={t.kind === "daily"} onClick={() => (t.kind === "daily" ? toast.info("Daily tasks are edited on their routine, so tomorrow's copy changes too.") : setTaskSheet({ open: true, task: t }))}>
+                                <Tooltip label="Edit task">
+                                  <Button variant="ghost" size="icon" aria-label={`Edit ${t.title}`} onClick={() => setTaskSheet({ open: true, task: t })}>
                                     <Pencil aria-hidden />
                                   </Button>
                                 </Tooltip>
@@ -238,6 +256,7 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
         </TabsContent>
 
         <TabsContent value="routines">
+          <p className="mb-4 text-sm text-muted">Work that repeats every working day. Each day gets its own copy on {person.name.split(" ")[0]}&apos;s Today page; editing a routine changes it from today on.</p>
           {templates.error ? (
             <ErrorState onRetry={templates.retry} />
           ) : templates.loading ? (
@@ -253,6 +272,12 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
                       <p className="truncate font-semibold">{t.title}</p>
                       <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-muted">
                         <PriorityBadge priority={t.priority} />
+                        {(() => {
+                          const copy = todaysCopy(t.id);
+                          if (!copy) return null;
+                          const state = copyState(copy);
+                          return state === "done" ? <StatusBadge status="completed" /> : state === "missed" ? <span className="inline-flex h-6 items-center rounded-full bg-danger/12 px-2.5 text-xs font-semibold text-danger">Not done today</span> : <StatusBadge status={copy.status} />;
+                        })()}
                         <span>{describeWorkDays(t.activeDays)}</span>
                         {t.dueTime ? <span className="num">· due {t.dueTime}</span> : null}
                         {t.subtasks.length > 0 ? <span className="num">· {t.subtasks.length} steps</span> : null}
@@ -276,7 +301,7 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
                         </Button>
                       </Tooltip>
                       <Tooltip label="Edit routine">
-                        <Button variant="ghost" size="icon" aria-label={`Edit ${t.title}`} onClick={() => setTemplateSheet({ open: true, template: t })}>
+                        <Button variant="ghost" size="icon" aria-label={`Edit ${t.title}`} onClick={() => setTemplateSheet({ open: true, template: t, todayTask: todaysCopy(t.id) })}>
                           <Pencil aria-hidden />
                         </Button>
                       </Tooltip>
@@ -291,6 +316,30 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
               ))}
             </ul>
           )}
+
+          {copies.length > 0 ? (
+            <section aria-labelledby="recent-copies" className="mt-8">
+              <h2 id="recent-copies" className="mb-1 font-display text-base font-semibold">
+                Last 7 days
+              </h2>
+              <p className="mb-3 text-sm text-muted">How each day&apos;s copy of a routine went, newest first.</p>
+              <GlassCard className="overflow-hidden">
+                <ul className="divide-y divide-border-solid">
+                  {copies.map((c) => {
+                    const state = copyState(c);
+                    return (
+                      <li key={c.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
+                        <span className="num w-28 shrink-0 text-sm text-muted">{dayLabel(c.date, today)}</span>
+                        <span className="min-w-0 flex-1 basis-40 truncate text-sm font-medium">{c.title}</span>
+                        {state === "done" ? <StatusBadge status="completed" /> : state === "missed" ? <span className="inline-flex h-6 items-center rounded-full bg-danger/12 px-2.5 text-xs font-semibold text-danger">Not done</span> : <StatusBadge status={c.status} />}
+                        {state === "missed" ? <span className="w-full text-sm text-muted sm:w-auto sm:max-w-xs sm:truncate">{c.missedReason ? `Reason: ${c.missedReason}` : "No reason given yet"}</span> : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </GlassCard>
+            </section>
+          ) : null}
         </TabsContent>
         <TabsContent value="journal">
           <EmployeeJournalTab employee={person} business={business} />
@@ -305,7 +354,7 @@ export function EmployeeDetailView({ employeeId }: { employeeId: string }) {
         businesses={businesses.data ?? []}
         defaultAssigneeId={employeeId}
       />
-      <TemplateSheet open={templateSheet.open} onOpenChange={(o) => setTemplateSheet((s) => ({ ...s, open: o }))} employee={{ id: employeeId, name: person.name }} template={templateSheet.template} />
+      <TemplateSheet open={templateSheet.open} onOpenChange={(o) => setTemplateSheet((s) => ({ ...s, open: o }))} employee={{ id: employeeId, name: person.name }} template={templateSheet.template} todayTask={templateSheet.todayTask} />
       <ConfirmDialog
         open={!!deletingTask}
         onOpenChange={(o) => !o && setDeletingTask(null)}

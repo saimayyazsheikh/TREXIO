@@ -25,6 +25,11 @@ export function taskFromFirestore(raw: Record<string, unknown>): TaskData {
     subtasks: ((raw.subtasks ?? []) as (Record<string, unknown> & { id: string; title: string; done: boolean; doneBy: string | null })[]).map((s) => ({
       id: s.id, title: s.title, done: s.done, doneBy: s.doneBy ?? null, doneAt: toDate(s.doneAt),
     })),
+    notes: ((raw.notes ?? []) as (Record<string, unknown> & { id: string; by: string; byName: string; text: string; about: "comment" | "finish" | "step"; subtaskTitle?: string | null })[]).map((n) => ({
+      id: n.id, by: n.by, byName: n.byName, text: n.text, about: n.about, subtaskTitle: n.subtaskTitle ?? null, at: required(n.at),
+    })),
+    missedReason: (raw.missedReason as string | null | undefined) ?? null,
+    missedReasonAt: toDate(raw.missedReasonAt),
     escalation: {
       l1At: toDate((raw.escalation as Record<string, unknown> | undefined)?.l1At),
       l2At: toDate((raw.escalation as Record<string, unknown> | undefined)?.l2At),

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { createOneOffTask, deleteTask, toggleSubtask, transitionTask, updateOneOffTask, type TaskDb } from "@/lib/server/task-store";
+import { commentOnTask, createOneOffTask, deleteTask, explainMissedRoutine, toggleSubtask, transitionTask, updateDailyForToday, updateOneOffTask, type TaskDb } from "@/lib/server/task-store";
 import { makeDb, newWorld, type World } from "@/lib/server/test-support/memory-task-db";
-import { createTaskSchema, updateTaskSchema } from "@/lib/domain/task-schemas";
+import { createTaskSchema, updateDailyTodaySchema, updateTaskSchema } from "@/lib/domain/task-schemas";
 import type { Actor, TaskData } from "@/lib/domain/tasks";
 
 const now = new Date("2026-10-21T06:00:00Z");
@@ -78,12 +78,53 @@ describe("shared task writer", () => {
       expect(world.activities).toHaveLength(0);
     });
 
-    it("the sub-task gate holds end to end: tick the item, then complete", async () => {
+    it("ticking the last step finishes the task, with one line for the tick and one for the finish", async () => {
       const subId = world.tasks.get(taskId)!.subtasks[0].id;
       await toggleSubtask(db, ali, { taskId, subtaskId: subId, done: true });
-      await transitionTask(db, ali, { taskId, status: "completed" });
-      expect(world.tasks.get(taskId)).toMatchObject({ status: "completed", subtaskDone: 1 });
+      expect(world.tasks.get(taskId)).toMatchObject({ status: "completed", subtaskDone: 1, completion: { ali: { done: true } } });
       expect(world.audits.map((a) => a.action)).toEqual(["task.subtask", "task.status"]);
+      expect(world.audits[0].meta).toMatchObject({ title: "Count stock", subtaskTitle: "Shelf A" });
+      expect(world.audits[1]).toMatchObject({ from: "todo", to: "completed", actorId: "ali" });
+    });
+
+    it("an earlier step, or unticking, does not finish anything", async () => {
+      ({ taskId } = await createOneOffTask(db, admin, make({ subtasks: ["One", "Two"] })));
+      const [one, two] = world.tasks.get(taskId)!.subtasks.map((s) => s.id);
+      await toggleSubtask(db, ali, { taskId, subtaskId: one, done: true });
+      expect(world.tasks.get(taskId)?.status).toBe("todo");
+      await toggleSubtask(db, ali, { taskId, subtaskId: two, done: true });
+      expect(world.tasks.get(taskId)?.status).toBe("completed");
+    });
+
+    it("the last step on a task that needs review sends it for review, and the admin ticking never finishes it", async () => {
+      const { taskId: reviewed } = await createOneOffTask(db, admin, make({ requiresReview: true }));
+      await toggleSubtask(db, ali, { taskId: reviewed, subtaskId: world.tasks.get(reviewed)!.subtasks[0].id, done: true });
+      expect(world.tasks.get(reviewed)?.status).toBe("under_review");
+      const { taskId: byAdmin } = await createOneOffTask(db, admin, make());
+      await toggleSubtask(db, admin, { taskId: byAdmin, subtaskId: world.tasks.get(byAdmin)!.subtasks[0].id, done: true });
+      expect(world.tasks.get(byAdmin)?.status).toBe("todo");
+    });
+
+    it("with teammates still to finish, the last step finishes only your own part", async () => {
+      const { taskId: shared } = await createOneOffTask(db, admin, make({ assigneeIds: ["ali", "omar"] }));
+      await toggleSubtask(db, ali, { taskId: shared, subtaskId: world.tasks.get(shared)!.subtasks[0].id, done: true });
+      expect(world.tasks.get(shared)).toMatchObject({ status: "in_progress", completion: { ali: { done: true }, omar: { done: false } } });
+    });
+
+    it("a step is still ticked when finishing is not allowed yet", async () => {
+      const { taskId: first } = await createOneOffTask(db, admin, make({ subtasks: [] }));
+      const { taskId: second } = await createOneOffTask(db, admin, make({ dependsOnIds: [first] }));
+      await toggleSubtask(db, ali, { taskId: second, subtaskId: world.tasks.get(second)!.subtasks[0].id, done: true });
+      expect(world.tasks.get(second)).toMatchObject({ status: "todo", subtaskDone: 1 });
+    });
+
+    it("comments are kept on the task and in the trail, by people on it or the admin only", async () => {
+      await commentOnTask(db, ali, { taskId, text: "  Shelf B was empty  ", about: "finish" });
+      await commentOnTask(db, admin, { taskId, text: "Thanks" });
+      expect(world.tasks.get(taskId)?.notes?.map((n) => [n.byName, n.text, n.about])).toEqual([["Ali", "Shelf B was empty", "finish"], ["Boss", "Thanks", "comment"]]);
+      expect(world.audits.map((a) => a.action)).toEqual(["task.comment", "task.comment"]);
+      await expect(commentOnTask(db, sara, { taskId, text: "hi" })).rejects.toMatchObject({ status: 403 });
+      await expect(commentOnTask(db, ali, { taskId, text: "   " })).rejects.toThrow(/Write a note/);
     });
 
     it("blocking records who and why, and unblocking is logged with the previous reason", async () => {
@@ -216,3 +257,65 @@ describe("shared task writer", () => {
     });
   });
 });
+
+describe("saying why a daily routine was not done", () => {
+  it("is for the person it was for, only once the routine is missed", async () => {
+    const world = newWorld();
+    const late = new Date("2026-10-21T14:00:00Z"); // 19:00 in Pakistan, after a 17:00 deadline
+    const db = makeDb(world, late);
+    const id = "r1";
+    world.tasks.set(id, { ...(await seedDaily(db, world)), } as TaskData);
+    await expect(explainMissedRoutine(db, admin, { taskId: id, reason: "no stock" })).rejects.toMatchObject({ status: 403 });
+    await expect(explainMissedRoutine(db, sara, { taskId: id, reason: "no stock" })).rejects.toMatchObject({ status: 403 });
+    await expect(explainMissedRoutine(db, ali, { taskId: id, reason: "no" })).rejects.toThrow(/few words/);
+    await explainMissedRoutine(db, ali, { taskId: id, reason: " Supplier never came " });
+    expect(world.tasks.get(id)).toMatchObject({ missedReason: "Supplier never came" });
+    expect(world.audits.at(-1)).toMatchObject({ action: "task.missed", meta: { title: "Open shop", reason: "Supplier never came" } });
+  });
+
+  it("is refused while the routine still has time, or once it is done", async () => {
+    const world = newWorld();
+    const early = makeDb(world, new Date("2026-10-21T06:00:00Z"));
+    const id = "r1";
+    world.tasks.set(id, await seedDaily(early, world));
+    await expect(explainMissedRoutine(early, ali, { taskId: id, reason: "no stock" })).rejects.toThrow(/isn.t marked as not done/);
+    world.tasks.set(id, { ...world.tasks.get(id)!, status: "completed" });
+    await expect(explainMissedRoutine(makeDb(world, new Date("2026-10-21T14:00:00Z")), ali, { taskId: id, reason: "no stock" })).rejects.toThrow(/isn.t marked as not done/);
+  });
+});
+
+describe("editing one day's copy of a daily routine", () => {
+  const edit = (taskId: string, over: Record<string, unknown> = {}) =>
+    updateDailyTodaySchema.parse({ taskId, title: "Open shop", description: "", priority: "high", dueTime: "17:00", subtasks: [], ...over });
+
+  it("lets the admin change the time and priority, and records what changed", async () => {
+    const world = newWorld();
+    const db = makeDb(world, new Date("2026-10-21T06:00:00Z"));
+    world.tasks.set("r1", await seedDaily(db, world));
+    await updateDailyForToday(db, admin, edit("r1", { dueTime: "18:30", priority: "low" }));
+    expect(world.tasks.get("r1")).toMatchObject({ priority: "low", kind: "daily", templateId: "t1" });
+    expect(world.tasks.get("r1")!.dueAt!.toISOString()).toBe("2026-10-21T13:30:00.000Z");
+    expect(world.audits.at(-1)).toMatchObject({ action: "task.update", meta: { title: "Open shop", scope: "today" } });
+    expect(world.audits.at(-1)!.meta.changed).toEqual(["priority", "dueAt"]);
+  });
+
+  it("refuses non-admins, unchanged saves, one-off tasks and finished copies", async () => {
+    const world = newWorld();
+    const db = makeDb(world, new Date("2026-10-21T06:00:00Z"));
+    world.tasks.set("r1", await seedDaily(db, world));
+    await expect(updateDailyForToday(db, ali, edit("r1", { title: "Hacked" }))).rejects.toMatchObject({ status: 403 });
+    await expect(updateDailyForToday(db, admin, edit("r1"))).rejects.toThrow(/Nothing changed/);
+    const { taskId } = await createOneOffTask(db, admin, create);
+    await expect(updateDailyForToday(db, admin, edit(taskId, { title: "Changed" }))).rejects.toThrow(/one-off/);
+    world.tasks.set("r1", { ...world.tasks.get("r1")!, status: "completed" });
+    await expect(updateDailyForToday(db, admin, edit("r1", { title: "Changed" }))).rejects.toThrow(/Reopen/);
+  });
+});
+
+async function seedDaily(db: TaskDb, world: World): Promise<TaskData> {
+  const { taskId } = await createOneOffTask(db, admin, createTaskSchema.parse({ ...base, title: "Open shop", subtasks: [], dueTime: "17:00", date: "2026-10-21" }));
+  const task = world.tasks.get(taskId)!;
+  world.tasks.delete(taskId);
+  world.audits.length = 0;
+  return { ...task, kind: "daily", templateId: "t1" };
+}

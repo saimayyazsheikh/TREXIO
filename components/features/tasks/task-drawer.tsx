@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Hand, Link2, MessageCircleMore, Pencil, Repeat } from "lucide-react";
+import { Check, Hand, Link2, MessageCircleMore, MessageSquarePlus, Pencil, Repeat } from "lucide-react";
 import { limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,6 +9,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tooltip } from "@/components/ui/tooltip";
 import { BusinessChip, PriorityBadge, StatusBadge, pill } from "@/components/features/badges";
 import { DueChip } from "@/components/features/tasks/due-chip";
+import { NoteDialog, type NoteTarget } from "@/components/features/tasks/note-dialog";
 import { NudgeDialog } from "@/components/features/tasks/nudge-dialog";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
@@ -16,6 +17,7 @@ import { orgCollection } from "@/lib/firebase/org";
 import { describeAudit } from "@/lib/domain/audit-text";
 import { TASK_STATUS_LABEL, type Role, type TaskStatus } from "@/lib/domain/constants";
 import { availableMoves } from "@/lib/domain/task-moves";
+import { isMissed } from "@/lib/domain/tasks";
 import { formatPkt } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import type { BusinessDoc, TaskDoc, WithId } from "@/types/models";
@@ -79,6 +81,7 @@ export function TaskDrawer({
   /** Admin only. */
   onEdit?: (task: WithId<TaskDoc>) => void;
 }) {
+  const [noting, setNoting] = useState<NoteTarget | null>(null);
   const moves = task ? availableMoves({ ...task, status }, viewer) : [];
   const locked = status === "completed" || status === "under_review";
   const waiting = task?.waitingOnIds ?? [];
@@ -92,9 +95,9 @@ export function TaskDrawer({
           description={task.kind === "daily" ? "Daily routine task" : "One-off task"}
           footer={
             <>
-              {viewer.role === "admin" && onEdit && task.kind === "oneoff" ? (
+              {viewer.role === "admin" && onEdit ? (
                 <Button variant="secondary" onClick={() => onEdit(task)}>
-                  <Pencil aria-hidden /> Edit task
+                  <Pencil aria-hidden /> {task.kind === "daily" ? "Edit routine" : "Edit task"}
                 </Button>
               ) : null}
               <Button variant="ghost" onClick={onClose}>
@@ -118,6 +121,11 @@ export function TaskDrawer({
 
             {status === "blocked" && task.blockedReason ? <p className="rounded-control bg-status-blocked/15 px-3 py-2 text-sm text-status-blocked">Blocked: {task.blockedReason}</p> : null}
             {status === "under_review" ? <p className="rounded-control bg-status-review/15 px-3 py-2 text-sm text-status-review">Finished and waiting for review.</p> : null}
+            {isMissed({ kind: task.kind, status, dueAtMs: task.dueAt?.toMillis() ?? null, date: task.date }, now.getTime(), today) ? (
+              <p className="rounded-control bg-danger/12 px-3 py-2 text-sm text-danger">
+                <span className="font-semibold">Not done.</span> {task.missedReason ? <>Reason: {task.missedReason}</> : "No reason given yet."}
+              </p>
+            ) : null}
 
             <Section title="Move it">
               <div className="flex flex-wrap gap-2">
@@ -225,6 +233,29 @@ export function TaskDrawer({
             ) : null}
 
 
+            <Section title={`Comments${task.notes?.length ? ` (${task.notes.length})` : ""}`}>
+              {task.notes?.length ? (
+                <ul className="space-y-3">
+                  {task.notes.map((n) => (
+                    <li key={n.id} className="text-sm">
+                      <p className="flex flex-wrap items-baseline gap-x-2">
+                        <span className="font-semibold">{n.by === viewer.uid ? "You" : n.byName}</span>
+                        <span className="num text-xs text-muted">{formatPkt(n.at.toDate(), "d MMM, h:mm a")}</span>
+                        {n.about === "finish" ? <span className={cn(pill, "h-5 bg-success/12 text-[11px] text-success")}>When finishing</span> : null}
+                        {n.about === "step" && n.subtaskTitle ? <span className={cn(pill, "h-5 bg-surface-raised text-[11px] text-muted")}>Step: {n.subtaskTitle}</span> : null}
+                      </p>
+                      <p className="mt-0.5 whitespace-pre-line">{n.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted">No comments yet.</p>
+              )}
+              <Button variant="secondary" size="sm" className="mt-3" onClick={() => setNoting({ task, about: "comment" })}>
+                <MessageSquarePlus aria-hidden /> Add a comment
+              </Button>
+            </Section>
+
             {viewer.role === "admin" ? (
               <Section title="History">
                 <Timeline taskId={task.id} />
@@ -233,6 +264,7 @@ export function TaskDrawer({
           </div>
         </SheetContent>
       ) : null}
+      <NoteDialog target={noting} onClose={() => setNoting(null)} />
       {task && viewer.role === "admin" ? <NudgeDialog task={task} open={nudgeUid !== null} onOpenChange={(o) => !o && setNudgeUid(null)} defaultUid={nudgeUid ?? undefined} /> : null}
     </Sheet>
   );

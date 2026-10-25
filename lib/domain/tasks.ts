@@ -4,6 +4,9 @@ import { TASK_STATUS_LABEL } from "@/lib/domain/constants";
 
 export type Subtask = { id: string; title: string; done: boolean; doneAt: Date | null; doneBy: string | null };
 
+/** A comment on a task: free-standing, or left when finishing the task or ticking one of its steps. */
+export type TaskNote = { id: string; by: string; byName: string; text: string; at: Date; about: "comment" | "finish" | "step"; subtaskTitle: string | null };
+
 /** A task as stored in Firestore (server view, plain `Date`s). */
 export type TaskData = {
   kind: "daily" | "oneoff";
@@ -42,6 +45,11 @@ export type TaskData = {
   updatedAt: Date;
   completedAt: Date | null;
   escalation: { l1At: Date | null; l2At: Date | null };
+  /** Comments from the people on the task and the admin, oldest first. */
+  notes?: TaskNote[];
+  /** Why a daily routine wasn't done, written by the person it was for. */
+  missedReason?: string | null;
+  missedReasonAt?: Date | null;
 };
 
 export type Actor = { uid: string; name: string; role: Role };
@@ -249,4 +257,56 @@ export function dueState(task: Pick<TaskData, "status" | "dueAt" | "date">, now:
     return ms <= 2 * 60 * 60 * 1000 ? "soon" : "later";
   }
   return task.date < todayPkt ? "overdue" : "none";
+}
+
+export const MAX_NOTE = 500;
+export const MAX_NOTES = 60;
+export const MAX_MISSED_REASON = 300;
+
+/**
+ * A daily routine counts as "not done" once its time has passed without it being finished or blocked.
+ * With no time set, it counts once its day is over.
+ */
+export function isMissed(task: { kind: "daily" | "oneoff"; status: TaskStatus; dueAtMs: number | null; date: string }, nowMs: number, todayPkt: string): boolean {
+  if (task.kind !== "daily") return false;
+  if (task.status !== "todo" && task.status !== "in_progress") return false;
+  return task.dueAtMs !== null ? task.dueAtMs < nowMs : task.date < todayPkt;
+}
+
+/** Adds a comment. The person it was for, or the admin, may comment at any time, even after the task is finished. */
+export function planComment(
+  task: TaskData,
+  input: { text: string; about?: TaskNote["about"]; subtaskTitle?: string | null },
+  actor: Actor,
+  now: Date,
+  newId: () => string,
+): TaskPlan {
+  assertCanAct(task, actor);
+  const text = input.text.trim();
+  if (text.length === 0) throw new DomainError("Write a note first.", 400);
+  if (text.length > MAX_NOTE) throw new DomainError(`Keep the note under ${MAX_NOTE} characters.`, 400);
+  const note: TaskNote = { id: newId(), by: actor.uid, byName: actor.name, text, at: now, about: input.about ?? "comment", subtaskTitle: input.subtaskTitle?.trim() || null };
+  const notes = [...(task.notes ?? []), note].slice(-MAX_NOTES);
+  return {
+    patch: { notes, updatedAt: now },
+    audit: { action: "task.comment", from: null, to: null, meta: { note: text, about: note.about, ...(note.subtaskTitle ? { subtaskTitle: note.subtaskTitle } : {}) } },
+    activityText: `${actor.name} commented on “${task.title}”`,
+  };
+}
+
+/** The person a missed routine was for says why it wasn't done. The reason is kept on the task and in the audit log. */
+export function planMissedReason(task: TaskData, reasonRaw: string, actor: Actor, now: Date, todayPkt: string): TaskPlan {
+  if (actor.role === "admin") throw new DomainError("Only the person it was for can say why it wasn't done.", 403);
+  assertCanAct(task, actor);
+  if (!isMissed({ kind: task.kind, status: task.status, dueAtMs: task.dueAt?.getTime() ?? null, date: task.date }, now.getTime(), todayPkt)) {
+    throw new DomainError("This routine isn't marked as not done.", 409);
+  }
+  const reason = reasonRaw.trim();
+  if (reason.length < 3) throw new DomainError("Tell us why it wasn't done (a few words is enough).", 400);
+  if (reason.length > MAX_MISSED_REASON) throw new DomainError(`Keep the reason under ${MAX_MISSED_REASON} characters.`, 400);
+  return {
+    patch: { missedReason: reason, missedReasonAt: now, updatedAt: now },
+    audit: { action: "task.missed", from: null, to: null, meta: { reason } },
+    activityText: `${actor.name} said why “${task.title}” wasn't done`,
+  };
 }

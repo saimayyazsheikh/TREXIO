@@ -13,7 +13,8 @@ type Viewer = { uid: string; role: Role };
  * Task actions shared by Today and the boards: validated moves with optimistic status, friendly toasts, Undo.
  * `pending` holds the status a task is expected to reach; it clears when live data catches up.
  */
-export function useTaskActions(viewer: Viewer, tasks: WithId<TaskDoc>[]) {
+export function useTaskActions(viewer: Viewer, tasks: WithId<TaskDoc>[], opts: { onNote?: (task: WithId<TaskDoc>, about: "finish" | "step", subtaskTitle?: string) => void } = {}) {
+  const { onNote } = opts;
   const { uid, role } = viewer;
   const [pending, setPending] = useState<Record<string, TaskStatus>>({});
   const [savingSubtasks, setSavingSubtasks] = useState<ReadonlySet<string>>(new Set());
@@ -52,32 +53,38 @@ export function useTaskActions(viewer: Viewer, tasks: WithId<TaskDoc>[]) {
       }
 
       const shared = task.assigneeIds.length > 1;
+      // A way to leave a comment right after finishing, without getting in the way of the tick itself.
+      const note = role === "employee" && onNote ? { label: "Add a note", onClick: () => onNote(task, "finish") } : undefined;
       if (opts.kind === "untick") toast.success("Your part is back on your list.");
       else if (requested === "completed" && option.outcome === "completed") {
         toast.success(`Done: ${task.title}`, {
           action: role === "employee" ? { label: "Undo", onClick: () => void move({ ...task, status: "completed" }, shared ? "in_progress" : "todo") } : undefined,
+          cancel: note,
         });
-      } else if (requested === "completed" && option.outcome === "under_review") toast.success("Sent for review. Your admin will take a look.");
+      } else if (requested === "completed" && option.outcome === "under_review") toast.success("Sent for review. Your admin will take a look.", { action: note });
       else if (requested === "completed") {
         toast.success("You've finished your part. Waiting for the others.", {
           action: { label: "Undo", onClick: () => void move({ ...task, status: "in_progress", completion: { ...task.completion, [uid]: { done: true } } }, "in_progress", { kind: "untick" }) },
+          cancel: note,
         });
       } else if (requested === "blocked") toast.success("Marked as blocked.");
       return true;
     },
-    [uid, role, clearPending],
+    [uid, role, clearPending, onNote],
   );
 
   const tickSubtask = useCallback(async (task: WithId<TaskDoc>, subtaskId: string, done: boolean) => {
     setSavingSubtasks((s) => new Set(s).add(subtaskId));
     try {
       await toggleSubtask(task.id, subtaskId, done);
+      const step = task.subtasks.find((s) => s.id === subtaskId);
+      if (done && step && role === "employee" && onNote) toast.success(`Step done: ${step.title}`, { duration: 5000, action: { label: "Add a note", onClick: () => onNote(task, "step", step.title) } });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Couldn't save that step.");
     } finally {
       setSavingSubtasks((s) => new Set([...s].filter((x) => x !== subtaskId)));
     }
-  }, []);
+  }, [role, onNote]);
 
   return { displayStatus, move, tickSubtask, savingSubtasks };
 }

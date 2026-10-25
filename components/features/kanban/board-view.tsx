@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Columns3, ListPlus, Search, SearchX } from "lucide-react";
-import { limit, orderBy, query, where } from "firebase/firestore";
+import { getDoc, limit, orderBy, query, where } from "firebase/firestore";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -14,18 +15,20 @@ import { KanbanBoard, type BoardRow } from "@/components/features/kanban/kanban-
 import type { Person } from "@/components/features/kanban/kanban-card";
 import { BlockDialog } from "@/components/features/tasks/block-dialog";
 import { TaskDrawer } from "@/components/features/tasks/task-drawer";
+import { NoteDialog, type NoteTarget } from "@/components/features/tasks/note-dialog";
 import { TaskSheet } from "@/components/features/tasks/task-sheet";
+import { TemplateSheet } from "@/components/features/tasks/template-sheet";
 import { useCollection } from "@/hooks/use-collection";
 import { useNow } from "@/hooks/use-now";
 import { useTaskActions } from "@/hooks/use-task-actions";
 import { getFirebase } from "@/lib/firebase/client";
-import { orgCollection } from "@/lib/firebase/org";
+import { orgCollection, orgDocument } from "@/lib/firebase/org";
 import { businessColorVar } from "@/lib/domain/business-colors";
 import { DATE_PRESETS, NO_FILTERS, filterTasks, groupLanes, rangeFor, type BoardFilters, type DatePreset, type GroupBy } from "@/lib/domain/board";
 import { PRIORITIES, PRIORITY_LABEL, type Role, type TaskStatus } from "@/lib/domain/constants";
 import { availableMoves } from "@/lib/domain/task-moves";
 import { pktDateString } from "@/lib/time";
-import type { BusinessDoc, TaskDoc, UserDoc, WithId } from "@/types/models";
+import type { BusinessDoc, TaskDoc, TemplateDoc, UserDoc, WithId } from "@/types/models";
 
 /** Kanban for one viewer: the admin sees every business, an employee sees only their own tasks. */
 export function BoardView({ viewer }: { viewer: { uid: string; role: Role } }) {
@@ -70,10 +73,25 @@ export function BoardView({ viewer }: { viewer: { uid: string; role: Role } }) {
     return [...byId.values()];
   }, [inRange.data, carried.data]);
 
-  const { displayStatus, move, tickSubtask, savingSubtasks } = useTaskActions(viewer, tasks);
+  const [noting, setNoting] = useState<NoteTarget | null>(null);
+  const { displayStatus, move, tickSubtask, savingSubtasks } = useTaskActions(viewer, tasks, { onNote: (task, about, subtaskTitle) => setNoting({ task, about, subtaskTitle }) });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [blocking, setBlocking] = useState<WithId<TaskDoc> | null>(null);
   const [sheet, setSheet] = useState<{ open: boolean; task?: WithId<TaskDoc> }>({ open: false });
+  const [routine, setRoutine] = useState<{ template: WithId<TemplateDoc>; task: WithId<TaskDoc> } | null>(null);
+
+  /** One-off tasks open their own form; a daily task opens its routine, with the choice of "from today on" or "just today". */
+  async function editTask(t: WithId<TaskDoc>) {
+    setSelectedId(null);
+    if (t.kind !== "daily") return setSheet({ open: true, task: t });
+    try {
+      const snap = t.templateId ? await getDoc(orgDocument(db, "taskTemplates", t.templateId)) : null;
+      if (!snap?.exists()) return toast.error("This routine was deleted, so there is nothing left to edit.");
+      setRoutine({ template: { id: snap.id, ...(snap.data() as TemplateDoc) }, task: t });
+    } catch {
+      toast.error("Couldn't open that routine. Try again.");
+    }
+  }
 
   const businessById = useMemo(() => new Map((businesses.data ?? []).map((b) => [b.id, b])), [businesses.data]);
   const people = useMemo(() => new Map<string, Person>((users.data ?? []).map((u) => [u.id, { name: u.name }])), [users.data]);
@@ -226,20 +244,23 @@ export function BoardView({ viewer }: { viewer: { uid: string; role: Role } }) {
         onMove={requestMove}
         onBlock={setBlocking}
         onToggleSubtask={tickSubtask}
-        onEdit={
-          isAdmin
-            ? (t) => {
-                setSelectedId(null);
-                setSheet({ open: true, task: t });
-              }
-            : undefined
-        }
+        onEdit={isAdmin ? (t) => void editTask(t) : undefined}
       />
       <BlockDialog
         title={blocking?.title ?? null}
         onOpenChange={(o) => !o && setBlocking(null)}
         onConfirm={(reason) => (blocking ? move({ ...blocking, status: displayStatus(blocking) }, "blocked", { reason }) : Promise.resolve(false))}
       />
+      <NoteDialog target={noting} onClose={() => setNoting(null)} />
+      {routine ? (
+        <TemplateSheet
+          open
+          onOpenChange={(o) => !o && setRoutine(null)}
+          employee={{ id: routine.template.employeeId, name: routine.task.assigneeNames[routine.template.employeeId] ?? "this person" }}
+          template={routine.template}
+          todayTask={routine.task.date === today ? routine.task : undefined}
+        />
+      ) : null}
       {isAdmin ? <TaskSheet open={sheet.open} onOpenChange={(o) => setSheet((s) => ({ ...s, open: o }))} task={sheet.task} employees={users.data ?? []} businesses={businesses.data ?? []} /> : null}
     </>
   );

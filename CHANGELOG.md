@@ -1,5 +1,14 @@
 # Changelog
 
+## Work, reminders, chat and reports
+- Employee Today: Tasks and Daily routines tabs (earliest first), a Not done box where missed routines wait for a reason, a day timeline and a 24-hour clock for routines, notes on tasks and steps, and the last step now finishes the task. Daily routines are editable from their card: this routine from today on, or just today.
+- Team page: one-off tasks and daily routines are on separate tabs, with the last 7 days of each routine.
+- Reminders: Got it, Ask (opens a linked conversation in Ask) and Completed, with each person's state shown to the admin.
+- Chat: a room for each business, with its team and the admin.
+- Assign task: pick one, several or all businesses; each gets its own copy.
+- Reports: My performance (with PDF) for each person, and Analytics with period, business and person filters and Tasks, Journals, Attendance, Presence and One person tabs, each with CSV export.
+- The audit log names the task. Tasks sort by time. The logo links home. Signed out after an hour with no activity. A chime and a flashing tab title for new notifications.
+
 ## Attendance and away status
 - Presence has a new Attendance tab: one day (present, late, absent, on leave) or a whole month with a day-by-day strip. Login is the first time someone is seen in Traxio that day and logout is the last; approved leave and the business calendar decide who was expected.
 - Approved short excuses and leave days now show on Presence as "On break" or "On leave" while they are happening, and excused time counts in the daily report's Breaks.

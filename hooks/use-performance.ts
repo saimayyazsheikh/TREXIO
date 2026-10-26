@@ -62,7 +62,7 @@ export function usePerformanceInput(employeeId: string, range: { from: string; t
         missedReason: t.missedReason ?? null,
       })),
       journals: journals.data!.map((j) => ({ date: j.date, slots: Object.fromEntries(Object.entries(j.slots ?? {}).flatMap(([k, v]) => (v ? [[k, { text: v.text, taskIds: v.taskIds }]] : []))) })),
-      presence: presence.data!.map((p) => ({ date: p.date, activeSec: p.activeSec, idleSec: p.idleSec, breakSec: p.breakSec, firstSeenMs: p.firstSeenAt.toMillis(), lastSeenMs: p.lastSeenAt.toMillis() })),
+      presence: presence.data!.map((p) => ({ date: p.date, activeSec: p.activeSec, idleSec: p.idleSec, breakSec: p.breakSec, firstSeenMs: (p.firstSeenAt ?? p.lastSeenAt)?.toMillis() ?? Date.now(), lastSeenMs: (p.lastSeenAt ?? p.firstSeenAt)?.toMillis() ?? Date.now() })),
       away: leave.data!.filter((r) => r.status === "approved" && r.toDate >= from && r.fromDate <= to),
       closed: calendar.data!.map((c) => ({ date: c.date, businessId: c.businessId })),
     };

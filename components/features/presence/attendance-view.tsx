@@ -100,7 +100,7 @@ export function AttendanceView({ people, businesses, today, nowMs }: { people: W
           nowMs,
           working: !!business && isWorkingDay(business.workDays, d) && !isClosedFor(d, business.id, entries),
           hours: business ? effectiveHours(user, business) : { start: "09:00", end: "18:00" },
-          presence: p ? { firstSeenMs: p.firstSeenAt.toMillis(), lastSeenMs: p.lastSeenAt.toMillis(), activeSec: p.activeSec, idleSec: p.idleSec, breakSec: p.breakSec } : null,
+          presence: p ? { firstSeenMs: (p.firstSeenAt ?? p.lastSeenAt)?.toMillis() ?? Date.now(), lastSeenMs: (p.lastSeenAt ?? p.firstSeenAt)?.toMillis() ?? Date.now(), activeSec: p.activeSec, idleSec: p.idleSec, breakSec: p.breakSec } : null,
           leave: mine.some((r) => r.kind === "leave" && r.fromDate <= d && d <= r.toDate),
           excuse: mine.some((r) => r.kind === "excuse" && r.fromDate === d),
           joined: user.createdAt ? pktDateString(user.createdAt.toDate()) : undefined,

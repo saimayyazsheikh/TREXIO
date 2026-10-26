@@ -37,7 +37,7 @@ export function usePresence(uid: string, name: string, idleMin: number | null): 
   const today = pktDateString();
   const openBreak: OpenBreak = useMemo(() => {
     const b = (open.data ?? []).find((x) => x.date >= today);
-    return b ? { id: b.id, type: b.type, note: b.note, startAtMs: b.startAt.toMillis() } : null;
+    return b ? { id: b.id, type: b.type, note: b.note, startAtMs: b.startAt?.toMillis() ?? Date.now() } : null;
   }, [open.data, today]);
 
   const [view, setView] = useState<MyPresence>({ state: "online", idleSinceMs: null, openBreak: null });

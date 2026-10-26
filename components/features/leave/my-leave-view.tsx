@@ -34,8 +34,8 @@ export function MyLeaveView({ uid }: { uid: string }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [cancelId, setCancelId] = useState<string | null>(null);
 
-  const sorted = useMemo(() => [...(requests.data ?? [])].sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()), [requests.data]);
-  const todaysBreaks = useMemo(() => [...(breaks.data ?? [])].sort((a, b) => a.startAt.toMillis() - b.startAt.toMillis()), [breaks.data]);
+  const sorted = useMemo(() => [...(requests.data ?? [])].sort((a, b) => (b.createdAt?.toMillis() ?? Date.now()) - (a.createdAt?.toMillis() ?? Date.now())), [requests.data]);
+  const todaysBreaks = useMemo(() => [...(breaks.data ?? [])].sort((a, b) => (a.startAt?.toMillis() ?? Date.now()) - (b.startAt?.toMillis() ?? Date.now())), [breaks.data]);
 
   async function cancel(requestId: string) {
     try {

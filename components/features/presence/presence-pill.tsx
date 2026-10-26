@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 export { goOffline };
 
-const NOTICE = "Traxio only measures activity inside this tab: mouse, keyboard, touch and scroll. Nothing else on your computer is tracked. No screenshots, no keystroke logging.";
+const NOTICE = "Traxio only learns whether your computer is in use or locked (if you allow it), or else whether this tab is being used. It never sees which apps or sites you open. No screenshots, no keystroke logging.";
 
 async function breakCall(body: Record<string, unknown>) {
   try {

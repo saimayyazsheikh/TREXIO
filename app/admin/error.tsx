@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { ErrorState } from "@/components/features/error-state";
 
-export default function AdminError({ reset }: { error: Error; reset: () => void }) {
-  return <ErrorState onRetry={reset} />;
+export default function AdminError({ error, reset }: { error: Error; reset: () => void }) {
+  useEffect(() => console.error(error), [error]);
+  return <ErrorState onRetry={reset} detail={error.message} />;
 }

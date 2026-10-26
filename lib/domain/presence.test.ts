@@ -19,6 +19,21 @@ describe("computeState", () => {
   });
 });
 
+describe("computeState: where Traxio is while someone works", () => {
+  const base = { onBreak: false, lastActivityMs: 0, nowMs: 60 * MIN, idleMin: 5 };
+  it("counts a tab in the background as active", () => {
+    expect(computeState({ ...base, tabVisible: false })).toBe("online");
+    expect(computeState({ ...base, tabVisible: true })).toBe("idle");
+  });
+  it("follows the whole computer when idle detection is allowed, whatever the tab is doing", () => {
+    expect(computeState({ ...base, tabVisible: true, system: { idle: false } })).toBe("online");
+    expect(computeState({ ...base, tabVisible: false, system: { idle: true } })).toBe("idle");
+  });
+  it("lets a break win over everything", () => {
+    expect(computeState({ ...base, onBreak: true, tabVisible: false, system: { idle: false } })).toBe("break");
+  });
+});
+
 describe("accrue", () => {
   const zero = { activeSec: 0, idleSec: 0, breakSec: 0 };
   it("puts seconds in the matching bucket, and break time is never idle time", () => {

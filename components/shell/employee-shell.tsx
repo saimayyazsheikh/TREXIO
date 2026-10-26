@@ -13,6 +13,7 @@ import { HourlyPrompt } from "@/components/features/journal/hourly-prompt";
 import { PresencePill, goOffline } from "@/components/features/presence/presence-pill";
 import { BrandLink } from "@/components/shell/brand";
 import { IdleLogout } from "@/components/shell/idle-logout";
+import { SystemIdlePrompt } from "@/components/features/presence/system-idle-prompt";
 import { EMPLOYEE_NAV } from "@/components/shell/nav-config";
 import { NavBadge } from "@/components/shell/nav-badge";
 import { UserMenu } from "@/components/shell/user-menu";
@@ -36,6 +37,7 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
   return (
     <div className="flex min-h-dvh pb-20 md:pb-0">
       <IdleLogout onBeforeSignOut={() => goOffline(uid)} />
+      <SystemIdlePrompt idleMin={hours.user?.idleThresholdMin ?? settings.idleMin} />
       {/* From tablet width up the pages sit in a side panel, the same as the admin's; phones keep the tab bar below. */}
       <aside
         className={cn(

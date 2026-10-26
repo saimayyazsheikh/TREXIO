@@ -34,7 +34,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             ))}
           </ul>
         </div>
-        <p className="relative text-xs text-sidebar-muted">Traxio only measures activity inside this app. Nothing else on your computer is tracked.</p>
+        <p className="relative text-xs text-sidebar-muted">Traxio only learns whether your computer is in use, never which apps or sites you open.</p>
       </aside>
 
       <section className="flex items-center justify-center px-4 py-10 sm:px-8">
@@ -51,7 +51,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <LoginForm />
           </div>
           <p className="mt-8 text-xs text-muted lg:hidden">
-            Traxio only measures activity inside this app: your tasks, journal entries and breaks. Nothing else on your computer is tracked.
+            Traxio only learns whether your computer is in use, never which apps or sites you open.
           </p>
         </div>
       </section>

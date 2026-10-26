@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { getFirebase } from "@/lib/firebase/client";
@@ -26,6 +26,9 @@ const read = () => {
  */
 export function IdleLogout({ onBeforeSignOut }: { onBeforeSignOut?: () => Promise<void> }) {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  // Kept in a ref so a new function on every render doesn't restart the idle clock.
+  const before = useRef(onBeforeSignOut);
+  before.current = onBeforeSignOut;
 
   useEffect(() => {
     let last = Date.now();
@@ -50,7 +53,7 @@ export function IdleLogout({ onBeforeSignOut }: { onBeforeSignOut?: () => Promis
       if (leaving) return;
       leaving = true;
       try {
-        await onBeforeSignOut?.();
+        await before.current?.();
         await fetch("/api/auth/session", { method: "DELETE" });
         await signOut(getFirebase().auth);
       } finally {
@@ -67,7 +70,7 @@ export function IdleLogout({ onBeforeSignOut }: { onBeforeSignOut?: () => Promis
       clearInterval(timer);
       EVENTS.forEach((e) => window.removeEventListener(e, touch));
     };
-  }, [onBeforeSignOut]);
+  }, []);
 
   if (secondsLeft === null) return null;
   return (

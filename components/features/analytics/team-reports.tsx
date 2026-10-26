@@ -258,7 +258,7 @@ export function PresenceReport({ reports, range }: Props) {
   return (
     <Frame
       title="Presence"
-      hint="Hours inside Traxio over the period. Only activity inside the app is measured."
+      hint="Active, idle and break hours over the period. Only whether the computer is in use is measured, never what is on screen."
       disabled={reports.length === 0}
       onExport={() =>
         download(

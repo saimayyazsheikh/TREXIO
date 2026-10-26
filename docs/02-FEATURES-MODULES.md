@@ -77,7 +77,7 @@ Legend: A = admin, E = employee. Dependencies show which modules must exist firs
 - Heartbeat while Traxio tab open (Realtime DB presence + `onDisconnect`). Idle = no mouse/keyboard/touch/scroll for N minutes (default 5, configurable).
 - Employee can start a **break** (Namaz, Lunch, Other + optional note); timer runs; end break button. While on break, idle time is not counted as idle.
 - Admin: live status chips (Online / Idle 12m / On break – Namaz / Offline) per employee; per-day totals: active, idle, break; daily idle report.
-- UI states clearly that tracking covers activity inside Traxio only.
+- UI states clearly that tracking only tells whether the computer is in use (browser idle detection, with permission; otherwise activity inside Traxio), never which apps or sites are open.
 
 ## M15 Leave, Excuses & Holiday Calendar
 - E requests leave / short excuse (type, date range or time range, reason, attachment). A approves/rejects with note; status visible to E.

@@ -8,10 +8,13 @@ export function ErrorState({
   title = "Something went wrong",
   description = "We couldn't load this. Check your connection and try again.",
   onRetry,
+  detail,
 }: {
   title?: string;
   description?: string;
   onRetry?: () => void;
+  /** The technical message, shown folded away so a problem can be reported exactly. */
+  detail?: string;
 }) {
   return (
     <GlassCard role="alert" className="flex flex-col items-center px-6 py-12 text-center">
@@ -20,6 +23,12 @@ export function ErrorState({
       </span>
       <h2 className="font-display text-lg font-semibold">{title}</h2>
       <p className="mt-1 max-w-md text-sm text-muted">{description}</p>
+      {detail ? (
+        <details className="mt-3 max-w-md text-xs text-muted">
+          <summary className="cursor-pointer">Details</summary>
+          <p className="mt-1 break-words">{detail}</p>
+        </details>
+      ) : null}
       {onRetry ? (
         <Button className="mt-5" variant="secondary" onClick={onRetry}>
           Try again

@@ -7,6 +7,7 @@ import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection, orgDocument, orgRtdbRef } from "@/lib/firebase/org";
 import { DEFAULT_IDLE_MIN, accrue, computeState, type BreakType, type Totals } from "@/lib/domain/presence";
+import { getSystemIdle, initSystemIdle, subscribeSystemIdle } from "@/lib/client/system-idle";
 import { pktDateString } from "@/lib/time";
 
 const TICK_MS = 10_000;
@@ -24,8 +25,9 @@ export async function goOffline(uid: string) {
 }
 
 /**
- * Tracks activity INSIDE this Traxio tab only (mouse, keyboard, touch, scroll). It publishes your live status for the
- * admin, adds up active / idle / break seconds, and saves them once a minute. Nothing outside the tab is observed.
+ * Publishes your live status for the admin, adds up active / idle / break seconds, and saves them once a minute.
+ * Where the browser allows it, "idle" means the whole computer is unused or locked; otherwise it means Traxio is in front and
+ * nothing in it has moved. Which apps or sites are open is never seen.
  */
 export function usePresence(uid: string, name: string, idleMin: number | null): MyPresence {
   const { db, rtdb } = getFirebase();
@@ -98,14 +100,16 @@ export function usePresence(uid: string, name: string, idleMin: number | null): 
 
     const evaluate = () => {
       const now = Date.now();
-      const state = computeState({ onBreak: !!breakRef.current, lastActivityMs: lastActivity.current, nowMs: now, idleMin: idleMinRef.current });
+      const sys = getSystemIdle();
+      const system = sys.status === "granted" ? { idle: sys.idle } : null;
+      const state = computeState({ onBreak: !!breakRef.current, lastActivityMs: lastActivity.current, nowMs: now, idleMin: idleMinRef.current, tabVisible: document.visibilityState === "visible", system });
       if (pendingDate !== pktDateString(new Date(now))) {
         pendingDate = pktDateString(new Date(now));
         docKnown = null;
       }
       pending = accrue(pending, state, (now - lastTick) / 1000);
       lastTick = now;
-      if (state === "idle" && idleSince === null) idleSince = lastActivity.current + idleMinRef.current * 60_000;
+      if (state === "idle" && idleSince === null) idleSince = system ? now : Math.max(lastActivity.current + idleMinRef.current * 60_000, 0);
       if (state !== "idle") idleSince = null;
       setView((v) => (v.state === state && v.idleSinceMs === idleSince && v.openBreak?.id === breakRef.current?.id ? v : { state, idleSinceMs: idleSince, openBreak: breakRef.current }));
       if (connected) {
@@ -129,7 +133,13 @@ export function usePresence(uid: string, name: string, idleMin: number | null): 
     };
     const events = ["pointermove", "pointerdown", "keydown", "scroll", "wheel", "touchstart"] as const;
     events.forEach((e) => window.addEventListener(e, activity, { passive: true }));
-    const onVisibility = () => (document.visibilityState === "visible" ? activity() : void flush());
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") activity();
+      else {
+        evaluate();
+        void flush();
+      }
+    };
     document.addEventListener("visibilitychange", onVisibility);
     const onHide = () => void flush();
     window.addEventListener("pagehide", onHide);
@@ -142,10 +152,13 @@ export function usePresence(uid: string, name: string, idleMin: number | null): 
       void onDisconnect(node).set({ state: "offline", since: rtdbTimestamp(), lastBeat: rtdbTimestamp() }).then(evaluate);
     });
 
+    void initSystemIdle(idleMinRef.current * 60_000);
+    const stopSystem = subscribeSystemIdle(evaluate);
     evaluate();
     const timer = setInterval(evaluate, TICK_MS);
     return () => {
       clearInterval(timer);
+      stopSystem();
       stopConnection();
       events.forEach((e) => window.removeEventListener(e, activity));
       document.removeEventListener("visibilitychange", onVisibility);

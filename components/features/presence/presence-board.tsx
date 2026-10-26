@@ -91,7 +91,7 @@ export function PresenceBoard() {
 
   return (
     <>
-      <PageHeader title="Presence" subtitle="Who is working right now, and how each person's day was spent. Only activity inside Traxio is measured." />
+      <PageHeader title="Presence" subtitle="Who is working right now, and how each person's day was spent. Only whether the computer is in use is measured, never what is on screen." />
       <div className="mb-4 w-full sm:w-56">
         <Select aria-label="Filter by business" value={businessId} onChange={(e) => setBusinessId(e.target.value)}>
           <option value="">All businesses</option>

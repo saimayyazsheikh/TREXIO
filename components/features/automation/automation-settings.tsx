@@ -145,7 +145,7 @@ export function AutomationSettingsView() {
               <Field id="prompt-minute" label="Journal prompt at minute" required hint="At this minute of each working hour, an empty hour is asked about. 55 means 10:55, 11:55…" error={errors.promptMinute}>
                 {(aria) => <Input {...aria} inputMode="numeric" value={draft.promptMinute} onChange={(e) => set("promptMinute", e.target.value)} />}
               </Field>
-              <Field id="idle-min" label="Idle after (minutes)" required hint="No activity inside Traxio for this long shows as Idle. A person's own setting wins." error={errors.idleMin}>
+              <Field id="idle-min" label="Idle after (minutes)" required hint="No keyboard or mouse use on the computer (or in Traxio, where the browser does not allow that) for this long shows as Idle. A person's own setting wins." error={errors.idleMin}>
                 {(aria) => <Input {...aria} inputMode="numeric" value={draft.idleMin} onChange={(e) => set("idleMin", e.target.value)} />}
               </Field>
             </div>

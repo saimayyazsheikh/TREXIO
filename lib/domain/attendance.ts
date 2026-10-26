@@ -4,7 +4,7 @@ import { pktDateString, pktInstant } from "@/lib/time";
 export type DayStatus = "present" | "late" | "absent" | "leave" | "excused" | "off" | "upcoming" | "before";
 
 /** Minutes after the start of the working day that still count as on time. */
-export const LATE_GRACE_MIN = 15;
+export const LATE_GRACE_MIN = 30;
 
 /** An approved leave request or short excuse, as far as attendance cares. */
 export type AwayRequest = { kind: "leave" | "excuse"; fromDate: string; toDate: string; fromTime: string | null; toTime: string | null };

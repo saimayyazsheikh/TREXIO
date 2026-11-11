@@ -44,6 +44,7 @@ export function describeAudit(e: AuditView, opts: { named?: boolean } = {}): str
   switch (e.action) {
     case "task.create": {
       const names = Array.isArray(e.meta.assigneeNames) ? list((e.meta.assigneeNames as unknown[]).map(String)) : "";
+      if (e.meta.selfAdded) return opts.named ? `${who} added ${the} for themselves` : `${who} added the task for themselves`;
       return opts.named ? `${who} assigned ${the}${names ? ` to ${names}` : ""}` : `${who} created the task`;
     }
     case "task.update": {
@@ -52,14 +53,26 @@ export function describeAudit(e: AuditView, opts: { named?: boolean } = {}): str
     }
     case "task.status": {
       const reason = text(e.meta.reason) ? `: ${text(e.meta.reason)}` : "";
+      if (e.meta.late) return `${who} finished ${it} late${reason}${note}`;
       return `${who} moved ${it} from ${status(e.from)} to ${status(e.to)}${reason}${note}`;
     }
     case "task.complete":
+      if (e.meta.late) return `${who} finished their part${opts.named ? ` of ${it}` : ""} late${text(e.meta.reason) ? `: ${text(e.meta.reason)}` : ""}`;
       return `${who} finished their part${opts.named ? ` of ${it}` : ""} (${String(e.meta.progress ?? "")})${note}`;
     case "task.reopen":
       return `${who} took back their part${opts.named ? ` of ${it}` : ""} (${String(e.meta.progress ?? "")})`;
     case "task.subtask":
       return `${who} ${e.to === "true" ? "ticked" : "unticked"} “${text(e.meta.subtaskTitle) || text(e.meta.title) || "a step"}”${opts.named && title ? ` on ${it}` : ""} (${String(e.meta.progress ?? "")})${note}`;
+    case "task.subtasks":
+      return `${who} ${e.to === "true" ? "ticked" : "unticked"} all ${String(e.meta.count ?? "")} steps${opts.named && title ? ` on ${it}` : ""} (${String(e.meta.progress ?? "")})`;
+    case "task.mystep": {
+      const step = text(e.meta.stepTitle) ? ` “${text(e.meta.stepTitle)}”` : "";
+      const onIt = opts.named && title ? ` on ${it}` : "";
+      if (e.to === "added") return `${who} added their own step${step}${onIt}`;
+      if (e.to === "removed") return `${who} removed their own step${step}${onIt}`;
+      if (String(e.to).endsWith(" all")) return `${who} ${e.to} their own steps${onIt}`;
+      return `${who} ${e.to} their own step${step}${onIt}`;
+    }
     case "task.comment":
       return `${who} commented${opts.named ? ` on ${it}` : ""}: “${text(e.meta.note)}”`;
     case "task.missed":

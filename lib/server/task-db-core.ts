@@ -47,6 +47,7 @@ export function createTaskDb(db: OrgDb): TaskDb {
           setTemplate: (id, data) => void t.set(db.doc(`taskTemplates/${id}`), data),
           updateTemplate: (id, patch) => void t.update(db.doc(`taskTemplates/${id}`), patch),
           deleteTemplate: (id) => void t.delete(db.doc(`taskTemplates/${id}`)),
+          deleteDump: (id) => void t.delete(db.doc(`dumpTasks/${id}`)),
           addAudit: (entry) => void t.set(db.collection("auditLogs").doc(), entry),
           addActivity: (entry) => void t.set(db.collection("activity").doc(), entry),
         }),

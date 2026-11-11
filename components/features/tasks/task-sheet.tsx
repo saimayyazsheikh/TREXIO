@@ -43,6 +43,7 @@ export function TaskSheet({
   employees,
   businesses,
   defaultAssigneeId,
+  prefill,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -51,6 +52,8 @@ export function TaskSheet({
   employees: WithId<UserDoc>[];
   businesses: WithId<BusinessDoc>[];
   defaultAssigneeId?: string;
+  /** Scheduling a dump task: the form starts with its words, and the dump entry is removed when the task is created. */
+  prefill?: { dumpId: string; title: string; description: string; date: string };
 }) {
   const editing = !!task;
   const [formError, setFormError] = useState<string | null>(null);
@@ -86,11 +89,11 @@ export function TaskSheet({
             subtasks: task.subtasks.map((s) => ({ id: s.id, title: s.title })),
           }
         : {
-            title: "", description: "", priority: "medium", date: pktDateString(), dueTime: "", assigneeIds: defaultAssigneeId ? [defaultAssigneeId] : [],
+            title: prefill?.title ?? "", description: prefill?.description ?? "", priority: "medium", date: prefill?.date ?? pktDateString(), dueTime: "", assigneeIds: defaultAssigneeId ? [defaultAssigneeId] : [],
             completionMode: "all", dependsOnIds: [], relatedTaskIds: [], requiresReview: false, subtasks: [],
           },
     );
-  }, [open, task, defaultAssigneeId, reset]);
+  }, [open, task, defaultAssigneeId, prefill, reset]);
 
   async function onSubmit(values: z.output<typeof formSchema>) {
     setFormError(null);
@@ -102,9 +105,10 @@ export function TaskSheet({
     };
     try {
       const subtasks = values.subtasks.map((s) => ({ ...(s.id ? { id: s.id } : {}), title: s.title }));
+      const dumpId = prefill?.dumpId;
       if (task) await apiFetch("/api/admin/tasks", "PATCH", { ...base, taskId: task.id, subtasks });
       let copies = 1;
-      if (!task) copies = (await apiFetch<{ taskIds?: string[] }>("/api/admin/tasks", "POST", { ...base, subtasks: values.subtasks.map((s) => s.title) })).taskIds?.length ?? 1;
+      if (!task) copies = (await apiFetch<{ taskIds?: string[] }>("/api/admin/tasks", "POST", { ...base, ...(dumpId ? { dumpId } : {}), subtasks: values.subtasks.map((s) => s.title) })).taskIds?.length ?? 1;
 
       toast.success(editing ? "Task updated" : copies > 1 ? `Task assigned in ${copies} businesses` : "Task assigned");
       onOpenChange(false);
@@ -116,8 +120,8 @@ export function TaskSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        title={editing ? "Edit task" : "Assign a task"}
-        description={editing ? "Changes show up for them straight away." : "A one-off task for a single day. For repeating work, add a daily routine instead."}
+        title={editing ? "Edit task" : prefill ? "Schedule this task" : "Assign a task"}
+        description={editing ? "Changes show up for them straight away." : prefill ? "Pick the day and who it is for. It leaves your dump once it is assigned." : "A one-off task for a single day. For repeating work, add a daily routine instead."}
         footer={
           <>
             <Button variant="ghost" onClick={() => onOpenChange(false)}>

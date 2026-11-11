@@ -1,4 +1,4 @@
-import { Activity, Bell, BellRing, Building2, CalendarDays, CalendarOff, ChartColumn, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, NotebookPen, ScrollText, Sparkles, Sun, Users, type LucideIcon } from "lucide-react";
+import { Activity, Archive, Bell, BellRing, Building2, CalendarDays, CalendarOff, ChartColumn, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, NotebookPen, ScrollText, Sparkles, Sun, Users, type LucideIcon } from "lucide-react";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; hint: string; /** Shown as a tab on phones; the rest live under "More". */ primary?: boolean };
 export type NavGroup = { label: string; items: NavItem[]; /** Rendered at the bottom of the sidebar. */ pinned?: boolean };
@@ -13,6 +13,7 @@ export const ADMIN_NAV: NavGroup[] = [
     label: "Work",
     items: [
       { href: "/admin/kanban", label: "Kanban", icon: Columns3, hint: "Every task by status; drag cards to move them" },
+      { href: "/admin/dump", label: "Dump tasks", icon: Archive, hint: "Write down tasks you will give out later, then schedule them" },
       { href: "/admin/reminders", label: "Reminders", icon: Bell, hint: "Nudge the team and see who has read it" },
     ],
   },

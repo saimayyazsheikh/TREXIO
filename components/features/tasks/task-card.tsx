@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Check, ChevronDown, Hand, Hourglass, Link2, MessageSquarePlus, Play, Repeat, Undo2, Unlock, Users } from "lucide-react";
+import { Check, Hand, Hourglass, Link2, MessageSquarePlus, Pencil, Play, Repeat, Undo2, Unlock, UserRound, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PriorityBadge, StatusBadge } from "@/components/features/badges";
 import { GlassCard } from "@/components/features/glass-card";
+import { ChecklistBox } from "@/components/features/tasks/checklist-box";
 import { DueChip } from "@/components/features/tasks/due-chip";
+import { PersonalSteps } from "@/components/features/tasks/personal-steps";
 import type { Role, TaskStatus } from "@/lib/domain/constants";
 import { availableMoves } from "@/lib/domain/task-moves";
 import { cn } from "@/lib/utils";
@@ -25,13 +26,16 @@ export type TaskCardProps = {
   onMove: (task: WithId<TaskDoc>, status: TaskStatus, opts?: { kind?: "untick" }) => void;
   onBlock: (task: WithId<TaskDoc>) => void;
   onToggleSubtask: (task: WithId<TaskDoc>, subtaskId: string, done: boolean) => void;
+  /** Ticks or unticks every checklist step at once. */
+  onTickAll?: (task: WithId<TaskDoc>, done: boolean) => void;
   /** Opens the note box for this task. */
   onNote?: (task: WithId<TaskDoc>) => void;
+  /** Opens the edit form for a task the employee added for themselves. */
+  onEditOwn?: (task: WithId<TaskDoc>) => void;
 };
 
 /** One task on the employee's Today screen: check it off, start it, tick its steps, flag a blocker. */
-export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onMove, onBlock, onToggleSubtask, onNote }: TaskCardProps) {
-  const [open, setOpen] = useState(false);
+export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onMove, onBlock, onToggleSubtask, onTickAll, onNote, onEditOwn }: TaskCardProps) {
   const shared = task.assigneeIds.length > 1;
   const done = status === "completed";
   const inReview = status === "under_review";
@@ -47,8 +51,6 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
 
   const checkDisabledReason = checked ? null : inReview ? "Waiting for your admin to review" : blocked ? "Blocked: unblock it first" : (finish?.reason ?? null);
   const waiting = task.waitingOnIds.map((id) => task.linkTitles[id] ?? "another task");
-  const pct = task.subtaskTotal ? Math.round((task.subtaskDone / task.subtaskTotal) * 100) : 0;
-  const checklistId = `checklist-${task.id}`;
   const others = task.assigneeIds.filter((uid) => uid !== viewer.uid);
 
   const check = (
@@ -82,6 +84,11 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <h3 className={cn("font-semibold leading-snug", done && "line-through decoration-muted")}>{task.title}</h3>
+            {task.selfCreated ? (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-muted">
+                <UserRound className="size-3.5" aria-hidden /> {viewer.role === "employee" ? "Added by you" : "Added by them"}
+              </span>
+            ) : null}
             {task.kind === "daily" ? (
               <span className="inline-flex items-center gap-1 text-xs font-medium text-muted">
                 <Repeat className="size-3.5" aria-hidden /> Daily
@@ -132,46 +139,9 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
 
 
           {task.subtaskTotal > 0 ? (
-            <div className="mt-3 rounded-xl border border-border-solid bg-surface-raised/40">
-              <button
-                type="button"
-                aria-expanded={open}
-                aria-controls={checklistId}
-                onClick={() => setOpen((o) => !o)}
-                className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium outline-none transition-colors hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-ring/60"
-              >
-                <span className="num shrink-0">
-                  Checklist <span className="text-muted">{task.subtaskDone}/{task.subtaskTotal}</span>
-                </span>
-                <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-border-solid" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Checklist progress">
-                  <span className="block h-full rounded-full bg-brand transition-[width] duration-200" style={{ width: `${pct}%` }} />
-                </span>
-                <ChevronDown className={cn("size-4 shrink-0 text-muted transition-transform", open && "rotate-180")} aria-hidden />
-              </button>
-              {open ? (
-                <ul id={checklistId} className="divide-y divide-border-solid border-t border-border-solid">
-                  {task.subtasks.map((s) => {
-                    const locked = done || inReview;
-                    return (
-                      <li key={s.id}>
-                        <label className={cn("flex min-h-11 cursor-pointer items-start gap-3 px-3 py-2.5 transition-colors hover:bg-surface-raised", locked && "cursor-not-allowed opacity-70")}>
-                          <input
-                            type="checkbox"
-                            className="mt-px size-[18px] shrink-0 accent-[var(--brand)]"
-                            checked={s.done}
-                            disabled={locked || savingSubtasks.has(s.id)}
-                            onChange={(e) => onToggleSubtask(task, s.id, e.target.checked)}
-                          />
-                          <span className={cn("min-w-0 flex-1 text-sm leading-snug", s.done && "text-muted line-through")}>{s.title}</span>
-                        </label>
-                      </li>
-                    );
-                  })}
-                  {done ? <li className="px-3 py-2.5 text-sm text-muted">Undo the task to change its checklist.</li> : null}
-                </ul>
-              ) : null}
-            </div>
+            <ChecklistBox task={task} locked={done || inReview} savingSubtasks={savingSubtasks} onToggleSubtask={onToggleSubtask} onTickAll={onTickAll} />
           ) : null}
+          {viewer.role === "employee" && task.assigneeIds.includes(viewer.uid) ? <PersonalSteps task={task} uid={viewer.uid} locked={done || inReview} /> : null}
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-1">
@@ -186,6 +156,13 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
             <Tooltip label="Put it back on your list">
               <Button variant="ghost" size="sm" onClick={() => onMove(task, shared ? "in_progress" : "todo")}>
                 <Undo2 aria-hidden /> Undo
+              </Button>
+            </Tooltip>
+          ) : null}
+          {task.selfCreated && onEditOwn && !done ? (
+            <Tooltip label="Change or delete this task">
+              <Button variant="ghost" size="sm" onClick={() => onEditOwn(task)}>
+                <Pencil aria-hidden /> Edit
               </Button>
             </Tooltip>
           ) : null}

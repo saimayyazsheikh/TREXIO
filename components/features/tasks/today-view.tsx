@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChartColumn, ListChecks, PartyPopper } from "lucide-react";
+import { ChartColumn, ChevronDown, ListChecks, PartyPopper, Plus, TriangleAlert } from "lucide-react";
 import { limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +16,7 @@ import { BlockDialog } from "@/components/features/tasks/block-dialog";
 import { DayPlanCard } from "@/components/features/tasks/day-plan";
 import { NoteDialog, type NoteTarget } from "@/components/features/tasks/note-dialog";
 import { NotDonePanel } from "@/components/features/tasks/not-done-panel";
+import { SelfTaskSheet } from "@/components/features/tasks/self-task-sheet";
 import { TaskCard } from "@/components/features/tasks/task-card";
 import { useCollection } from "@/hooks/use-collection";
 import { useMyHours } from "@/hooks/use-my-hours";
@@ -49,6 +50,9 @@ export function TodayView({ uid }: { uid: string }) {
   const todays = useCollection<TaskDoc>(todayQ);
   const carried = useCollection<TaskDoc>(carryQ);
   const earlier = useCollection<TaskDoc>(earlierQ);
+  // Tasks you added for a later day: shown only to you, in a quiet "Coming up" list. (Same index as the carried-over query.)
+  const comingQ = useMemo(() => query(col(), where("assigneeIds", "array-contains", uid), where("kind", "==", "oneoff"), where("date", ">", today), orderBy("date", "desc"), limit(50)), [uid, today]);
+  const coming = useCollection<TaskDoc>(comingQ);
 
   // Safety net: make sure today's daily routines exist even if the nightly job hasn't run (idempotent).
   useEffect(() => {
@@ -56,15 +60,17 @@ export function TodayView({ uid }: { uid: string }) {
   }, [today]);
 
   const [noting, setNoting] = useState<NoteTarget | null>(null);
-  const all = useMemo(() => [...(todays.data ?? []), ...(carried.data ?? []), ...(earlier.data ?? [])], [todays.data, carried.data, earlier.data]);
-  const { displayStatus, move, tickSubtask, savingSubtasks } = useTaskActions({ uid, role: "employee" }, all, {
+  const all = useMemo(() => [...(todays.data ?? []), ...(carried.data ?? []), ...(earlier.data ?? []), ...(coming.data ?? [])], [todays.data, carried.data, earlier.data, coming.data]);
+  const { displayStatus, move, tickSubtask, tickAll, savingSubtasks } = useTaskActions({ uid, role: "employee" }, all, {
     onNote: (task, about, subtaskTitle) => setNoting({ task, about, subtaskTitle }),
   });
   const [blocking, setBlocking] = useState<WithId<TaskDoc> | null>(null);
   const [tab, setTab] = useState("tasks");
+  const [selfSheet, setSelfSheet] = useState<{ task: WithId<TaskDoc> | null } | null>(null);
 
   const error = todays.error ?? carried.error ?? earlier.error;
   const loading = todays.loading || carried.loading || earlier.loading;
+  const comingFailed = !!coming.error;
   const nowMs = now.getTime();
 
   const missed = (t: WithId<TaskDoc>) => isMissed({ kind: t.kind, status: displayStatus(t), dueAtMs: t.dueAt?.toMillis() ?? null, date: t.date }, nowMs, today);
@@ -73,6 +79,9 @@ export function TodayView({ uid }: { uid: string }) {
   const todayTasks = sortTasks(todays.data ?? []);
   const routines = todayTasks.filter((t) => t.kind === "daily");
   const oneoffs = todayTasks.filter((t) => t.kind === "oneoff");
+  const fromAdmin = oneoffs.filter((t) => !t.selfCreated);
+  const own = oneoffs.filter((t) => t.selfCreated);
+  const comingUp = (coming.data ?? []).filter((t) => t.selfCreated).sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
   const upcomingRoutines = routines.filter((t) => !missed(t));
   // Most recent first: what was missed today, then the days before.
   const notDone = [...routines.filter(missed), ...(earlier.data ?? []).filter((t) => t.date >= oldest && missed(t))].sort((a, b) => (b.dueAt?.toMillis() ?? 0) - (a.dueAt?.toMillis() ?? 0) || b.date.localeCompare(a.date));
@@ -101,12 +110,16 @@ export function TodayView({ uid }: { uid: string }) {
             onMove={(task, status, opts) => void move(task, status, opts)}
             onBlock={setBlocking}
             onToggleSubtask={tickSubtask}
+            onTickAll={tickAll}
             onNote={(task) => setNoting({ task, about: "comment" })}
+            onEditOwn={(task) => setSelfSheet({ task })}
           />
         </li>
       ))}
     </ul>
   );
+
+  const notDoneActions = { savingSubtasks, onToggleSubtask: tickSubtask, onTickAll: tickAll, onDone: (task: WithId<TaskDoc>, reason?: string) => move(task, "completed", { reason }) };
 
   const empty = (text: string) => <p className="rounded-card border border-dashed border-border-solid px-4 py-8 text-center text-sm text-muted">{text}</p>;
 
@@ -116,21 +129,43 @@ export function TodayView({ uid }: { uid: string }) {
         title="Today"
         subtitle={`${formatPkt(now, "EEEE, d MMMM")} · tick things off as you finish them.`}
         actions={
-          <Button asChild variant="secondary">
-            <Link href="/me/performance">
-              <ChartColumn aria-hidden /> My performance
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setSelfSheet({ task: null })}>
+              <Plus aria-hidden /> Add my own task
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/me/performance">
+                <ChartColumn aria-hidden /> My performance
+              </Link>
+            </Button>
+          </div>
         }
       />
 
       <DayNotice uid={uid} today={today} />
+      {needReason > 0 && tab !== "notdone" && !loading ? (
+        <button
+          type="button"
+          onClick={() => setTab("notdone")}
+          className="mb-4 flex w-full items-center gap-3 rounded-card border border-danger/40 bg-danger/8 px-4 py-3 text-left text-sm transition-colors hover:bg-danger/12"
+        >
+          <TriangleAlert className="size-5 shrink-0 text-danger" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">
+              {needReason} {needReason === 1 ? "routine wasn't" : "routines weren't"} done on time
+            </span>
+            <span className="block text-muted">Tell your admin why, or finish {needReason === 1 ? "it" : "them"} now.</span>
+          </span>
+          <span className="shrink-0 font-semibold text-danger">See</span>
+        </button>
+      ) : null}
       {error ? (
         <ErrorState
           onRetry={() => {
             todays.retry();
             carried.retry();
             earlier.retry();
+            coming.retry();
           }}
         />
       ) : loading ? (
@@ -156,7 +191,7 @@ export function TodayView({ uid }: { uid: string }) {
             </GlassCard>
           ) : null}
 
-          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_21rem]">
+          <div>
             <Tabs value={tab} onValueChange={setTab}>
               <TabsList>
                 <TabsTrigger value="tasks">
@@ -165,7 +200,7 @@ export function TodayView({ uid }: { uid: string }) {
                 <TabsTrigger value="routines">
                   Daily routines <span className="num ml-1 text-xs opacity-70">{openRoutines}</span>
                 </TabsTrigger>
-                <TabsTrigger value="notdone" className="lg:hidden">
+                <TabsTrigger value="notdone">
                   Not done{" "}
                   <span className={needReason > 0 ? "num ml-1 rounded-full bg-danger-solid px-1.5 text-[11px] font-bold text-white" : "num ml-1 text-xs opacity-70"}>{notDone.length}</span>
                 </TabsTrigger>
@@ -181,11 +216,47 @@ export function TodayView({ uid }: { uid: string }) {
                   </section>
                 ) : null}
                 <section aria-labelledby="oneoff-heading">
-                  <h2 id="oneoff-heading" className="mb-3 font-display text-lg font-semibold">
-                    Assigned to you
+                  <h2 id="oneoff-heading" className="font-display text-lg font-semibold">
+                    Given to you by your admin
                   </h2>
-                  {oneoffs.length > 0 ? renderList(oneoffs) : empty("No tasks for today. Check the Daily routines tab.")}
+                  <p className="mb-3 text-sm text-muted">One-off tasks for today.</p>
+                  {fromAdmin.length > 0 ? renderList(fromAdmin) : empty("Nothing from your admin for today. Check the Daily routines tab.")}
                 </section>
+                <section aria-labelledby="own-heading">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h2 id="own-heading" className="font-display text-lg font-semibold">
+                      My own tasks
+                    </h2>
+                    <Button variant="ghost" size="sm" onClick={() => setSelfSheet({ task: null })}>
+                      <Plus aria-hidden /> Add
+                    </Button>
+                  </div>
+                  <p className="mb-3 text-sm text-muted">Things you added yourself, like work your admin told you out loud.</p>
+                  {own.length > 0 ? renderList(own) : empty("Nothing added yet. Use “Add my own task” so you don't forget.")}
+                </section>
+                {comingUp.length > 0 ? (
+                  <details className="group rounded-card border border-border-solid">
+                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 font-display font-semibold">
+                      <span>Coming up ({comingUp.length})</span>
+                      <ChevronDown className="size-4 text-muted transition-transform group-open:rotate-180" aria-hidden />
+                    </summary>
+                    <div className="border-t border-border-solid p-3">
+                      <p className="mb-3 text-sm text-muted">Tasks you added for a later day. They move to your list on their day.</p>
+                      <ul className="space-y-2">
+                        {comingUp.map((t) => (
+                          <li key={t.id} className="flex items-center gap-3 rounded-control bg-surface-raised/50 px-3 py-2.5">
+                            <span className="num w-24 shrink-0 text-xs font-semibold text-muted">{formatPkt(new Date(`${t.date}T12:00:00+05:00`), "EEE d MMM")}</span>
+                            <span className="min-w-0 flex-1 text-sm font-medium">{t.title}</span>
+                            <Button variant="ghost" size="sm" onClick={() => setSelfSheet({ task: t })}>
+                              Edit
+                            </Button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </details>
+                ) : null}
+                {comingFailed ? <p className="text-sm text-muted">Couldn&apos;t load your later tasks just now.</p> : null}
               </TabsContent>
 
               <TabsContent value="routines">
@@ -198,14 +269,10 @@ export function TodayView({ uid }: { uid: string }) {
                 </section>
               </TabsContent>
 
-              <TabsContent value="notdone" className="lg:hidden">
-                <NotDonePanel items={notDone} idp="tab" />
+              <TabsContent value="notdone">
+                <NotDonePanel items={notDone} idp="tab" actions={notDoneActions} />
               </TabsContent>
             </Tabs>
-
-            <aside className="hidden lg:sticky lg:top-24 lg:block" aria-label="Not done">
-              <NotDonePanel items={notDone} idp="side" />
-            </aside>
           </div>
         </div>
       )}
@@ -216,6 +283,7 @@ export function TodayView({ uid }: { uid: string }) {
         onConfirm={(reason) => (blocking ? move(blocking, "blocked", { reason }) : Promise.resolve(false))}
       />
       <NoteDialog target={noting} onClose={() => setNoting(null)} />
+      <SelfTaskSheet open={selfSheet !== null} onOpenChange={(o) => !o && setSelfSheet(null)} task={selfSheet?.task ?? null} today={today} />
     </>
   );
 }

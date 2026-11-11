@@ -64,6 +64,20 @@ export type TaskDoc = {
   /** Why a daily routine wasn't done, written by the person it was for. */
   missedReason?: string | null;
   missedReasonAt?: Timestamp | null;
+  createdBy?: string;
+  /** Added by the employee for themselves. */
+  selfCreated?: boolean;
+  /** Each assignee's own steps on this task, keyed by user id. */
+  personalSteps?: Record<string, { id: string; title: string; done: boolean }[]>;
+};
+
+/** An admin's parked idea for later: no day or person yet. Never visible to employees. */
+export type DumpTaskDoc = {
+  title: string;
+  note: string;
+  /** PKT day (YYYY-MM-DD) the admin wants to be reminded on, or null. */
+  remindOn: string | null;
+  createdAt: Timestamp | null;
 };
 
 export type TemplateDoc = {

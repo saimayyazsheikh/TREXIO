@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Hand, Link2, MessageCircleMore, MessageSquarePlus, Pencil, Repeat } from "lucide-react";
+import { Check, Hand, Link2, MessageCircleMore, MessageSquarePlus, Pencil, Repeat, UserRound } from "lucide-react";
 import { limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,6 +17,7 @@ import { orgCollection } from "@/lib/firebase/org";
 import { describeAudit } from "@/lib/domain/audit-text";
 import { TASK_STATUS_LABEL, type Role, type TaskStatus } from "@/lib/domain/constants";
 import { availableMoves } from "@/lib/domain/task-moves";
+import { formatDuration } from "@/lib/domain/presence";
 import { isMissed } from "@/lib/domain/tasks";
 import { formatPkt } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -117,6 +118,11 @@ export function TaskDrawer({
                   <Repeat className="size-3.5" aria-hidden /> Daily
                 </span>
               ) : null}
+              {task.selfCreated ? (
+                <span className={cn(pill, "bg-surface-raised text-muted")}>
+                  <UserRound className="size-3.5" aria-hidden /> {viewer.role === "admin" ? "Added by the employee" : "Added by you"}
+                </span>
+              ) : null}
             </div>
 
             {status === "blocked" && task.blockedReason ? <p className="rounded-control bg-status-blocked/15 px-3 py-2 text-sm text-status-blocked">Blocked: {task.blockedReason}</p> : null}
@@ -124,6 +130,13 @@ export function TaskDrawer({
             {isMissed({ kind: task.kind, status, dueAtMs: task.dueAt?.toMillis() ?? null, date: task.date }, now.getTime(), today) ? (
               <p className="rounded-control bg-danger/12 px-3 py-2 text-sm text-danger">
                 <span className="font-semibold">Not done.</span> {task.missedReason ? <>Reason: {task.missedReason}</> : "No reason given yet."}
+              </p>
+            ) : null}
+
+            {task.kind === "daily" && status === "completed" && task.dueAt && task.completedAt && task.completedAt.toMillis() > task.dueAt.toMillis() ? (
+              <p className="rounded-control bg-warning/12 px-3 py-2 text-sm text-warning">
+                <span className="font-semibold">Done late</span> ({formatDuration((task.completedAt.toMillis() - task.dueAt.toMillis()) / 1000)} after its time).{" "}
+                {task.missedReason ? <>Reason: {task.missedReason}</> : null}
               </p>
             ) : null}
 
@@ -207,6 +220,33 @@ export function TaskDrawer({
                     </li>
                   ))}
                 </ul>
+              </Section>
+            ) : null}
+
+            {Object.entries(task.personalSteps ?? {}).some(([, steps]) => steps.length > 0) ? (
+              <Section title="Their own steps">
+                <ul className="space-y-3">
+                  {Object.entries(task.personalSteps ?? {})
+                    .filter(([, steps]) => steps.length > 0)
+                    .map(([uid, steps]) => (
+                      <li key={uid}>
+                        <p className="text-sm font-medium">
+                          {uid === viewer.uid ? "You" : (task.assigneeNames[uid] ?? "Teammate")} <span className="num text-muted">{steps.filter((s) => s.done).length}/{steps.length}</span>
+                        </p>
+                        <ul className="mt-1 space-y-0.5">
+                          {steps.map((s) => (
+                            <li key={s.id} className="flex items-start gap-2 text-sm">
+                              <span className={cn("mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border", s.done ? "border-transparent bg-success text-background" : "border-input")}>
+                                {s.done ? <Check className="size-3" aria-hidden /> : null}
+                              </span>
+                              <span className={cn(s.done && "text-muted line-through")}>{s.title}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    ))}
+                </ul>
+                <p className="mt-1 text-xs text-muted">Written by them for themselves. It doesn&apos;t change the checklist above.</p>
               </Section>
             ) : null}
 

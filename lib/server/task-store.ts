@@ -1,10 +1,10 @@
 import { DomainError } from "@/lib/domain/errors";
 import type { TaskStatus } from "@/lib/domain/constants";
 import { assertNoDependencyCycle, diffIds } from "@/lib/domain/dependencies";
-import { planComment, planMissedReason, planSubtaskToggle, planTransition, type Actor, type DependencySnapshot, type TaskData, type TaskNote, type TaskPlan } from "@/lib/domain/tasks";
+import { planComment, planMissedReason, planPersonalSteps, planSubtaskSetAll, planSubtaskToggle, planTransition, type PersonalStepOp, type Actor, type DependencySnapshot, type TaskData, type TaskNote, type TaskPlan } from "@/lib/domain/tasks";
 import { pktDateString } from "@/lib/time";
-import { buildOneOffTask, planDailyEdit, planTaskUpdate, type Assignee, type ResolvedLinks, type TemplateData } from "@/lib/domain/task-builders";
-import type { CreateTaskInput, UpdateDailyTodayInput, UpdateTaskInput } from "@/lib/domain/task-schemas";
+import { buildOneOffTask, buildSelfTask, planDailyEdit, planSelfUpdate, planTaskUpdate, type Assignee, type ResolvedLinks, type TemplateData } from "@/lib/domain/task-builders";
+import type { CreateSelfTaskInput, CreateTaskInput, UpdateDailyTodayInput, UpdateSelfTaskInput, UpdateTaskInput } from "@/lib/domain/task-schemas";
 
 export const ACTIVITY_TTL_DAYS = 90;
 
@@ -53,6 +53,8 @@ export type TaskTx = {
   setTemplate(id: string, data: TemplateData): void;
   updateTemplate(id: string, patch: Partial<TemplateData>): void;
   deleteTemplate(id: string): void;
+  /** A parked "dump task" the admin has just scheduled for real. */
+  deleteDump(id: string): void;
   addAudit(entry: AuditEntry): void;
   addActivity(entry: ActivityEntry): void;
 };
@@ -183,10 +185,20 @@ export function transitionTask(db: TaskDb, actor: Actor, input: { taskId: string
  * example while it waits on another task, the step is still ticked and nothing else happens.
  */
 export function toggleSubtask(db: TaskDb, actor: Actor, input: { taskId: string; subtaskId: string; done: boolean }) {
+  return changeChecklist(db, actor, input.taskId, input.done, (task, now) => planSubtaskToggle(task, input.subtaskId, input.done, actor, now));
+}
+
+/** Ticks (or unticks) every step at once. Ticking the last open step finishes the task for an employee, exactly as one tick would. */
+export function setAllSubtasks(db: TaskDb, actor: Actor, input: { taskId: string; done: boolean }) {
+  return changeChecklist(db, actor, input.taskId, input.done, (task, now) => planSubtaskSetAll(task, input.done, actor, now));
+}
+
+function changeChecklist(db: TaskDb, actor: Actor, taskId: string, done: boolean, makePlan: (task: TaskData, now: Date) => TaskPlan) {
+  const input = { taskId, done };
   return db.transaction(async (tx) => {
     const task = await loadTask(tx, input.taskId);
     const now = db.now();
-    const toggled = planSubtaskToggle(task, input.subtaskId, input.done, actor, now);
+    const toggled = makePlan(task, now);
     const after: TaskData = { ...task, ...toggled.patch };
 
     // Reads first (a transaction may not read after it has written).
@@ -214,6 +226,15 @@ export function toggleSubtask(db: TaskDb, actor: Actor, input: { taskId: string;
   });
 }
 
+/** Someone's own steps on a task they were given (see planPersonalSteps). */
+export function updatePersonalSteps(db: TaskDb, actor: Actor, input: PersonalStepOp & { taskId: string }) {
+  return db.transaction(async (tx) => {
+    const task = await loadTask(tx, input.taskId);
+    const now = db.now();
+    commitTaskPlan(tx, actor, input.taskId, task, planPersonalSteps(task, input, actor, now, db.newId), now);
+  });
+}
+
 /** Adds a comment to a task (see planComment). */
 export function commentOnTask(db: TaskDb, actor: Actor, input: { taskId: string; text: string; about?: TaskNote["about"]; subtaskTitle?: string | null }) {
   return db.transaction(async (tx) => {
@@ -236,7 +257,7 @@ export function explainMissedRoutine(db: TaskDb, actor: Actor, input: { taskId: 
  * Assigns a one-off task. People from several businesses are allowed: each business gets its own copy of the task (its own
  * colour, status and completion), shared by the people chosen from that business. Returns every task made, first one first.
  */
-export async function createOneOffTask(db: TaskDb, actor: Actor, input: CreateTaskInput): Promise<{ taskId: string; taskIds: string[] }> {
+export async function createOneOffTask(db: TaskDb, actor: Actor, input: CreateTaskInput, opts: { dumpId?: string } = {}): Promise<{ taskId: string; taskIds: string[] }> {
   if (actor.role !== "admin") throw new DomainError("Only the admin can assign tasks.", 403);
   return db.transaction(async (tx) => {
     const everyone = await loadAssignees(tx, input.assigneeIds, { anyBusiness: true });
@@ -277,7 +298,63 @@ export async function createOneOffTask(db: TaskDb, actor: Actor, input: CreateTa
         updatedAt: now,
       });
     }
+    // A task scheduled out of the dump leaves the dump in the same step, so it can never be in both places.
+    if (opts.dumpId) tx.deleteDump(opts.dumpId);
     return { taskId: made[0].taskId, taskIds: made.map((m) => m.taskId) };
+  });
+}
+
+const assertNotInThePast = (date: string, now: Date) => {
+  if (date < pktDateString(now)) throw new DomainError("Pick today or a day ahead.", 400);
+};
+
+/** An employee adds a task for themselves. The server decides who it is for and which business it belongs to. */
+export async function createSelfTask(db: TaskDb, actor: Actor, input: CreateSelfTaskInput): Promise<{ taskId: string }> {
+  if (actor.role !== "employee") throw new DomainError("Only employees add tasks for themselves.", 403);
+  return db.transaction(async (tx) => {
+    const now = db.now();
+    assertNotInThePast(input.date, now);
+    const me = (await loadAssignees(tx, [actor.uid]))[0];
+    const taskId = db.newId();
+    const data = buildSelfTask(input, me, now, db.newId);
+    const plan: TaskPlan = {
+      patch: {},
+      audit: { action: "task.create", from: null, to: "todo", meta: { title: data.title, assigneeIds: data.assigneeIds, assigneeNames: [me.name], priority: data.priority, date: data.date, selfAdded: true } },
+      activityText: `${actor.name} added “${data.title}” for themselves`,
+    };
+    const { audit, activity } = auditAndActivity(actor, { entityType: "task", entityId: taskId, businessId: data.businessId }, plan, now);
+    tx.setTask(taskId, data);
+    tx.addAudit(audit);
+    tx.addActivity(activity);
+    return { taskId };
+  });
+}
+
+/** An employee changes a task they added for themselves. */
+export function updateSelfTask(db: TaskDb, actor: Actor, input: UpdateSelfTaskInput) {
+  return db.transaction(async (tx) => {
+    const task = await loadTask(tx, input.taskId);
+    const now = db.now();
+    assertNotInThePast(input.date, now);
+    commitTaskPlan(tx, actor, input.taskId, task, planSelfUpdate(task, input, actor, now, db.newId), now);
+  });
+}
+
+/** An employee deletes a task they added for themselves. */
+export function deleteSelfTask(db: TaskDb, actor: Actor, taskId: string) {
+  return db.transaction(async (tx) => {
+    const task = await loadTask(tx, taskId);
+    if (actor.role !== "employee" || !task.selfCreated || task.createdBy !== actor.uid) throw new DomainError("You can only delete tasks you added yourself.", 403);
+    const now = db.now();
+    const plan: TaskPlan = {
+      patch: {},
+      audit: { action: "task.delete", from: task.status, to: null, meta: { title: task.title, kind: task.kind, date: task.date, selfAdded: true } },
+      activityText: `${actor.name} deleted their own task “${task.title}”`,
+    };
+    const { audit, activity } = auditAndActivity(actor, { entityType: "task", entityId: taskId, businessId: task.businessId }, plan, now);
+    tx.deleteTask(taskId);
+    tx.addAudit(audit);
+    tx.addActivity(activity);
   });
 }
 

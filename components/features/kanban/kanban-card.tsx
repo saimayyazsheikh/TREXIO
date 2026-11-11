@@ -100,6 +100,11 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
           <span className="font-semibold">Not done.</span> {task.missedReason ? task.missedReason : "No reason given yet."}
         </p>
       ) : null}
+      {task.kind === "daily" && status === "completed" && task.dueAt && task.completedAt && task.completedAt.toMillis() > task.dueAt.toMillis() ? (
+        <p className="mt-2 line-clamp-2 rounded-lg bg-warning/12 px-2 py-1 text-xs text-warning">
+          <span className="font-semibold">Done late.</span> {task.missedReason ?? ""}
+        </p>
+      ) : null}
       {status === "blocked" && task.blockedReason ? <p className="mt-2 line-clamp-2 rounded-lg bg-status-blocked/15 px-2 py-1 text-xs text-status-blocked">Blocked: {task.blockedReason}</p> : null}
       {waiting.length > 0 ? (
         <p className="mt-2 flex items-start gap-1 text-xs text-warning">

@@ -1,7 +1,7 @@
 import { DomainError } from "@/lib/domain/errors";
 import type { Priority } from "@/lib/domain/constants";
 import { countSubtasks, type Actor, type DependencySnapshot, type Subtask, type TaskData, type TaskPlan } from "@/lib/domain/tasks";
-import type { CreateTaskInput, UpdateDailyTodayInput, UpdateTaskInput } from "@/lib/domain/task-schemas";
+import type { CreateSelfTaskInput, CreateTaskInput, UpdateDailyTodayInput, UpdateSelfTaskInput, UpdateTaskInput } from "@/lib/domain/task-schemas";
 import { isoWeekdayOfDate, pktInstant } from "@/lib/time";
 
 export type TemplateData = {
@@ -74,6 +74,45 @@ export function buildOneOffTask(input: CreateTaskInput, assignees: Assignee[], a
     subtaskDone: 0,
     ...linkFields(links),
   };
+}
+
+/** A one-off task an employee adds for themselves: only theirs, no review, no links, flagged so everyone can see who added it. */
+export function buildSelfTask(input: CreateSelfTaskInput, me: Assignee, now: Date, newId: () => string): TaskData {
+  const task = buildOneOffTask(
+    { ...input, requiresReview: false, completionMode: "all", assigneeIds: [me.uid], dependsOnIds: [], relatedTaskIds: [] },
+    [me],
+    { uid: me.uid, name: me.name, role: "employee" },
+    now,
+    newId,
+  );
+  return { ...task, selfCreated: true };
+}
+
+/** An employee edits a task they added for themselves. Tasks the admin gave them are never theirs to edit. */
+export function planSelfUpdate(task: TaskData, input: UpdateSelfTaskInput, actor: Actor, now: Date, newId: () => string): TaskPlan {
+  if (actor.role !== "employee" || !task.selfCreated || task.createdBy !== actor.uid) throw new DomainError("You can only change tasks you added yourself.", 403);
+  if (task.status === "completed") throw new DomainError("Reopen the task before editing it.", 409);
+
+  const existing = new Map(task.subtasks.map((s) => [s.id, s]));
+  const subtasks = input.subtasks.map((s) => {
+    const kept = s.id ? existing.get(s.id) : undefined;
+    return kept ? { ...kept, title: s.title } : freshSubtask(newId(), s.title);
+  });
+  const { total, done } = countSubtasks(subtasks);
+  const next: Partial<TaskData> = {
+    title: input.title,
+    description: input.description,
+    priority: input.priority,
+    date: input.date,
+    dueAt: dueAtFor(input.date, input.dueTime),
+    subtasks,
+    subtaskTotal: total,
+    subtaskDone: done,
+    updatedAt: now,
+  };
+  const changed = (Object.keys(next) as (keyof TaskData)[]).filter((k) => k !== "updatedAt" && JSON.stringify(next[k]) !== JSON.stringify(task[k]));
+  if (changed.length === 0) throw new DomainError("Nothing changed.", 409);
+  return { patch: next, audit: { action: "task.update", from: null, to: null, meta: { changed, selfAdded: true } }, activityText: `${actor.name} edited their own task “${input.title}”` };
 }
 
 /** Admin edit of a one-off task. Existing checklist items and each kept assignee's progress are preserved. */

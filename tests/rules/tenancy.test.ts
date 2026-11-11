@@ -25,6 +25,7 @@ const OWNED: Record<string, Record<string, unknown>> = {
   businesses: { name: "Alpha", active: true, workDays: [1], workStart: "09:00", workEnd: "18:00" },
   tasks: { title: "Count stock", assigneeIds: ["ali"], status: "todo", date: "2026-10-21" },
   taskTemplates: { employeeId: "ali", title: "Routine" },
+  dumpTasks: { title: "Buy paint", note: "", remindOn: null, createdAt: new Date("2026-10-20T00:00:00Z") },
   auditLogs: { action: "task.create" },
   activity: { text: "Boss assigned something" },
   reminders: { toUids: ["ali"], body: "Send it", readBy: {} },

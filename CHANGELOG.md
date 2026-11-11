@@ -1,5 +1,12 @@
 # Changelog
 
+## Dump tasks, own tasks and a calmer Today
+- Admin: **Dump tasks** page for things remembered now but meant for later (optional "remind me on" day, with a count in the menu once it is due). Schedule opens the normal task form with the words filled in, and the entry leaves the dump when the task is created. Employees never see it.
+- Employee Today: Not done is now a tab for everyone (no side panel), with a banner when something needs a reason. A routine can be finished late from there with "I've done it now": a reason is required (or one already given is used), it leaves Not done, and the admin sees "Done late" with how late and why (task, board card, report, audit). Routines that already have a reason sit under "Reason given".
+- Employees can add their own tasks (today or a later day, shown under "My own tasks" and a quiet "Coming up" list), edit or delete only those, and keep **My own steps** on any task they were given. The admin can read both; neither changes the task's own checklist or whether it is finished.
+- Tick all / Untick all for a checklist: one save and one line in the trail.
+
+
 ## Work, reminders, chat and reports
 - Employee Today: Tasks and Daily routines tabs (earliest first), a Not done box where missed routines wait for a reason, a day timeline and a 24-hour clock for routines, notes on tasks and steps, and the last step now finishes the task. Daily routines are editable from their card: this routine from today on, or just today.
 - Team page: one-off tasks and daily routines are on separate tabs, with the last 7 days of each routine.

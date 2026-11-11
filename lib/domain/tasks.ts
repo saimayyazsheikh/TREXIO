@@ -1,8 +1,13 @@
 import { DomainError } from "@/lib/domain/errors";
 import type { Priority, Role, TaskStatus } from "@/lib/domain/constants";
 import { TASK_STATUS_LABEL } from "@/lib/domain/constants";
+import { pktDateString } from "@/lib/time";
 
 export type Subtask = { id: string; title: string; done: boolean; doneAt: Date | null; doneBy: string | null };
+
+/** A step an employee wrote for themselves on a task. It never changes the admin's checklist or whether the task is finished. */
+export type PersonalStep = { id: string; title: string; done: boolean };
+export const MAX_PERSONAL_STEPS = 20;
 
 /** A comment on a task: free-standing, or left when finishing the task or ticking one of its steps. */
 export type TaskNote = { id: string; by: string; byName: string; text: string; at: Date; about: "comment" | "finish" | "step"; subtaskTitle: string | null };
@@ -50,6 +55,10 @@ export type TaskData = {
   /** Why a daily routine wasn't done, written by the person it was for. */
   missedReason?: string | null;
   missedReasonAt?: Date | null;
+  /** Added by the employee for themselves (for example, work the admin gave them out loud). */
+  selfCreated?: boolean;
+  /** Each assignee's own private-to-the-task step list, keyed by user id. */
+  personalSteps?: Record<string, PersonalStep[]>;
 };
 
 export type Actor = { uid: string; name: string; role: Role };
@@ -148,6 +157,20 @@ export function planTransition(
     assertChecklistDone(task);
     assertDependenciesDone(deps);
 
+    // Finishing a routine after its time passed: the person says why it was late (once), and the admin sees "late" plus that reason.
+    const late = !isAdmin && isMissed({ kind: task.kind, status: from, dueAtMs: task.dueAt?.getTime() ?? null, date: task.date }, now.getTime(), pktDateString(now));
+    let lateMeta: Record<string, unknown> = {};
+    let lateReason: Partial<TaskData> = {};
+    if (late) {
+      const typed = (opts.reason ?? "").trim();
+      const reason = typed || (task.missedReason ?? "").trim();
+      if (reason.length < 3) throw new DomainError("Tell us why it was late (a few words is enough).", 400);
+      if (reason.length > MAX_MISSED_REASON) throw new DomainError(`Keep the reason under ${MAX_MISSED_REASON} characters.`, 400);
+      if (typed) lateReason = { missedReason: typed, missedReasonAt: now };
+      const dueMs = task.dueAt?.getTime() ?? null;
+      lateMeta = { late: true, reason, ...(dueMs !== null ? { lateBySec: Math.max(0, Math.round((now.getTime() - dueMs) / 1000)) } : {}) };
+    }
+
     const completion = { ...task.completion };
     if (isAdmin) {
       for (const uid of task.assigneeIds) completion[uid] = { done: true, at: completion[uid]?.done ? completion[uid].at : now };
@@ -160,15 +183,15 @@ export function planTransition(
     if (!progress.satisfied) {
       const to: TaskStatus = "in_progress";
       return {
-        patch: { status: to, completion, updatedAt: now },
-        audit: { action: "task.complete", from, to, meta: { progress: `${progress.done}/${progress.total}`, mode: task.completionMode } },
+        patch: { status: to, completion, updatedAt: now, ...lateReason },
+        audit: { action: "task.complete", from, to, meta: { progress: `${progress.done}/${progress.total}`, mode: task.completionMode, ...lateMeta } },
         activityText: `${actor.name} finished their part of “${task.title}” (${progress.done}/${progress.total})`,
       };
     }
     const to: TaskStatus = task.requiresReview && !isAdmin ? "under_review" : "completed";
     return {
-      patch: { status: to, completion, completedAt: to === "completed" ? now : null, blockedReason: null, blockedBy: null, updatedAt: now },
-      audit: { action: "task.status", from, to, meta: { requested, ...(task.assigneeIds.length > 1 ? { progress: `${progress.done}/${progress.total}` } : {}) } },
+      patch: { status: to, completion, completedAt: to === "completed" ? now : null, blockedReason: null, blockedBy: null, updatedAt: now, ...lateReason },
+      audit: { action: "task.status", from, to, meta: { requested, ...(task.assigneeIds.length > 1 ? { progress: `${progress.done}/${progress.total}` } : {}), ...lateMeta } },
       activityText: `${actor.name} ${verb(from, to)} “${task.title}”`,
     };
   }
@@ -309,4 +332,83 @@ export function planMissedReason(task: TaskData, reasonRaw: string, actor: Actor
     audit: { action: "task.missed", from: null, to: null, meta: { reason } },
     activityText: `${actor.name} said why “${task.title}” wasn't done`,
   };
+}
+
+/** Ticks, or unticks, every checklist item in one go. The same rules as one tick, and one line in the trail instead of many. */
+export function planSubtaskSetAll(task: TaskData, done: boolean, actor: Actor, now: Date): TaskPlan {
+  assertCanAct(task, actor);
+  if (task.status === "completed" || task.status === "under_review") {
+    throw new DomainError("Reopen the task to change its checklist.", 409);
+  }
+  const changing = task.subtasks.filter((s) => s.done !== done);
+  if (changing.length === 0) throw new DomainError(done ? "Every step is already done." : "No step is ticked.", 409);
+
+  const subtasks = task.subtasks.map((s) => (s.done === done ? s : { ...s, done, doneAt: done ? now : null, doneBy: done ? actor.uid : null }));
+  const { total, done: doneCount } = countSubtasks(subtasks);
+  return {
+    patch: { subtasks, subtaskTotal: total, subtaskDone: doneCount, updatedAt: now },
+    audit: { action: "task.subtasks", from: null, to: String(done), meta: { count: changing.length, progress: `${doneCount}/${total}` } },
+    activityText: `${actor.name} ${done ? "ticked all" : "unticked all"} ${changing.length} ${changing.length === 1 ? "step" : "steps"} on “${task.title}” (${doneCount}/${total})`,
+  };
+}
+
+export const MAX_PERSONAL_STEP = 120;
+
+export type PersonalStepOp =
+  | { op: "add"; title: string }
+  | { op: "toggle"; stepId: string; done: boolean }
+  | { op: "all"; done: boolean }
+  | { op: "remove"; stepId: string };
+
+/**
+ * Someone's own list of steps on a task they were given. Only the person it belongs to can change it; the admin can read it.
+ * It never changes the admin's checklist, or whether the task counts as finished.
+ */
+export function planPersonalSteps(task: TaskData, input: PersonalStepOp, actor: Actor, now: Date, newId: () => string): TaskPlan {
+  if (actor.role === "admin") throw new DomainError("Only the person the task is for can keep steps on it.", 403);
+  assertCanAct(task, actor);
+  if (task.status === "completed" || task.status === "under_review") throw new DomainError("Reopen the task to change your steps.", 409);
+
+  const mine = task.personalSteps?.[actor.uid] ?? [];
+  let next: PersonalStep[];
+  let audit: TaskPlan["audit"];
+  let text: string;
+  switch (input.op) {
+    case "add": {
+      const title = input.title.trim();
+      if (title.length === 0) throw new DomainError("Write the step first.", 400);
+      if (title.length > MAX_PERSONAL_STEP) throw new DomainError(`Keep a step under ${MAX_PERSONAL_STEP} characters.`, 400);
+      if (mine.length >= MAX_PERSONAL_STEPS) throw new DomainError(`You can keep up to ${MAX_PERSONAL_STEPS} steps on one task.`, 409);
+      next = [...mine, { id: newId(), title, done: false }];
+      audit = { action: "task.mystep", from: null, to: "added", meta: { stepTitle: title } };
+      text = `${actor.name} added their own step “${title}” on “${task.title}”`;
+      break;
+    }
+    case "toggle": {
+      const step = mine.find((s) => s.id === input.stepId);
+      if (!step) throw new DomainError("That step doesn't exist.", 404);
+      if (step.done === input.done) throw new DomainError("That step is already in that state.", 409);
+      next = mine.map((s) => (s.id === input.stepId ? { ...s, done: input.done } : s));
+      audit = { action: "task.mystep", from: null, to: input.done ? "ticked" : "unticked", meta: { stepTitle: step.title } };
+      text = `${actor.name} ${input.done ? "ticked" : "unticked"} their own step “${step.title}” on “${task.title}”`;
+      break;
+    }
+    case "all": {
+      const changing = mine.filter((s) => s.done !== input.done);
+      if (changing.length === 0) throw new DomainError(input.done ? "Every step is already done." : "No step is ticked.", 409);
+      next = mine.map((s) => ({ ...s, done: input.done }));
+      audit = { action: "task.mystep", from: null, to: input.done ? "ticked all" : "unticked all", meta: { count: changing.length } };
+      text = `${actor.name} ${input.done ? "ticked all" : "unticked all"} their own steps on “${task.title}”`;
+      break;
+    }
+    case "remove": {
+      const step = mine.find((s) => s.id === input.stepId);
+      if (!step) throw new DomainError("That step doesn't exist.", 404);
+      next = mine.filter((s) => s.id !== input.stepId);
+      audit = { action: "task.mystep", from: null, to: "removed", meta: { stepTitle: step.title } };
+      text = `${actor.name} removed their own step “${step.title}” on “${task.title}”`;
+      break;
+    }
+  }
+  return { patch: { personalSteps: { ...(task.personalSteps ?? {}), [actor.uid]: next }, updatedAt: now }, audit, activityText: text };
 }

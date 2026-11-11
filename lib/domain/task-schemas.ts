@@ -106,6 +106,23 @@ export const missedReasonSchema = z.object({ taskId: z.string().min(1), reason: 
 
 export const subtaskToggleSchema = z.object({ taskId: z.string().min(1), subtaskId: z.string().min(1), done: z.boolean() });
 
+export const subtasksAllSchema = z.object({ taskId: z.string().min(1), done: z.boolean() });
+
+/** The steps someone keeps for themselves on a task they were given. */
+export const personalStepSchema = z.discriminatedUnion("op", [
+  z.object({ taskId: z.string().min(1), op: z.literal("add"), title: z.string().trim().min(1, "Write the step first").max(120, "Keep a step under 120 characters") }),
+  z.object({ taskId: z.string().min(1), op: z.literal("toggle"), stepId: z.string().min(1), done: z.boolean() }),
+  z.object({ taskId: z.string().min(1), op: z.literal("all"), done: z.boolean() }),
+  z.object({ taskId: z.string().min(1), op: z.literal("remove"), stepId: z.string().min(1) }),
+]);
+
+/** A task an employee adds for themselves. Who it is for and which business are decided by the server, never by this form. */
+const selfTaskFields = { title, description, priority: z.enum(PRIORITIES), date, dueTime: hhmmOrEmpty };
+export const createSelfTaskSchema = z.object({ ...selfTaskFields, subtasks: newSubtasks.default([]) });
+export type CreateSelfTaskInput = z.infer<typeof createSelfTaskSchema>;
+export const updateSelfTaskSchema = z.object({ taskId: z.string().min(1), ...selfTaskFields, subtasks: editedSubtasks });
+export type UpdateSelfTaskInput = z.infer<typeof updateSelfTaskSchema>;
+
 const templateBase = {
   title,
   description,

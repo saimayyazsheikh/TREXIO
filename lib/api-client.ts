@@ -1,5 +1,5 @@
 /** Calls an admin API route and throws an Error carrying the server's friendly message. */
-export async function apiFetch<T = unknown>(path: string, method: "POST" | "PATCH", body: unknown): Promise<T> {
+export async function apiFetch<T = unknown>(path: string, method: "POST" | "PATCH" | "DELETE", body: unknown): Promise<T> {
   let res: Response;
   try {
     res = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });

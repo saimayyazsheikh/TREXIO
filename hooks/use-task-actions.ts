@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import type { Role, TaskStatus } from "@/lib/domain/constants";
 import { availableMoves } from "@/lib/domain/task-moves";
-import { toggleSubtask, transitionTask } from "@/lib/tasks-client";
+import { setAllSubtasks, toggleSubtask, transitionTask } from "@/lib/tasks-client";
 import type { TaskDoc, WithId } from "@/types/models";
 
 type Viewer = { uid: string; role: Role };
@@ -86,5 +86,22 @@ export function useTaskActions(viewer: Viewer, tasks: WithId<TaskDoc>[], opts: {
     }
   }, [role, onNote]);
 
-  return { displayStatus, move, tickSubtask, savingSubtasks };
+  /** Ticks (or unticks) every step in one go. */
+  const tickAll = useCallback(
+    async (task: WithId<TaskDoc>, done: boolean) => {
+      const ids = task.subtasks.map((s) => s.id);
+      setSavingSubtasks((s) => new Set([...s, ...ids]));
+      try {
+        await setAllSubtasks(task.id, done);
+        if (done) toast.success(`All ${ids.length} steps done`, { duration: 4000 });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Couldn't save those steps.");
+      } finally {
+        setSavingSubtasks((s) => new Set([...s].filter((x) => !ids.includes(x))));
+      }
+    },
+    [],
+  );
+
+  return { displayStatus, move, tickSubtask, tickAll, savingSubtasks };
 }

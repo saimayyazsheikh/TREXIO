@@ -8,6 +8,7 @@ export type World = {
   audits: AuditEntry[];
   activities: ActivityEntry[];
   users: Map<string, AssigneeRecord>;
+  dump: Set<string>;
 };
 
 export function newWorld(): World {
@@ -16,6 +17,7 @@ export function newWorld(): World {
     templates: new Map(),
     audits: [],
     activities: [],
+    dump: new Set<string>(),
     users: new Map<string, AssigneeRecord>([
       ["ali", { name: "Ali Khan", businessId: "b1", role: "employee", status: "active" }],
       ["sara", { name: "Sara", businessId: "b2", role: "employee", status: "active" }],
@@ -44,6 +46,7 @@ export function makeDb(world: World, now: Date): TaskDb {
         setTemplate: (id, data) => writes.push(() => world.templates.set(id, data)),
         updateTemplate: (id, patch) => writes.push(() => world.templates.set(id, { ...world.templates.get(id)!, ...patch })),
         deleteTemplate: (id) => writes.push(() => world.templates.delete(id)),
+        deleteDump: (id) => writes.push(() => world.dump.delete(id)),
         addAudit: (e) => writes.push(() => world.audits.push(e)),
         addActivity: (e) => writes.push(() => world.activities.push(e)),
       });

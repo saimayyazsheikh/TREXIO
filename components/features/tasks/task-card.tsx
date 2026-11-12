@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, Hand, Hourglass, Link2, MessageSquarePlus, Pencil, Play, Repeat, Undo2, Unlock, UserRound, Users } from "lucide-react";
+import { useState } from "react";
+import { Check, ChevronDown, Hand, Hourglass, Link2, MessageSquarePlus, Pencil, Play, Repeat, Undo2, Unlock, UserRound, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -11,6 +12,7 @@ import { DueChip } from "@/components/features/tasks/due-chip";
 import { PersonalSteps } from "@/components/features/tasks/personal-steps";
 import type { Role, TaskStatus } from "@/lib/domain/constants";
 import { availableMoves } from "@/lib/domain/task-moves";
+import { dueState } from "@/lib/domain/tasks";
 import { cn } from "@/lib/utils";
 import type { TaskDoc, WithId } from "@/types/models";
 
@@ -34,8 +36,12 @@ export type TaskCardProps = {
   onEditOwn?: (task: WithId<TaskDoc>) => void;
 };
 
-/** One task on the employee's Today screen: check it off, start it, tick its steps, flag a blocker. */
+/**
+ * One task on the employee's Today screen. Closed, it is one calm line: the title, its priority and (only when late) how late.
+ * Opened, it shows everything: status, details, notes, the checklist, your own steps and the actions.
+ */
 export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onMove, onBlock, onToggleSubtask, onTickAll, onNote, onEditOwn }: TaskCardProps) {
+  const [open, setOpen] = useState(false);
   const shared = task.assigneeIds.length > 1;
   const done = status === "completed";
   const inReview = status === "under_review";
@@ -52,6 +58,7 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
   const checkDisabledReason = checked ? null : inReview ? "Waiting for your admin to review" : blocked ? "Blocked: unblock it first" : (finish?.reason ?? null);
   const waiting = task.waitingOnIds.map((id) => task.linkTitles[id] ?? "another task");
   const others = task.assigneeIds.filter((uid) => uid !== viewer.uid);
+  const overdue = dueState({ status, dueAt: task.dueAt?.toDate() ?? null, date: task.date }, now, today) === "overdue";
 
   const check = (
     <button
@@ -82,8 +89,25 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
       <div className="flex items-start gap-3">
         {checkDisabledReason ? <Tooltip label={checkDisabledReason}>{check}</Tooltip> : check}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 className={cn("font-semibold leading-snug", done && "line-through decoration-muted")}>{task.title}</h3>
+          <h3 className="min-w-0">
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-label={`${task.title}: ${open ? "hide" : "show"} details`}
+              onClick={() => setOpen((o) => !o)}
+              className="flex min-h-11 w-full items-center gap-2 rounded-control text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/60"
+            >
+              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                <span className={cn("font-semibold leading-snug", done && "line-through decoration-muted")}>{task.title}</span>
+                <PriorityBadge priority={task.priority} />
+                {overdue ? <DueChip task={task} status={status} now={now} today={today} /> : null}
+              </span>
+              <ChevronDown className={cn("size-4 shrink-0 text-muted transition-transform", open && "rotate-180")} aria-hidden />
+            </button>
+          </h3>
+          {open ? (
+            <div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             {task.selfCreated ? (
               <span className="inline-flex items-center gap-1 text-xs font-medium text-muted">
                 <UserRound className="size-3.5" aria-hidden /> {viewer.role === "employee" ? "Added by you" : "Added by them"}
@@ -96,9 +120,8 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
             ) : null}
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <PriorityBadge priority={task.priority} />
             {status !== "todo" ? <StatusBadge status={status} /> : null}
-            <DueChip task={task} status={status} now={now} today={today} />
+            {!overdue ? <DueChip task={task} status={status} now={now} today={today} /> : null}
             {myPartDone ? <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-semibold text-success">Your part is done</span> : null}
             {waiting.length > 0 ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-semibold text-warning">
@@ -142,8 +165,11 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
             <ChecklistBox task={task} locked={done || inReview} savingSubtasks={savingSubtasks} onToggleSubtask={onToggleSubtask} onTickAll={onTickAll} />
           ) : null}
           {viewer.role === "employee" && task.assigneeIds.includes(viewer.uid) ? <PersonalSteps task={task} uid={viewer.uid} locked={done || inReview} /> : null}
+            </div>
+          ) : null}
         </div>
 
+        {open ? (
         <div className="flex shrink-0 flex-col items-end gap-1">
           {status === "todo" && start ? (
             <Tooltip label={start.enabled ? "Mark as in progress" : (start.reason ?? "Not available yet")}>
@@ -188,6 +214,7 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
             </Tooltip>
           ) : null}
         </div>
+        ) : null}
       </div>
     </GlassCard>
   );

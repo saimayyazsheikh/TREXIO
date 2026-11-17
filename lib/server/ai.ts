@@ -115,9 +115,14 @@ export function geminiProvider(o: { apiKey: string; model?: string; fetchImpl?: 
       }
       if (!res) throw new DomainError("The AI service took too long to answer. Try again.", 502);
       if (!res.ok) {
+        // Google's own words, shortened, so a real cause (quota used up, a model gone) can be told apart from a passing overload.
+        const why = (body.error?.message ?? "").replace(/\s+/g, " ").trim().slice(0, 140);
+        const detail = ` (Google said ${res.status}${why ? `: ${why}` : ""})`;
+        console.error("gemini request failed", res.status, why);
         if (res.status === 401 || res.status === 403) throw new DomainError("The Gemini API key was rejected. Check GEMINI_API_KEY.", 502);
-        if (res.status === 429 || res.status === 503) throw new DomainError("The AI service is busy right now. Wait a minute and try again.", 502);
-        throw new DomainError("The AI service couldn't write the summary. Try again.", 502);
+        if (res.status === 429) throw new DomainError(`The AI service says its limit has been reached. Wait a minute, or check the Gemini plan and quota.${detail}`, 502);
+        if (res.status === 503) throw new DomainError(`The AI service is busy right now. Wait a minute and try again.${detail}`, 502);
+        throw new DomainError(`The AI service couldn't answer.${detail}`, 502);
       }
       const text = (body.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("\n");
       if (!text.trim()) throw empty();

@@ -87,7 +87,7 @@ describe("geminiProvider when Google is busy", () => {
     await expect(rejected.provider.generate(ask)).rejects.toThrow(/key was rejected/);
     expect(rejected.asked).toEqual(["main"]);
     const bad = make([() => new Response("{}", { status: 400 })], ["lite"]);
-    await expect(bad.provider.generate(ask)).rejects.toThrow(/couldn't write/);
+    await expect(bad.provider.generate(ask)).rejects.toThrow(/couldn't answer.*Google said 400/);
     expect(bad.asked).toEqual(["main"]);
   });
 });
@@ -107,6 +107,7 @@ describe("geminiProvider", () => {
     const respond = (status: number, body: unknown) => geminiProvider({ apiKey: "k", retryDelaysMs: [0], fallbackModels: [], fetchImpl: (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch });
     await expect(respond(403, {}).generate(req)).rejects.toThrow(/key was rejected/);
     await expect(respond(500, {}).generate(req)).rejects.toMatchObject({ status: 502 });
+    await expect(respond(429, { error: { message: "You exceeded your current quota" } }).generate(req)).rejects.toThrow(/limit has been reached.*Google said 429: You exceeded your current quota/);
     await expect(respond(200, { candidates: [] }).generate(req)).rejects.toThrow(/empty answer/);
     await expect(geminiProvider({ apiKey: "k", fetchImpl: (async () => Promise.reject(new Error("net"))) as unknown as typeof fetch }).generate(req)).rejects.toThrow(/Couldn't reach/);
     const slow = new DOMException("The operation timed out.", "TimeoutError");

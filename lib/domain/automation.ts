@@ -54,8 +54,14 @@ export function resolveSettings(raw: unknown): AutomationSettings {
 
 /* -------------------------------- Escalation -------------------------------- */
 
+/** The soonest an admin can ask to be told about a late task. */
+export const MIN_ADMIN_ALERT_MIN = 5;
+export const MAX_ADMIN_ALERT_MIN = 1440;
+
 export type EscalationTask = {
   status: string;
+  /** The admin's own "tell me after this many minutes late" for this task, if they set one. */
+  adminAlertMin?: number | null;
   /** High-priority tasks use the faster pair of alerts. */
   priority?: string;
   dueAtMs: number | null;
@@ -73,9 +79,10 @@ export function escalationDue(t: EscalationTask, nowMs: number, s: Pick<Automati
   const late = nowMs - t.dueAtMs;
   if (late <= 0 || late > ESCALATION_LOOKBACK_MS) return { l1: false, l2: false };
   const at = thresholdsFor(t.priority, s);
+  const adminAt = t.adminAlertMin ?? at.l2;
   return {
     l1: late >= at.l1 * 60_000 && !t.escalation?.l1At,
-    l2: late >= at.l2 * 60_000 && !t.escalation?.l2At,
+    l2: late >= adminAt * 60_000 && !t.escalation?.l2At,
   };
 }
 

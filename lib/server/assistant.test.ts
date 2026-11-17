@@ -22,6 +22,10 @@ const deps = (reply: string | (() => string), name: AiProvider["name"] = "gemini
   loadPeople: async () => people,
   loadBusinesses: async () => [{ id: "b1", name: "Alpha" }],
   loadLoads: async () => [{ personId: "ali", open: 4, overdue: 0, today: 2, away: false }],
+  loadOpenTasks: async () => [
+    { id: "task-fred", title: "Fred ke stores", assigneeNames: ["Ali Khan"], date: "2026-11-18", dueTime: "12:00" },
+    { id: "task-inv", title: "Invoices", assigneeNames: ["Sara Ahmed"], date: "2026-11-19", dueTime: "17:00" },
+  ],
 });
 
 describe("askAssistant", () => {
@@ -42,13 +46,19 @@ describe("askAssistant", () => {
 
   it("passes a plain answer through, with no tasks", async () => {
     const answer = await askAssistant(deps('{"reply":"Sara has the most room.","tasks":[]}'), { message: "who is free?" });
-    expect(answer).toEqual({ reply: "Sara has the most room.", proposals: [] });
+    expect(answer).toEqual({ reply: "Sara has the most room.", proposals: [], alerts: [] });
   });
 
   it("asks the admin to rephrase when the AI sends something unreadable", async () => {
-    const answer = await askAssistant(deps("Sorry, I cannot do that."), { message: "asdf" });
+    const answer = await askAssistant(deps("{ \"reply\": \"half a message"), { message: "asdf" });
     expect(answer.proposals).toEqual([]);
-    expect(answer.reply).toMatch(/couldn't turn that into tasks/);
+    expect(answer.alerts).toEqual([]);
+    expect(answer.reply).toMatch(/couldn't understand that/);
+  });
+
+  it("shows the AI's own words when it answers in plain text instead of the expected format", async () => {
+    const answer = await askAssistant(deps("Which task do you mean? I see Cash up and Invoices."), { message: "alert me if the bank task is late" });
+    expect(answer).toEqual({ reply: "Which task do you mean? I see Cash up and Invoices.", proposals: [], alerts: [] });
   });
 
   it("refuses an empty or very long message, and works only with a real AI key", async () => {
@@ -57,11 +67,33 @@ describe("askAssistant", () => {
     await expect(askAssistant(deps("{}", "mock"), { message: "hello" })).rejects.toMatchObject({ status: 503 });
   });
 
+  it("proposes a late alert on an existing task, using the labels it was shown", async () => {
+    const seen: { prompt?: string } = {};
+    const answer = await askAssistant(deps('{"reply":"Alert ready","tasks":[],"alerts":[{"task":"T1","minutes":10}]}', "gemini", seen), { message: "remind me if Ali's Fred task is 10 minutes late" });
+    expect(seen.prompt).toContain("T1: “Fred ke stores” for Ali Khan, due Wed 2026-11-18 12:00");
+    expect(seen.prompt).toContain("T2: “Invoices” for Sara Ahmed");
+    expect(answer.proposals).toEqual([]);
+    expect(answer.alerts).toEqual([expect.objectContaining({ taskId: "task-fred", taskTitle: "Fred ke stores", minutes: 10, issues: [] })]);
+    expect(answer.reply).toBe("Alert ready");
+  });
+
+  it("flags an alert for a task that is not in the list instead of guessing", async () => {
+    const answer = await askAssistant(deps('{"reply":"","tasks":[],"alerts":[{"task":"T7","minutes":10}]}'), { message: "alert me on some task" });
+    expect(answer.alerts[0].taskId).toBe("");
+    expect(answer.alerts[0].issues[0]).toMatch(/couldn't tell which task/);
+    expect(answer.reply).toMatch(/1 thing/);
+  });
+
+  it("turns a task for nobody into a note for the admin", async () => {
+    const answer = await askAssistant(deps('{"reply":"","tasks":[{"title":"Check Fred stores task","date":"2026-11-18","time":"12:10"}],"alerts":[]}'), { message: "yaad dilana" });
+    expect(answer.proposals[0]).toMatchObject({ dump: true, remindOn: "2026-11-18", assigneeIds: [], issues: [] });
+  });
+
   it("flags a person who is not on the team instead of guessing", async () => {
     const answer = await askAssistant(deps('{"reply":"","tasks":[{"title":"Call bank","who":["Zoya"],"date":"2026-11-19"}]}'), { message: "Zoya call bank tomorrow" });
     expect(answer.proposals[0].issues[0]).toMatch(/No team member called/);
     expect(answer.proposals[0].assigneeIds).toEqual([]);
-    expect(answer.reply).toMatch(/1 task/);
+    expect(answer.reply).toMatch(/1 thing/);
   });
 
   it("tells the AI it may only propose, never change anything", async () => {

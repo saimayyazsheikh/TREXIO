@@ -63,6 +63,8 @@ export type TaskData = {
   personalSteps?: Record<string, PersonalStep[]>;
   /** How long the admin expects it to take, in minutes. */
   estimateMin?: number | null;
+  /** The admin asked to be told once the task is this many minutes past its due time (replaces the usual second alert for it). */
+  adminAlertMin?: number | null;
   /** Seconds each person has spent on it with the timer. */
   timeSpent?: Record<string, number>;
   /** Running timers: who started one, and when. */
@@ -492,4 +494,23 @@ export function withTimersStopped(task: TaskData, patch: Partial<TaskData>, acto
   if (status !== "todo" && status !== "in_progress") return { ...patch, ...stopTimersPatch(task, now) };
   if (actor.role === "employee" && patch.completion?.[actor.uid]?.done && !task.completion[actor.uid]?.done) return { ...patch, ...stopTimersPatch(task, now, [actor.uid]) };
   return patch;
+}
+
+/**
+ * The admin asks to be told when this task is `minutes` past its due time (or clears the request with null). It replaces the usual
+ * second alert for this one task, and can fire again if it is changed after it already fired.
+ */
+export function planTaskAlert(task: TaskData, minutes: number | null, actor: Actor, now: Date): TaskPlan {
+  if (actor.role !== "admin") throw new DomainError("Only the admin can set an alert on a task.", 403);
+  if (minutes !== null && (!Number.isInteger(minutes) || minutes < 5 || minutes > 1440)) throw new DomainError("Pick between 5 minutes and 24 hours.", 400);
+  if (minutes !== null) {
+    if (!task.dueAt) throw new DomainError("This task has no due time, so there is nothing to be late for.", 409);
+    if (task.status !== "todo" && task.status !== "in_progress") throw new DomainError("Only open work can be watched.", 409);
+  }
+  if ((task.adminAlertMin ?? null) === minutes) throw new DomainError("Nothing changed.", 409);
+  return {
+    patch: { adminAlertMin: minutes, escalation: { ...task.escalation, l2At: null }, updatedAt: now },
+    audit: { action: "task.alert", from: task.adminAlertMin ? String(task.adminAlertMin) : null, to: minutes === null ? null : String(minutes), meta: { minutes } },
+    activityText: minutes === null ? `${actor.name} removed the late alert on “${task.title}”` : `${actor.name} asked to be told when “${task.title}” is ${minutes} min late`,
+  };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAssistantPrompt, matchPerson, parseAssistantReply, resolveProposals, upcomingDays, type AssistantPerson } from "@/lib/domain/assistant";
+import { buildAssistantPrompt, matchPerson, parseAssistantReply, resolveAlerts, resolveProposals, upcomingDays, type AssistantOpenTask, type AssistantPerson } from "@/lib/domain/assistant";
 
 const today = "2026-11-18";
 const people: AssistantPerson[] = [
@@ -24,7 +24,7 @@ describe("parseAssistantReply", () => {
   });
 
   it("accepts a reply with only text, for questions", () => {
-    expect(parseAssistantReply('{"reply":"Sara has room","tasks":[]}')).toEqual({ reply: "Sara has room", tasks: [] });
+    expect(parseAssistantReply('{"reply":"Sara has room","tasks":[]}')).toEqual({ reply: "Sara has room", tasks: [], alerts: [] });
   });
 });
 
@@ -44,7 +44,7 @@ describe("matchPerson", () => {
 });
 
 describe("resolveProposals", () => {
-  const raw = (tasks: object[]) => ({ reply: "", tasks: tasks as never });
+  const raw = (tasks: object[]) => ({ reply: "", tasks: tasks as never, alerts: [] });
 
   it("puts a task with a person and no day on today, and defaults the priority", () => {
     const [p] = resolveProposals(raw([{ title: "Count stock", who: ["Sara"] }]), { people, today });
@@ -61,25 +61,60 @@ describe("resolveProposals", () => {
     expect(p).toMatchObject({ dump: true, date: null, issues: [] });
   });
 
-  it("flags a day that has passed, an unknown or ambiguous person, and a missing person", () => {
-    const [past, unknown, ambiguous, nobody] = resolveProposals(
+  it("keeps the day of a note for the admin as a reminder day, and drops one that has passed", () => {
+    const [future, past] = resolveProposals(raw([{ title: "Check paint stock", date: "2026-11-20" }, { title: "Old note", date: "2026-11-01" }]), { people, today });
+    expect(future).toMatchObject({ dump: true, date: null, remindOn: "2026-11-20", issues: [] });
+    expect(past).toMatchObject({ dump: true, remindOn: null, issues: [] });
+  });
+
+  it("never proposes a task for nobody: with no person named it becomes a note for the admin", () => {
+    const [p] = resolveProposals(raw([{ title: "Saim ka Fred ke stores wala task check karna", date: today, time: "12:10" }]), { people, today });
+    expect(p).toMatchObject({ dump: true, date: null, remindOn: today, dueTime: "", assigneeIds: [], issues: [] });
+  });
+
+  it("flags a day that has passed, an unknown or ambiguous person", () => {
+    const [past, unknown, ambiguous] = resolveProposals(
       raw([
         { title: "Old", who: ["Sara"], date: "2026-11-01" },
         { title: "Who", who: ["Zoya"], date: "2026-11-19" },
         { title: "Two", who: ["Ali"], date: "2026-11-19" },
-        { title: "Nobody", date: "2026-11-19" },
       ]),
       { people, today },
     );
     expect(past.issues).toEqual(["That day has already passed"]);
     expect(unknown.issues[0]).toMatch(/No team member called/);
     expect(ambiguous.issues[0]).toMatch(/Which one/);
-    expect(nobody.issues).toEqual(["Choose who it is for"]);
   });
 
   it("ignores a bad time and an unknown priority", () => {
     const [p] = resolveProposals(raw([{ title: "Call bank", who: ["Sara"], time: "5pm", priority: "urgent" }]), { people, today });
     expect(p).toMatchObject({ dueTime: "", priority: "medium" });
+  });
+});
+
+describe("resolveAlerts", () => {
+  const open: AssistantOpenTask[] = [
+    { ref: "T1", id: "task-a", title: "Fred ke stores", assigneeNames: ["Saim Ali"], date: "2026-11-18", dueTime: "12:00" },
+    { ref: "T2", id: "task-b", title: "Invoices", assigneeNames: ["Sara Ahmed"], date: "2026-11-19", dueTime: "17:00" },
+  ];
+  const raw = (alerts: object[]) => ({ reply: "", tasks: [], alerts: alerts as never });
+
+  it("matches a label to the task it stands for", () => {
+    const [a] = resolveAlerts(raw([{ task: "t1", minutes: 10 }]), open);
+    expect(a).toMatchObject({ taskId: "task-a", taskTitle: "Fred ke stores", assigneeNames: ["Saim Ali"], minutes: 10, issues: [], dueLabel: "Wed 11-18 12:00" });
+  });
+
+  it("uses 10 minutes when none was given, and rounds", () => {
+    expect(resolveAlerts(raw([{ task: "T2" }]), open)[0].minutes).toBe(10);
+    expect(resolveAlerts(raw([{ task: "T2", minutes: 14.6 }]), open)[0].minutes).toBe(15);
+  });
+
+  it("flags a task that is not in the list, and minutes outside 5 minutes to 24 hours", () => {
+    const [unknown, tooShort, tooLong] = resolveAlerts(raw([{ task: "T9", minutes: 10 }, { task: "T1", minutes: 2 }, { task: "T1", minutes: 5000 }]), open);
+    expect(unknown.issues[0]).toMatch(/couldn't tell which task/);
+    expect(unknown.taskId).toBe("");
+    expect(tooShort.issues[0]).toMatch(/Pick between 5 minutes and 24 hours/);
+    expect(tooLong.issues[0]).toMatch(/Pick between 5 minutes and 24 hours/);
   });
 });
 
@@ -98,6 +133,19 @@ describe("the prompt", () => {
     });
     expect(prompt).toContain("Sara Ahmed (Alpha, Accountant): 3 open, 1 overdue, 2 due today");
     expect(prompt).toContain("kal Sara ko invoices dena");
+    expect(prompt).toContain("(none)");
+  });
+
+  it("lists the open tasks under short labels so the assistant can point at one", () => {
+    const prompt = buildAssistantPrompt({
+      message: "alert me",
+      today,
+      people,
+      businesses: [],
+      loads: [],
+      openTasks: [{ ref: "T1", id: "x", title: "Fred ke stores", assigneeNames: ["Saim Ali"], date: "2026-11-18", dueTime: "12:00" }],
+    });
+    expect(prompt).toContain("T1: “Fred ke stores” for Saim Ali, due Wed 2026-11-18 12:00");
     expect(prompt).toContain("Ali Raza (no business): no figures");
   });
 });

@@ -79,6 +79,8 @@ export function describeAudit(e: AuditView, opts: { named?: boolean } = {}): str
       return `${who} commented${opts.named ? ` on ${it}` : ""}: “${text(e.meta.note)}”`;
     case "task.missed":
       return `${who} gave a reason for not doing ${it}: “${text(e.meta.reason)}”`;
+    case "task.alert":
+      return e.to ? `${who} asked to be told when ${it} is ${e.to} min late` : `${who} removed the late alert on ${it}`;
     case "task.refresh":
       return opts.named ? `${it} was refreshed from its daily routine` : "Refreshed from its daily routine";
     case "task.delete":

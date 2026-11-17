@@ -115,6 +115,9 @@ export const missedReasonSchema = z.object({ taskId: z.string().min(1), reason: 
 
 export const subtaskToggleSchema = z.object({ taskId: z.string().min(1), subtaskId: z.string().min(1), done: z.boolean() });
 
+/** The admin's "tell me when this is N minutes late" for one task; minutes null removes it. */
+export const taskAlertSchema = z.object({ taskId: z.string().min(1), minutes: z.number().int("Use whole minutes").min(5, "At least 5 minutes").max(1440, "At most 24 hours").nullable() });
+
 export const timerSchema = z.object({ taskId: z.string().min(1), action: z.enum(["start", "stop"]) });
 
 export const subtasksAllSchema = z.object({ taskId: z.string().min(1), done: z.boolean() });

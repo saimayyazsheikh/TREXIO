@@ -146,6 +146,31 @@ describe("High-priority tasks", () => {
   });
 });
 
+describe("a task the admin asked to watch", () => {
+  it("tells the admin after the minutes they chose, long before the usual alerts", async () => {
+    w.tasks = new Map([["t1", task({ adminAlertMin: 10, dueAt: dueAgo(12) })]]);
+    const r = await runEscalations(deps());
+    expect(r).toMatchObject({ level1: 0, level2: 1 });
+    expect(w.notices).toEqual([expect.objectContaining({ toUid: "admin", title: "A task you're watching is late" })]);
+  });
+
+  it("stays quiet until those minutes have passed, and only tells once", async () => {
+    w.tasks = new Map([["t1", task({ adminAlertMin: 15, dueAt: dueAgo(12) })]]);
+    expect(await runEscalations(deps())).toMatchObject({ level2: 0 });
+    w.tasks = new Map([["t1", task({ adminAlertMin: 15, dueAt: dueAgo(20) })]]);
+    expect(await runEscalations(deps())).toMatchObject({ level2: 1 });
+    expect(await runEscalations(deps())).toMatchObject({ level2: 0 });
+    expect(w.notices.filter((n) => n.toUid === "admin")).toHaveLength(1);
+  });
+
+  it("replaces the usual second alert for that task instead of adding another", async () => {
+    w.tasks = new Map([["t1", task({ adminAlertMin: 10, dueAt: dueAgo(200) })]]);
+    await runEscalations(deps());
+    expect(w.notices.filter((n) => n.toUid === "admin")).toHaveLength(1);
+    expect(w.notices.filter((n) => n.toUid === "ali")).toHaveLength(1);
+  });
+});
+
 describe("alertBlocked", () => {
   it("tells the admin who is blocked, on what and why", async () => {
     expect(await alertBlocked(deps(), { employeeName: "Ali Khan", title: "Count stock", reason: "No access to the store" })).toBe(true);

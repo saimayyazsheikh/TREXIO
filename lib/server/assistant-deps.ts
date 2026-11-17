@@ -27,6 +27,21 @@ export function realAssistantDeps(orgId: string): AssistantDeps {
       });
     },
     loadBusinesses: async () => (await db.collection("businesses").get()).docs.map((d) => ({ id: d.id, name: String(d.get("name")) })),
+    loadOpenTasks: async (today, nowMs) => {
+      const snap = await db.collection("tasks").where("status", "in", ["todo", "in_progress"]).limit(600).get();
+      return snap.docs
+        .map((d) => ({ id: d.id, task: taskFromFirestore(d.data()) }))
+        .filter(({ task }) => task.dueAt && task.dueAt.getTime() >= nowMs - 24 * 60 * 60_000)
+        .sort((a, b) => a.task.dueAt!.getTime() - b.task.dueAt!.getTime())
+        .slice(0, 40)
+        .map(({ id, task }) => ({
+          id,
+          title: task.title,
+          assigneeNames: task.assigneeIds.map((uid) => task.assigneeNames[uid] ?? "").filter(Boolean),
+          date: task.date,
+          dueTime: new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(task.dueAt!),
+        }));
+    },
     loadLoads: async (today, nowMs, people) => {
       const [tasks, leave] = await Promise.all([
         db.collection("tasks").where("status", "in", [...OPEN_STATUSES]).limit(1500).get(),

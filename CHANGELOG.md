@@ -1,6 +1,7 @@
 # Changelog
 
 ## Assistant, workload, calendar, daily report and more
+- **Late alert on one task**: ask to be told when a task is N minutes past its due time (from the Assistant, or removed in the task drawer). It replaces the usual second alert for that task, and the Assistant now also keeps notes for the admin (no person named) on the Dump list with a reminder day, refuses things it cannot do, and knows the open tasks so it can point at the right one.
 - **Assistant** (admin header): write tasks in plain English, Urdu or Roman Urdu. It lays out the tasks it understood (person, day, time, priority, steps, or a dump entry), shows what is wrong with any it could not resolve, and creates nothing until you press Create. Questions such as "who is free?" are answered from the team's current figures. Needs GEMINI_API_KEY or ANTHROPIC_API_KEY on the server.
 - **Workload**: who has how much open, overdue, blocked and waiting for review right now, with Free / Busy / Heavy / Away, and a "Give a task" button on each person.
 - **Calendar**: a month of one-off tasks, holidays, closures and approved leave; open a day to see it, open a task from it, or assign one for that day.

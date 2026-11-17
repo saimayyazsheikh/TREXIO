@@ -1,7 +1,7 @@
 import { DomainError } from "@/lib/domain/errors";
 import type { TaskStatus } from "@/lib/domain/constants";
 import { assertNoDependencyCycle, diffIds } from "@/lib/domain/dependencies";
-import { planComment, planMissedReason, planPersonalSteps, planStartTimer, planStopTimer, planSubtaskSetAll, planSubtaskToggle, planTransition, withTimersStopped, type PersonalStepOp, type Actor, type DependencySnapshot, type TaskData, type TaskNote, type TaskPlan } from "@/lib/domain/tasks";
+import { planComment, planMissedReason, planPersonalSteps, planStartTimer, planStopTimer, planTaskAlert, planSubtaskSetAll, planSubtaskToggle, planTransition, withTimersStopped, type PersonalStepOp, type Actor, type DependencySnapshot, type TaskData, type TaskNote, type TaskPlan } from "@/lib/domain/tasks";
 import { pktDateString } from "@/lib/time";
 import { buildOneOffTask, buildSelfTask, planDailyEdit, planSelfUpdate, planTaskUpdate, type Assignee, type ResolvedLinks, type TemplateData } from "@/lib/domain/task-builders";
 import { updateTaskSchema, type CreateSelfTaskInput, type CreateTaskInput, type UpdateDailyTodayInput, type UpdateSelfTaskInput, type UpdateTaskInput } from "@/lib/domain/task-schemas";
@@ -251,6 +251,15 @@ export function stopTimer(db: TaskDb, actor: Actor, input: { taskId: string }) {
     const task = await loadTask(tx, input.taskId);
     const now = db.now();
     commitTaskPlan(tx, actor, input.taskId, task, planStopTimer(task, actor, now), now);
+  });
+}
+
+/** The admin asks to be told when a task is N minutes late, or removes that (see planTaskAlert). */
+export function setTaskAlert(db: TaskDb, actor: Actor, input: { taskId: string; minutes: number | null }) {
+  return db.transaction(async (tx) => {
+    const task = await loadTask(tx, input.taskId);
+    const now = db.now();
+    commitTaskPlan(tx, actor, input.taskId, task, planTaskAlert(task, input.minutes, actor, now), now);
   });
 }
 

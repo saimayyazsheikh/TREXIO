@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Hand, Link2, MessageCircleMore, MessageSquarePlus, Pencil, Repeat, UserRound } from "lucide-react";
+import { AlarmClock, Check, Hand, Link2, MessageCircleMore, MessageSquarePlus, Pencil, Repeat, UserRound } from "lucide-react";
 import { limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +13,7 @@ import { TextWithLinks } from "@/components/features/text-with-links";
 import { NoteDialog, type NoteTarget } from "@/components/features/tasks/note-dialog";
 import { NudgeDialog } from "@/components/features/tasks/nudge-dialog";
 import { useCollection } from "@/hooks/use-collection";
+import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection } from "@/lib/firebase/org";
 import { describeAudit } from "@/lib/domain/audit-text";
@@ -139,6 +140,20 @@ export function TaskDrawer({
               <p className="rounded-control bg-warning/12 px-3 py-2 text-sm text-warning">
                 <span className="font-semibold">Done late</span> ({formatDuration((task.completedAt.toMillis() - task.dueAt.toMillis()) / 1000)} after its time).{" "}
                 {task.missedReason ? <>Reason: {task.missedReason}</> : null}
+              </p>
+            ) : null}
+
+            {viewer.role === "admin" && task.adminAlertMin ? (
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-control bg-brand-soft px-3 py-2 text-sm text-brand-text">
+                <AlarmClock className="size-4 shrink-0" aria-hidden />
+                <span className="min-w-0 flex-1">You will be told when this is {task.adminAlertMin} min late.</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => void apiFetch("/api/admin/tasks/alert", "POST", { taskId: task.id, minutes: null }).catch(() => undefined)}
+                >
+                  Remove
+                </Button>
               </p>
             ) : null}
 

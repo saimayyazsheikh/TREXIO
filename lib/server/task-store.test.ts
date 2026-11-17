@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { bulkChangeTasks, startTimer, stopTimer, commentOnTask, createOneOffTask, createSelfTask, deleteSelfTask, deleteTask, explainMissedRoutine, setAllSubtasks, toggleSubtask, transitionTask, updateDailyForToday, updateOneOffTask, updatePersonalSteps, updateSelfTask, type TaskDb } from "@/lib/server/task-store";
+import { bulkChangeTasks, setTaskAlert, startTimer, stopTimer, commentOnTask, createOneOffTask, createSelfTask, deleteSelfTask, deleteTask, explainMissedRoutine, setAllSubtasks, toggleSubtask, transitionTask, updateDailyForToday, updateOneOffTask, updatePersonalSteps, updateSelfTask, type TaskDb } from "@/lib/server/task-store";
 import { makeDb, newWorld, type World } from "@/lib/server/test-support/memory-task-db";
 import { createSelfTaskSchema, createTaskSchema, updateDailyTodaySchema, updateSelfTaskSchema, updateTaskSchema } from "@/lib/domain/task-schemas";
 import { bulkSchema } from "@/lib/domain/bulk";
@@ -674,6 +674,51 @@ describe("timing a task", () => {
     expect(createTaskSchema.safeParse({ ...base, estimateMin: "" }).data?.estimateMin).toBeNull();
     expect(createTaskSchema.safeParse({ ...base, estimateMin: "45" }).data?.estimateMin).toBe(45);
     expect(createTaskSchema.safeParse({ ...base, estimateMin: 2 }).success).toBe(false);
+  });
+});
+
+describe("asking to be told when a task is late", () => {
+  it("is set on a task with a due time, can fire again after a change, and can be removed", async () => {
+    const world = newWorld();
+    const db = makeDb(world, now);
+    const { taskId } = await createOneOffTask(db, admin, make({ subtasks: [] }));
+    await setTaskAlert(db, admin, { taskId, minutes: 10 });
+    expect(world.tasks.get(taskId)!.adminAlertMin).toBe(10);
+    expect(world.audits.at(-1)).toMatchObject({ action: "task.alert", to: "10", meta: { minutes: 10 } });
+
+    world.tasks.set(taskId, { ...world.tasks.get(taskId)!, escalation: { l1At: null, l2At: new Date() } });
+    await setTaskAlert(db, admin, { taskId, minutes: 20 });
+    expect(world.tasks.get(taskId)).toMatchObject({ adminAlertMin: 20, escalation: { l2At: null } });
+
+    await setTaskAlert(db, admin, { taskId, minutes: null });
+    expect(world.tasks.get(taskId)!.adminAlertMin).toBeNull();
+    expect(world.audits.at(-1)).toMatchObject({ action: "task.alert", to: null });
+  });
+
+  it("is refused for an employee, a task with no time, finished work, a repeat, and silly numbers", async () => {
+    const world = newWorld();
+    const db = makeDb(world, now);
+    const { taskId } = await createOneOffTask(db, admin, make({ subtasks: [] }));
+    await expect(setTaskAlert(db, ali, { taskId, minutes: 10 })).rejects.toMatchObject({ status: 403 });
+    await expect(setTaskAlert(db, admin, { taskId, minutes: 2 })).rejects.toMatchObject({ status: 400 });
+    await expect(setTaskAlert(db, admin, { taskId, minutes: 2000 })).rejects.toMatchObject({ status: 400 });
+    await setTaskAlert(db, admin, { taskId, minutes: 10 });
+    await expect(setTaskAlert(db, admin, { taskId, minutes: 10 })).rejects.toThrow(/Nothing changed/);
+
+    const { taskId: untimed } = await createOneOffTask(db, admin, make({ dueTime: "", subtasks: [] }));
+    await expect(setTaskAlert(db, admin, { taskId: untimed, minutes: 10 })).rejects.toThrow(/no due time/);
+    world.tasks.set(taskId, { ...world.tasks.get(taskId)!, status: "completed" });
+    await expect(setTaskAlert(db, admin, { taskId, minutes: 30 })).rejects.toThrow(/Only open work/);
+  });
+
+  it("is untouched by edits and bulk changes of the task", async () => {
+    const world = newWorld();
+    const db = makeDb(world, now);
+    const { taskId } = await createOneOffTask(db, admin, make({ subtasks: [] }));
+    await setTaskAlert(db, admin, { taskId, minutes: 15 });
+    await bulkChangeTasks(db, admin, bulkSchema.parse({ taskIds: [taskId], change: { kind: "priority", priority: "low" } }));
+    await updateOneOffTask(db, admin, editOf(world, taskId, { title: "Count the stock" }));
+    expect(world.tasks.get(taskId)!.adminAlertMin).toBe(15);
   });
 });
 

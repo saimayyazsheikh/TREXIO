@@ -1,4 +1,4 @@
-import { ESCALATION_LOOKBACK_MS, blockedAdminText, escalationAdminText, escalationDue, escalationEmployeeText, type AutomationSettings } from "@/lib/domain/automation";
+import { ESCALATION_LOOKBACK_MS, MIN_ADMIN_ALERT_MIN, blockedAdminText, escalationAdminText, escalationDue, escalationEmployeeText, type AutomationSettings } from "@/lib/domain/automation";
 import { isClosedFor, type CalendarEntry } from "@/lib/domain/timeoff";
 import type { TaskData } from "@/lib/domain/tasks";
 import { isoWeekdayOfDate, pktDateString } from "@/lib/time";
@@ -40,14 +40,16 @@ export async function runEscalations(deps: AutomationDeps): Promise<EscalationRe
   const result: EscalationResult = { checked: 0, level1: 0, level2: 0, paused: 0 };
 
   // The earliest alert of any priority decides how far back to look; escalationDue then applies each task's own times.
-  const candidates = await deps.loadDueBetween(nowMs - ESCALATION_LOOKBACK_MS, nowMs - Math.min(settings.escalationL1Min, settings.escalationHighL1Min) * 60_000);
+  // A task the admin asked to watch can alert after as little as MIN_ADMIN_ALERT_MIN, so the window reaches that far in too.
+  const soonest = Math.min(settings.escalationL1Min, settings.escalationHighL1Min, MIN_ADMIN_ALERT_MIN);
+  const candidates = await deps.loadDueBetween(nowMs - ESCALATION_LOOKBACK_MS, nowMs - soonest * 60_000);
   const today = pktDateString(now);
   const [calendar, onLeave] = await Promise.all([deps.loadCalendar(today), deps.loadEmployeesOnLeave(today)]);
   const people = await deps.loadPeople([...new Set(candidates.flatMap((c) => c.task.assigneeIds))]);
   const businesses = await deps.loadBusinesses([...new Set(candidates.map((c) => c.task.businessId))]);
 
   for (const { id, task } of candidates) {
-    const due = escalationDue({ status: task.status, priority: task.priority, dueAtMs: task.dueAt?.getTime() ?? null, escalation: task.escalation }, nowMs, settings);
+    const due = escalationDue({ status: task.status, priority: task.priority, adminAlertMin: task.adminAlertMin, dueAtMs: task.dueAt?.getTime() ?? null, escalation: task.escalation }, nowMs, settings);
     if (!due.l1 && !due.l2) continue;
     result.checked++;
 
@@ -70,7 +72,7 @@ export async function runEscalations(deps: AutomationDeps): Promise<EscalationRe
       const names = working.map((uid) => people.get(uid)?.name ?? "someone");
       const business = businesses.get(task.businessId)?.name ?? "";
       const line = escalationAdminText({ employeeNames: names, title: task.title, business, lateMs });
-      await deps.notify({ toUid: "admin", title: "A task is badly late", body: line, link: "/admin/kanban" });
+      await deps.notify({ toUid: "admin", title: task.adminAlertMin ? "A task you're watching is late" : "A task is badly late", body: line, link: "/admin/kanban" });
       result.level2++;
     }
   }

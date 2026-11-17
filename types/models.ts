@@ -71,6 +71,8 @@ export type TaskDoc = {
   client?: string;
   /** How long the admin expects it to take, in minutes. */
   estimateMin?: number | null;
+  /** The admin asked to be told once it is this many minutes past its due time. */
+  adminAlertMin?: number | null;
   /** Seconds each person has spent on it with the timer. */
   timeSpent?: Record<string, number>;
   /** Running timers: who started one, and since when. */

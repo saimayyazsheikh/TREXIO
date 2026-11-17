@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Check, Clock, Flame, Minus, ArrowDown, Pencil, Send, Sparkles, UserRound, X } from "lucide-react";
+import { AlarmClock, CalendarDays, Check, Clock, Flame, Minus, ArrowDown, Pencil, Send, Sparkles, UserRound, X } from "lucide-react";
 import { addDoc, limit, orderBy, query, serverTimestamp, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tooltip } from "@/components/ui/tooltip";
 import { pill } from "@/components/features/badges";
@@ -13,7 +14,7 @@ import { useCollection } from "@/hooks/use-collection";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection } from "@/lib/firebase/org";
-import { MAX_ASSISTANT_MESSAGE, type AssistantAnswer, type ProposedTask } from "@/lib/domain/assistant";
+import { MAX_ASSISTANT_MESSAGE, type AssistantAnswer, type ProposedAlert, type ProposedTask } from "@/lib/domain/assistant";
 import { PRIORITY_LABEL, type Priority } from "@/lib/domain/constants";
 import { formatPkt, pktDateString, pktInstant } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ export const OPEN_ASSISTANT_EVENT = "traxio:open-assistant";
 const EXAMPLES = [
   "Kal subah 10 baje Ali ko stock count karwana hai, high priority",
   "Remind me to ask Ahmed about the paint order",
+  "Agar Sara ka invoices wala task 15 minute late ho to mujhe batana",
   "Sara ko Friday tak invoices bhejne hain: check, send, confirm",
   "Who has the most free time this week?",
 ];
@@ -52,7 +54,14 @@ function ProposalCard({ p, status, failure, busy, onCreate, onEdit, onSkip }: { 
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
         {p.dump ? (
-          <span className={cn(pill, "bg-surface-raised text-muted")}>Goes to Dump tasks</span>
+          <>
+            <span className={cn(pill, "bg-surface-raised text-muted")}>Goes to Dump tasks</span>
+            {p.remindOn ? (
+              <span className={cn(pill, "bg-surface-raised")}>
+                <CalendarDays className="size-3.5" aria-hidden /> Remind me {dayLabel(p.remindOn)}
+              </span>
+            ) : null}
+          </>
         ) : (
           <>
             <span className={cn(pill, "bg-surface-raised")}>
@@ -98,6 +107,66 @@ function ProposalCard({ p, status, failure, busy, onCreate, onEdit, onSkip }: { 
   );
 }
 
+function AlertCard({ a, minutes, onMinutes, status, failure, busy, onCreate, onSkip }: { a: ProposedAlert; minutes: number; onMinutes: (m: number) => void; status: Status; failure?: string; busy: boolean; onCreate: () => void; onSkip: () => void }) {
+  const invalid = a.issues.length > 0 || !(minutes >= 5 && minutes <= 1440);
+  return (
+    <li className={cn("rounded-card border p-3", status === "created" ? "border-success/40 bg-success/6" : status === "skipped" ? "border-border-solid opacity-60" : invalid || status === "failed" ? "border-danger/40" : "border-border-solid")}>
+      <div className="flex items-start gap-2">
+        <AlarmClock className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted">Tell me when this is late</p>
+          <p className={cn("font-semibold leading-snug", status === "skipped" && "line-through")}>{a.taskTitle}</p>
+        </div>
+        {status === "created" ? (
+          <span className={cn(pill, "bg-success/14 text-success")}>
+            <Check className="size-3.5" aria-hidden /> Alert set
+          </span>
+        ) : null}
+      </div>
+      {a.assigneeNames.length || a.dueLabel ? (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+          {a.assigneeNames.length ? (
+            <span className={cn(pill, "bg-surface-raised")}>
+              <UserRound className="size-3.5" aria-hidden /> {a.assigneeNames.join(", ")}
+            </span>
+          ) : null}
+          {a.dueLabel ? (
+            <span className={cn(pill, "bg-surface-raised")}>
+              <Clock className="size-3.5" aria-hidden /> Due {a.dueLabel}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
+      {a.taskId && status !== "created" && status !== "skipped" ? (
+        <label className="mt-3 flex items-center gap-2 text-sm">
+          Alert me when it is
+          <Input type="number" inputMode="numeric" min={5} max={1440} value={minutes} onChange={(e) => onMinutes(Number(e.target.value))} className="w-24" aria-label="Minutes late" />
+          minutes late
+        </label>
+      ) : null}
+
+      {a.issues.map((issue) => (
+        <p key={issue} className="mt-2 rounded-control bg-danger/10 px-2.5 py-1.5 text-xs text-danger">
+          {issue}
+        </p>
+      ))}
+      {failure ? <p className="mt-2 rounded-control bg-danger/10 px-2.5 py-1.5 text-xs text-danger">{failure}</p> : null}
+
+      {status !== "created" && status !== "skipped" ? (
+        <div className="mt-3 flex flex-wrap items-center justify-end gap-1.5">
+          <Button variant="ghost" size="sm" disabled={busy} onClick={onSkip}>
+            <X aria-hidden /> Skip
+          </Button>
+          <Button size="sm" loading={status === "creating"} disabled={busy || invalid || !a.taskId} onClick={onCreate}>
+            <Check aria-hidden /> Set alert
+          </Button>
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
 /**
  * Write what you need in plain words (English, Urdu or Roman Urdu). The assistant lays out the tasks it understood, and nothing
  * is created until you press Create. Every task goes through the same checks as the normal Assign form.
@@ -111,6 +180,8 @@ export function AssistantPanel() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [editing, setEditing] = useState<{ entry: number; p: ProposedTask } | null>(null);
   const [wasOpened, setWasOpened] = useState(false);
+  /** Minutes the admin typed on an alert card, keyed by entry and alert. */
+  const [alertMinutes, setAlertMinutes] = useState<Record<string, number>>({});
   const endRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(1);
 
@@ -155,7 +226,7 @@ export function AssistantPanel() {
     setEntries((list) => [...list, { id, text: t, status: {}, failure: {} }]);
     try {
       const answer = await apiFetch<AssistantAnswer>("/api/admin/assistant", "POST", { message: t });
-      patch(id, (e) => ({ ...e, answer, status: Object.fromEntries(answer.proposals.map((p) => [p.key, "ready" as Status])) }));
+      patch(id, (e) => ({ ...e, answer, status: Object.fromEntries([...answer.proposals, ...answer.alerts].map((p) => [p.key, "ready" as Status])) }));
     } catch (error) {
       patch(id, (e) => ({ ...e, error: error instanceof Error ? error.message : "Something went wrong. Please try again." }));
     } finally {
@@ -168,7 +239,7 @@ export function AssistantPanel() {
     setStatus(entryId, p.key, "creating");
     try {
       if (p.dump) {
-        await addDoc(orgCollection(db, "dumpTasks"), { title: p.title, note: p.description, remindOn: null, createdAt: serverTimestamp() });
+        await addDoc(orgCollection(db, "dumpTasks"), { title: p.title, note: p.description, remindOn: p.remindOn, businessId: null, createdAt: serverTimestamp() });
       } else {
         await apiFetch("/api/admin/tasks", "POST", {
           title: p.title,
@@ -192,13 +263,32 @@ export function AssistantPanel() {
     }
   }
 
+  const minutesOf = (entryId: number, a: ProposedAlert) => alertMinutes[`${entryId}:${a.key}`] ?? a.minutes;
+
+  /** One proposed late alert is set on its task. Returns whether it worked. */
+  async function setAlert(entryId: number, a: ProposedAlert): Promise<boolean> {
+    setStatus(entryId, a.key, "creating");
+    try {
+      await apiFetch("/api/admin/tasks/alert", "POST", { taskId: a.taskId, minutes: minutesOf(entryId, a) });
+      setStatus(entryId, a.key, "created");
+      return true;
+    } catch (error) {
+      setStatus(entryId, a.key, "failed", error instanceof Error ? error.message : "Couldn't set the alert.");
+      return false;
+    }
+  }
+
   async function createAll(entry: Entry) {
-    const todo = (entry.answer?.proposals ?? []).filter((p) => p.issues.length === 0 && ["ready", "failed"].includes(entry.status[p.key]));
+    const open = (key: string) => ["ready", "failed"].includes(entry.status[key]);
+    const todo = (entry.answer?.proposals ?? []).filter((p) => p.issues.length === 0 && open(p.key));
+    const alerts = (entry.answer?.alerts ?? []).filter((a) => a.issues.length === 0 && open(a.key));
     setCreating(true);
     let ok = 0;
     for (const p of todo) if (await create(entry.id, p)) ok++;
+    for (const a of alerts) if (await setAlert(entry.id, a)) ok++;
     setCreating(false);
-    if (todo.length > 0) toast[ok === todo.length ? "success" : "warning"](`${ok} of ${todo.length} created`);
+    const total = todo.length + alerts.length;
+    if (total > 0) toast[ok === total ? "success" : "warning"](`${ok} of ${total} done`);
   }
 
   const form = (
@@ -266,7 +356,7 @@ export function AssistantPanel() {
             ) : null}
 
             {entries.map((entry) => {
-              const ready = (entry.answer?.proposals ?? []).filter((p) => p.issues.length === 0 && ["ready", "failed"].includes(entry.status[p.key]));
+              const ready = [...(entry.answer?.proposals ?? []), ...(entry.answer?.alerts ?? [])].filter((p) => p.issues.length === 0 && ["ready", "failed"].includes(entry.status[p.key]));
               return (
                 <div key={entry.id} className="flex flex-col gap-3">
                   <p className="ml-auto max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-md bg-brand px-3.5 py-2 text-sm text-brand-fg">{entry.text}</p>
@@ -291,9 +381,26 @@ export function AssistantPanel() {
                           ))}
                         </ul>
                       ) : null}
+                      {entry.answer.alerts.length > 0 ? (
+                        <ul className="flex flex-col gap-2.5">
+                          {entry.answer.alerts.map((a) => (
+                            <AlertCard
+                              key={a.key}
+                              a={a}
+                              minutes={minutesOf(entry.id, a)}
+                              onMinutes={(m) => setAlertMinutes((s) => ({ ...s, [`${entry.id}:${a.key}`]: m }))}
+                              status={entry.status[a.key] ?? "ready"}
+                              failure={entry.failure[a.key]}
+                              busy={creating}
+                              onCreate={() => void setAlert(entry.id, a)}
+                              onSkip={() => setStatus(entry.id, a.key, "skipped")}
+                            />
+                          ))}
+                        </ul>
+                      ) : null}
                       {ready.length > 1 ? (
                         <Button loading={creating} onClick={() => void createAll(entry)}>
-                          <Check aria-hidden /> Create all {ready.length}
+                          <Check aria-hidden /> Confirm all {ready.length}
                         </Button>
                       ) : null}
                     </div>

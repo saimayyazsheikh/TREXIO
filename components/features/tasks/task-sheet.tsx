@@ -53,7 +53,18 @@ export function TaskSheet({
   businesses: WithId<BusinessDoc>[];
   defaultAssigneeId?: string;
   /** Scheduling a dump task: the form starts with its words, and the dump entry is removed when the task is created. */
-  prefill?: { dumpId?: string; title: string; description: string; date: string };
+  prefill?: {
+    dumpId?: string;
+    title: string;
+    description: string;
+    date: string;
+    priority?: Priority;
+    dueTime?: string;
+    assigneeIds?: string[];
+    subtasks?: string[];
+    /** Called once the task has been created (the assistant uses it to tick the proposal off). */
+    onCreated?: () => void;
+  };
 }) {
   const editing = !!task;
   const [formError, setFormError] = useState<string | null>(null);
@@ -89,8 +100,9 @@ export function TaskSheet({
             subtasks: task.subtasks.map((s) => ({ id: s.id, title: s.title })),
           }
         : {
-            title: prefill?.title ?? "", description: prefill?.description ?? "", priority: "medium", date: prefill?.date ?? pktDateString(), dueTime: "", assigneeIds: defaultAssigneeId ? [defaultAssigneeId] : [],
-            completionMode: "all", dependsOnIds: [], relatedTaskIds: [], requiresReview: false, subtasks: [],
+            title: prefill?.title ?? "", description: prefill?.description ?? "", priority: prefill?.priority ?? "medium", date: prefill?.date ?? pktDateString(), dueTime: prefill?.dueTime ?? "",
+            assigneeIds: prefill?.assigneeIds?.length ? prefill.assigneeIds : defaultAssigneeId ? [defaultAssigneeId] : [],
+            completionMode: "all", dependsOnIds: [], relatedTaskIds: [], requiresReview: false, subtasks: (prefill?.subtasks ?? []).map((title) => ({ title })),
           },
     );
   }, [open, task, defaultAssigneeId, prefill, reset]);
@@ -111,6 +123,7 @@ export function TaskSheet({
       if (!task) copies = (await apiFetch<{ taskIds?: string[] }>("/api/admin/tasks", "POST", { ...base, ...(dumpId ? { dumpId } : {}), subtasks: values.subtasks.map((s) => s.title) })).taskIds?.length ?? 1;
 
       toast.success(editing ? "Task updated" : copies > 1 ? `Task assigned in ${copies} businesses` : "Task assigned");
+      if (!editing) prefill?.onCreated?.();
       onOpenChange(false);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "Something went wrong. Please try again.");

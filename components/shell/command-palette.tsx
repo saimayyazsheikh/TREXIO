@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CornerDownLeft, Search, UserRound, type LucideIcon } from "lucide-react";
+import { CornerDownLeft, Search, Sparkles, UserRound, type LucideIcon } from "lucide-react";
 import { query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -11,12 +11,13 @@ import { ADMIN_NAV, EMPLOYEE_NAV } from "@/components/shell/nav-config";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection } from "@/lib/firebase/org";
+import { OPEN_ASSISTANT_EVENT } from "@/components/features/assistant/assistant-panel";
 import { matchScore } from "@/lib/domain/command-search";
 import type { Role } from "@/lib/domain/constants";
 import { cn } from "@/lib/utils";
 import type { UserDoc } from "@/types/models";
 
-type Entry = { id: string; label: string; hint: string; href: string; icon: LucideIcon; group: "Pages" | "People"; keywords: string };
+type Entry = { id: string; label: string; hint: string; href: string; icon: LucideIcon; group: "Pages" | "People"; keywords: string; run?: () => void };
 
 /** Admin only: the team list is read once the palette is first opened, so closed palettes cost nothing. */
 function usePeople(enabled: boolean) {
@@ -80,7 +81,11 @@ export function CommandPalette({ role }: { role: Role }) {
       .filter((u) => u.status === "active")
       .sort((a, b) => a.name.localeCompare(b.name))
       .map<Entry>((u) => ({ id: u.id, label: u.name, hint: u.designation || "Team member", href: `/admin/employees/${u.id}`, icon: UserRound, group: "People", keywords: `${u.username ?? ""} ${u.designation ?? ""}` }));
-    return [...pages, ...team];
+    const assistant: Entry[] =
+      role === "admin"
+        ? [{ id: "assistant", label: "Ask the assistant", hint: "Write tasks in plain words and let it lay them out", href: "", icon: Sparkles, group: "Pages", keywords: "ai task create new write plain urdu", run: () => window.dispatchEvent(new Event(OPEN_ASSISTANT_EVENT)) }]
+        : [];
+    return [...assistant, ...pages, ...team];
   }, [role, people]);
 
   const results = useMemo(() => {
@@ -101,7 +106,8 @@ export function CommandPalette({ role }: { role: Role }) {
   function go(entry: Entry | undefined) {
     if (!entry) return;
     setOpen(false);
-    router.push(entry.href);
+    if (entry.run) entry.run();
+    else router.push(entry.href);
   }
 
   const groups = (["Pages", "People"] as const).map((g) => ({ g, items: results.filter((r) => r.group === g) })).filter((x) => x.items.length > 0);

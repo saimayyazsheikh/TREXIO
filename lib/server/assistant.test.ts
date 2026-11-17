@@ -69,5 +69,8 @@ describe("askAssistant", () => {
     await askAssistant(deps('{"tasks":[]}', "gemini", seen), { message: "hello" });
     expect(seen.system).toContain("You never change anything yourself");
     expect(seen.system).toContain("Roman Urdu");
+    // It is also told what it cannot do, so a request like "add an employee" is refused instead of becoming a task.
+    expect(seen.system).toContain("You can NOT add, remove or change employees");
+    expect(seen.system).toContain("Never turn such a request into a task");
   });
 });

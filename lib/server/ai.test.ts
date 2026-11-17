@@ -40,6 +40,38 @@ describe("anthropicProvider", () => {
   });
 });
 
+describe("geminiProvider when Google is busy", () => {
+  const ok = () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "fine" }] } }] }), { status: 200 });
+  const busy = () => new Response(JSON.stringify({ error: { message: "high demand" } }), { status: 503 });
+  const make = (answers: (() => Response)[]) => {
+    let calls = 0;
+    const provider = geminiProvider({ apiKey: "k", retryDelaysMs: [0, 0], fetchImpl: (async () => answers[Math.min(calls++, answers.length - 1)]()) as unknown as typeof fetch });
+    return { provider, calls: () => calls };
+  };
+  const ask = { system: "s", prompt: "p" };
+
+  it("tries again and returns the answer once Google recovers", async () => {
+    const { provider, calls } = make([busy, busy, ok]);
+    expect(await provider.generate(ask)).toBe("fine");
+    expect(calls()).toBe(3);
+  });
+
+  it("gives up after three tries with a plain message", async () => {
+    const { provider, calls } = make([busy]);
+    await expect(provider.generate(ask)).rejects.toThrow(/busy right now/);
+    expect(calls()).toBe(3);
+  });
+
+  it("does not retry a rejected key or a bad request", async () => {
+    const rejected = make([() => new Response("{}", { status: 403 })]);
+    await expect(rejected.provider.generate(ask)).rejects.toThrow(/key was rejected/);
+    expect(rejected.calls()).toBe(1);
+    const bad = make([() => new Response("{}", { status: 400 })]);
+    await expect(bad.provider.generate(ask)).rejects.toThrow(/couldn't write/);
+    expect(bad.calls()).toBe(1);
+  });
+});
+
 describe("geminiProvider", () => {
   it("posts the prompt with the key in a header, not the URL, and joins the parts", async () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "Hello" }, { text: "world" }] } }] }), { status: 200 }));
@@ -52,7 +84,7 @@ describe("geminiProvider", () => {
     expect(JSON.parse(String(init.body)).systemInstruction.parts[0].text).toBe("Be brief.");
   });
   it("turns failures into friendly errors", async () => {
-    const respond = (status: number, body: unknown) => geminiProvider({ apiKey: "k", fetchImpl: (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch });
+    const respond = (status: number, body: unknown) => geminiProvider({ apiKey: "k", retryDelaysMs: [0, 0], fetchImpl: (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch });
     await expect(respond(403, {}).generate(req)).rejects.toThrow(/key was rejected/);
     await expect(respond(500, {}).generate(req)).rejects.toMatchObject({ status: 502 });
     await expect(respond(200, { candidates: [] }).generate(req)).rejects.toThrow(/empty answer/);

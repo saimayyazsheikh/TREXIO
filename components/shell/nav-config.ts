@@ -13,6 +13,7 @@ export const ADMIN_NAV: NavGroup[] = [
     label: "Work",
     items: [
       { href: "/admin/kanban", label: "Kanban", icon: Columns3, hint: "Every task by status; drag cards to move them" },
+      { href: "/admin/settings/team", label: "Team", icon: Users, hint: "Add and manage employees" },
       { href: "/admin/workload", label: "Workload", icon: Gauge, hint: "Who has room for the next task, and who is overloaded" },
       { href: "/admin/calendar", label: "Calendar", icon: CalendarRange, hint: "Tasks, holidays and leave on a month view" },
       { href: "/admin/dump", label: "Dump tasks", icon: Archive, hint: "Write down tasks you will give out later, then schedule them" },
@@ -47,7 +48,6 @@ export const ADMIN_NAV: NavGroup[] = [
     label: "Settings",
     pinned: true,
     items: [
-      { href: "/admin/settings/team", label: "Team", icon: Users, hint: "Add and manage employees" },
       { href: "/admin/settings/businesses", label: "Businesses", icon: Building2, hint: "Your businesses, colours and hours" },
       { href: "/admin/settings/calendar", label: "Holidays", icon: CalendarDays, hint: "Holidays and closures when no tasks are created" },
       { href: "/admin/settings/automation", label: "Automation", icon: BellRing, hint: "Late-task alerts, the morning briefing and idle time" },

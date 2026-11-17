@@ -13,6 +13,8 @@ type Props = {
   error?: string;
   /** Creating: one, several or all businesses (each gets its own copy of the task). Editing keeps a task in its one business. */
   multi?: boolean;
+  /** Businesses to start ticked when nobody is chosen yet (for example a dump task that was filed under one business). */
+  initialBusinessIds?: string[];
 };
 
 export function AssigneePicker(props: Props) {
@@ -28,11 +30,12 @@ const person = (p: WithId<UserDoc>) => (
 );
 
 /** Several businesses at once, or all of them: tick a business to bring in its people, then adjust who exactly. */
-function MultiBusinessPicker({ value, onChange, employees, businesses, error }: Props) {
+function MultiBusinessPicker({ value, onChange, employees, businesses, error, initialBusinessIds }: Props) {
   const active = (b: string) => employees.filter((e) => e.businessId === b && e.status === "active");
   const [picked, setPicked] = useState<string[]>(() => {
     const fromValue = [...new Set(employees.filter((e) => value.includes(e.id)).map((e) => e.businessId).filter((b): b is string => !!b))];
-    return fromValue.length ? fromValue : businesses.length === 1 ? [businesses[0].id] : [];
+    const given = (initialBusinessIds ?? []).filter((id) => businesses.some((b) => b.id === id));
+    return fromValue.length ? fromValue : given.length ? given : businesses.length === 1 ? [businesses[0].id] : [];
   });
 
   const allPicked = businesses.length > 0 && picked.length === businesses.length;

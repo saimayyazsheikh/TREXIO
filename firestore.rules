@@ -61,14 +61,16 @@ service cloud.firestore {
     match /dumpTasks/{dumpId} {
       allow read, delete: if isAdmin();
       allow create: if isAdmin()
-        && request.resource.data.keys().hasOnly(['title', 'note', 'remindOn', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['title', 'note', 'remindOn', 'businessId', 'createdAt'])
         && request.resource.data.keys().hasAll(['title', 'note', 'remindOn', 'createdAt'])
+        && (!('businessId' in request.resource.data) || request.resource.data.businessId == null || (request.resource.data.businessId is string && request.resource.data.businessId.size() > 0 && request.resource.data.businessId.size() <= 60))
         && request.resource.data.title is string && request.resource.data.title.size() >= 2 && request.resource.data.title.size() <= 120
         && request.resource.data.note is string && request.resource.data.note.size() <= 1000
         && (request.resource.data.remindOn == null || (request.resource.data.remindOn is string && request.resource.data.remindOn.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')))
         && request.resource.data.createdAt == request.time;
       allow update: if isAdmin()
-        && request.resource.data.keys().hasOnly(['title', 'note', 'remindOn', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['title', 'note', 'remindOn', 'businessId', 'createdAt'])
+        && (!('businessId' in request.resource.data) || request.resource.data.businessId == null || (request.resource.data.businessId is string && request.resource.data.businessId.size() > 0 && request.resource.data.businessId.size() <= 60))
         && request.resource.data.title is string && request.resource.data.title.size() >= 2 && request.resource.data.title.size() <= 120
         && request.resource.data.note is string && request.resource.data.note.size() <= 1000
         && (request.resource.data.remindOn == null || (request.resource.data.remindOn is string && request.resource.data.remindOn.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')))

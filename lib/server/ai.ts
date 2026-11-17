@@ -52,32 +52,48 @@ export function anthropicProvider(o: { apiKey?: string; model?: string; client?:
 
 type GeminiResponse = { candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]; error?: { message?: string } };
 
-/** Gemini over its REST API (the key goes in a header, never the URL). */
-export function geminiProvider(o: { apiKey: string; model?: string; fetchImpl?: typeof fetch }): AiProvider {
+/** Google answers these when it is overloaded or hiccuping; they usually clear within seconds, so they are tried again. */
+const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+/** Waits before the second and third try. */
+export const GEMINI_RETRY_DELAYS_MS = [1500, 3500];
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Gemini over its REST API (the key goes in a header, never the URL). A busy answer (503, 429) is retried twice before giving up. */
+export function geminiProvider(o: { apiKey: string; model?: string; fetchImpl?: typeof fetch; retryDelaysMs?: number[] }): AiProvider {
   const model = o.model || DEFAULT_GEMINI_MODEL;
   const doFetch = o.fetchImpl ?? fetch;
+  const delays = o.retryDelaysMs ?? GEMINI_RETRY_DELAYS_MS;
   return {
     name: "gemini",
     model,
     async generate({ system, prompt }) {
-      let res: Response;
-      try {
-        res = await doFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-          method: "POST",
-          signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-          headers: { "Content-Type": "application/json", "x-goog-api-key": o.apiKey },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: system }] },
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { maxOutputTokens: 8192, temperature: 0.3 },
-          }),
-        });
-      } catch (error) {
-        const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
-        throw new DomainError(timedOut ? "The AI service took too long to answer. Try again." : "Couldn't reach the AI service. Try again.", 502);
+      let res!: Response;
+      let body: GeminiResponse = {};
+      for (let attempt = 0; ; attempt++) {
+        try {
+          res = await doFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+            method: "POST",
+            signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+            headers: { "Content-Type": "application/json", "x-goog-api-key": o.apiKey },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: system }] },
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              generationConfig: { maxOutputTokens: 8192, temperature: 0.3 },
+            }),
+          });
+        } catch (error) {
+          const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+          throw new DomainError(timedOut ? "The AI service took too long to answer. Try again." : "Couldn't reach the AI service. Try again.", 502);
+        }
+        body = (await res.json().catch(() => ({}))) as GeminiResponse;
+        if (res.ok || !RETRYABLE.has(res.status) || attempt >= delays.length) break;
+        await wait(delays[attempt]);
       }
-      const body = (await res.json().catch(() => ({}))) as GeminiResponse;
-      if (!res.ok) throw new DomainError(res.status === 401 || res.status === 403 ? "The Gemini API key was rejected. Check GEMINI_API_KEY." : "The AI service couldn't write the summary. Try again.", 502);
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) throw new DomainError("The Gemini API key was rejected. Check GEMINI_API_KEY.", 502);
+        if (res.status === 429 || res.status === 503) throw new DomainError("The AI service is busy right now. Wait a minute and try again.", 502);
+        throw new DomainError("The AI service couldn't write the summary. Try again.", 502);
+      }
       const text = (body.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("\n");
       if (!text.trim()) throw empty();
       return clean(text);

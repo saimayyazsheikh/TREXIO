@@ -60,6 +60,8 @@ export function TaskSheet({
   /** Scheduling a dump task: the form starts with its words, and the dump entry is removed when the task is created. */
   prefill?: {
     dumpId?: string;
+    /** The business a dump task was filed under: it starts ticked in the picker. */
+    businessId?: string | null;
     title: string;
     description: string;
     date: string;
@@ -195,6 +197,7 @@ export function TaskSheet({
                 businesses={businesses}
                 error={errors.assigneeIds?.message}
                 multi={!editing}
+                initialBusinessIds={prefill?.businessId ? [prefill.businessId] : undefined}
               />
             )}
           />

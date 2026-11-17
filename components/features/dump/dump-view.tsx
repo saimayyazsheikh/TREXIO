@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
 import { GlassCard } from "@/components/features/glass-card";
 import { PageHeader } from "@/components/features/page-header";
-import { pill } from "@/components/features/badges";
+import { BusinessChip, pill } from "@/components/features/badges";
 import { TaskSheet } from "@/components/features/tasks/task-sheet";
 import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
@@ -42,12 +43,20 @@ export function DumpView() {
 
   const [title, setTitle] = useState("");
   const [remindOn, setRemindOn] = useState("");
+  const [businessId, setBusinessId] = useState("");
+  /** "" shows everything, "none" the entries with no business, otherwise one business. */
+  const [filter, setFilter] = useState("");
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Editing | null>(null);
   // A copy taken when "Schedule" is pressed, so live updates to the list never reset the form while it is open.
-  const [scheduling, setScheduling] = useState<{ dumpId: string; title: string; description: string; date: string } | null>(null);
+  const [scheduling, setScheduling] = useState<{ dumpId: string; title: string; description: string; date: string; businessId: string | null } | null>(null);
 
-  const items = dump.data ?? [];
+  const all = dump.data ?? [];
+  const businessById = new Map((businesses.data ?? []).map((b) => [b.id, b]));
+  const countFor = (id: string) => all.filter((d) => (id === "none" ? !d.businessId : d.businessId === id)).length;
+  // A filter pointing at a business that was deleted falls back to showing everything.
+  const activeFilter = filter && filter !== "none" && !businessById.has(filter) ? "" : filter;
+  const items = all.filter((d) => !activeFilter || (activeFilter === "none" ? !d.businessId : d.businessId === activeFilter));
   const due = items.filter((d) => d.remindOn && d.remindOn <= today).sort((a, b) => (a.remindOn ?? "").localeCompare(b.remindOn ?? ""));
   const later = items.filter((d) => d.remindOn && d.remindOn > today).sort((a, b) => (a.remindOn ?? "").localeCompare(b.remindOn ?? ""));
   const undated = items.filter((d) => !d.remindOn);
@@ -61,7 +70,7 @@ export function DumpView() {
     if (t.length < 2) return toast.error("Write a few words about the task first.");
     setAdding(true);
     try {
-      await addDoc(orgCollection(db, "dumpTasks"), { title: t, note: "", remindOn: remindOn || null, createdAt: serverTimestamp() });
+      await addDoc(orgCollection(db, "dumpTasks"), { title: t, note: "", remindOn: remindOn || null, businessId: businessId || null, createdAt: serverTimestamp() });
       setTitle("");
       setRemindOn("");
     } catch {
@@ -86,6 +95,11 @@ export function DumpView() {
         <div className="min-w-0 flex-1 basis-56">
           <p className="font-semibold leading-snug">{d.title}</p>
           {d.note ? <p className="mt-0.5 whitespace-pre-line text-sm text-muted">{d.note}</p> : null}
+          {d.businessId && businessById.has(d.businessId) ? (
+            <span className="mr-1.5 mt-2 inline-flex">
+              <BusinessChip name={businessById.get(d.businessId)!.name} color={businessById.get(d.businessId)!.color} />
+            </span>
+          ) : null}
           {d.remindOn ? (
             <span className={cn(pill, "mt-2", d.remindOn <= today ? "bg-warning/15 text-warning" : "bg-surface-raised text-muted")}>
               <CalendarClock className="size-3.5" aria-hidden /> {d.remindOn < today ? `Was for ${dayLabel(d.remindOn)}` : d.remindOn === today ? "For today" : `Remind me ${dayLabel(d.remindOn)}`}
@@ -93,7 +107,7 @@ export function DumpView() {
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <Button size="sm" onClick={() => setScheduling({ dumpId: d.id, title: d.title, description: d.note, date: d.remindOn && d.remindOn >= today ? d.remindOn : today })}>
+          <Button size="sm" onClick={() => setScheduling({ dumpId: d.id, title: d.title, description: d.note, date: d.remindOn && d.remindOn >= today ? d.remindOn : today, businessId: d.businessId ?? null })}>
             <CalendarPlus aria-hidden /> Schedule
           </Button>
           <Button variant="ghost" size="icon" aria-label={`Edit “${d.title}”`} onClick={() => setEditing({ item: d })}>
@@ -128,6 +142,22 @@ export function DumpView() {
             {(aria) => <Input {...aria} autoComplete="off" maxLength={120} placeholder="For example: ask Ahmed about the paint order" value={title} onChange={(e) => setTitle(e.target.value)} />}
           </Field>
         </div>
+        {(businesses.data?.length ?? 0) > 0 ? (
+          <div className="w-44">
+            <Field id="dump-business" label="Business" hint="Optional">
+              {(aria) => (
+                <Select {...aria} value={businessId} onChange={(e) => setBusinessId(e.target.value)}>
+                  <option value="">Any business</option>
+                  {(businesses.data ?? []).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          </div>
+        ) : null}
         <div className="w-44">
           <Field id="dump-date" label="Remind me on" hint="Optional">
             {(aria) => <Input {...aria} type="date" min={today} value={remindOn} onChange={(e) => setRemindOn(e.target.value)} />}
@@ -138,6 +168,22 @@ export function DumpView() {
         </Button>
       </form>
 
+      {all.length > 0 && (businesses.data?.length ?? 0) > 0 ? (
+        <div role="group" aria-label="Show tasks for" className="mb-5 flex flex-wrap gap-2">
+          {[{ id: "", name: "All", n: all.length }, ...(businesses.data ?? []).map((b) => ({ id: b.id, name: b.name, n: countFor(b.id) })), ...(countFor("none") > 0 ? [{ id: "none", name: "No business", n: countFor("none") }] : [])].map((c) => (
+            <button
+              key={c.id || "all"}
+              type="button"
+              aria-pressed={activeFilter === c.id}
+              onClick={() => setFilter(c.id)}
+              className={cn("min-h-11 rounded-control border px-4 text-sm font-medium transition-colors", activeFilter === c.id ? "border-transparent bg-brand text-brand-fg" : "border-input hover:bg-surface-raised")}
+            >
+              {c.name} <span className="num ml-1 text-xs opacity-70">{c.n}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {error ? (
         <ErrorState onRetry={() => { dump.retry(); users.retry(); businesses.retry(); }} />
       ) : loading ? (
@@ -146,8 +192,10 @@ export function DumpView() {
             <Skeleton key={i} className="h-20 rounded-card" />
           ))}
         </div>
-      ) : items.length === 0 ? (
+      ) : all.length === 0 ? (
         <EmptyState icon={Archive} title="Nothing in the dump" description="When a task crosses your mind but it isn't for today, write it above. When its day comes, press Schedule to hand it to someone." />
+      ) : items.length === 0 ? (
+        <EmptyState icon={Archive} title="Nothing here for that business" description="Pick another business above, or choose All." />
       ) : (
         <div className="space-y-8">
           {section("Time to schedule", "You asked to be reminded about these today or earlier.", due, "text-warning")}
@@ -156,7 +204,7 @@ export function DumpView() {
         </div>
       )}
 
-      <DumpEditDialog target={editing} onClose={() => setEditing(null)} />
+      <DumpEditDialog target={editing} businesses={businesses.data ?? []} onClose={() => setEditing(null)} />
       <TaskSheet
         open={scheduling !== null}
         onOpenChange={(o) => !o && setScheduling(null)}
@@ -168,7 +216,7 @@ export function DumpView() {
   );
 }
 
-function DumpEditDialog({ target, onClose }: { target: Editing | null; onClose: () => void }) {
+function DumpEditDialog({ target, businesses, onClose }: { target: Editing | null; businesses: WithId<BusinessDoc>[]; onClose: () => void }) {
   const item = target?.item ?? null;
   return (
     <Dialog open={item !== null} onOpenChange={(o) => !o && onClose()}>
@@ -176,24 +224,25 @@ function DumpEditDialog({ target, onClose }: { target: Editing | null; onClose: 
         <DialogTitle>Edit dump task</DialogTitle>
         <DialogDescription>Only you can see this.</DialogDescription>
         {/* Keyed by the entry, so each one opens with its own words. */}
-        {item ? <DumpEditForm key={item.id} item={item} onClose={onClose} /> : null}
+        {item ? <DumpEditForm key={item.id} item={item} businesses={businesses} onClose={onClose} /> : null}
       </DialogContent>
     </Dialog>
   );
 }
 
-function DumpEditForm({ item, onClose }: { item: WithId<DumpTaskDoc>; onClose: () => void }) {
+function DumpEditForm({ item, businesses, onClose }: { item: WithId<DumpTaskDoc>; businesses: WithId<BusinessDoc>[]; onClose: () => void }) {
   const { db } = getFirebase();
   const [title, setTitle] = useState(item.title);
   const [note, setNote] = useState(item.note);
   const [remindOn, setRemindOn] = useState(item.remindOn ?? "");
+  const [businessId, setBusinessId] = useState(item.businessId ?? "");
   const [busy, setBusy] = useState(false);
 
   async function save() {
     if (title.trim().length < 2) return toast.error("Give it a short title.");
     setBusy(true);
     try {
-      await updateDoc(orgDocument(db, "dumpTasks", item.id), { title: title.trim(), note: note.trim(), remindOn: remindOn || null });
+      await updateDoc(orgDocument(db, "dumpTasks", item.id), { title: title.trim(), note: note.trim(), remindOn: remindOn || null, businessId: businessId || null });
       toast.success("Saved");
       onClose();
     } catch {
@@ -221,6 +270,20 @@ function DumpEditForm({ item, onClose }: { item: WithId<DumpTaskDoc>; onClose: (
             />
           )}
         </Field>
+        {businesses.length > 0 ? (
+          <Field id="dump-edit-business" label="Business" hint="Optional">
+            {(aria) => (
+              <Select {...aria} value={businessId} onChange={(e) => setBusinessId(e.target.value)}>
+                <option value="">Any business</option>
+                {businesses.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        ) : null}
         <Field id="dump-edit-date" label="Remind me on" hint="Optional">
           {(aria) => <Input {...aria} type="date" value={remindOn} onChange={(e) => setRemindOn(e.target.value)} />}
         </Field>

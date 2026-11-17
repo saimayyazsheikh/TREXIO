@@ -38,6 +38,16 @@ describe("dump tasks", () => {
     await assertSucceeds(deleteDoc(doc(admin(), "orgs/o1/dumpTasks/d1")));
   });
 
+  it("can be filed under a business, or none", async () => {
+    await assertSucceeds(setDoc(doc(admin(), "orgs/o1/dumpTasks/b1"), entry({ businessId: "biz1" })));
+    await assertSucceeds(setDoc(doc(admin(), "orgs/o1/dumpTasks/b2"), entry({ businessId: null })));
+    await assertSucceeds(updateDoc(doc(admin(), "orgs/o1/dumpTasks/d1"), { businessId: "biz1" }));
+    await assertSucceeds(updateDoc(doc(admin(), "orgs/o1/dumpTasks/d1"), { businessId: null }));
+    await assertFails(setDoc(doc(admin(), "orgs/o1/dumpTasks/b3"), entry({ businessId: 5 })));
+    await assertFails(setDoc(doc(admin(), "orgs/o1/dumpTasks/b3"), entry({ businessId: "" })));
+    await assertFails(updateDoc(doc(admin(), "orgs/o1/dumpTasks/d1"), { businessId: "x".repeat(61) }));
+  });
+
   it("refuse an employee, a bad title, a bad day, extra fields, and rewriting when it was added", async () => {
     await assertFails(setDoc(doc(emp(), "orgs/o1/dumpTasks/x"), entry()));
     await assertFails(deleteDoc(doc(emp(), "orgs/o1/dumpTasks/d1")));

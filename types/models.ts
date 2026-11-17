@@ -87,6 +87,8 @@ export type DumpTaskDoc = {
   note: string;
   /** PKT day (YYYY-MM-DD) the admin wants to be reminded on, or null. */
   remindOn: string | null;
+  /** The business it is for, or none. */
+  businessId?: string | null;
   createdAt: Timestamp | null;
 };
 

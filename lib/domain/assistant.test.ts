@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAssistantPrompt, matchPerson, parseAssistantReply, resolveAlerts, resolveProposals, upcomingDays, type AssistantOpenTask, type AssistantPerson } from "@/lib/domain/assistant";
+import { buildAssistantPrompt, fixKeys, matchPerson, parseAssistantReply, resolveAlerts, resolveProposals, upcomingDays, type AssistantOpenTask, type AssistantPerson } from "@/lib/domain/assistant";
 
 const today = "2026-11-18";
 const people: AssistantPerson[] = [
@@ -24,7 +24,23 @@ describe("parseAssistantReply", () => {
   });
 
   it("accepts a reply with only text, for questions", () => {
-    expect(parseAssistantReply('{"reply":"Sara has room","tasks":[]}')).toEqual({ reply: "Sara has room", tasks: [], alerts: [] });
+    expect(parseAssistantReply('{"reply":"Sara has room","tasks":[]}')).toEqual({ reply: "Sara has room", tasks: [], alerts: [], actions: [] });
+  });
+});
+
+describe("a misspelled field name", () => {
+  it("is read as the field it nearly is, instead of silently dropping what was said", () => {
+    const r = parseAssistantReply('{"reply":"x","actions":[{"kind":"task.update","task":"T1","assigness":["Sara"],"priorty":"low"}],"taks":[{"title":"A task","whoo":["Ali"]}]}');
+    expect(r?.actions[0]).toMatchObject({ assignees: ["Sara"], priority: "low" });
+    // "taks" at the top is read as "tasks" too.
+    expect(r?.tasks.map((t) => t.title)).toEqual(["A task"]);
+  });
+
+  it("leaves a key alone when it is unknown, or could be two different ones", () => {
+    expect(fixKeys({ banana: 1, who: 2 }, ["who", "person"])).toEqual({ banana: 1, who: 2 });
+    expect(fixKeys({ aaaa: 1 }, ["aaab", "aaac"])).toEqual({ aaaa: 1 });
+    // A key that is already right is never renamed, and a rename never overwrites a real one.
+    expect(fixKeys({ assignees: 1, assigness: 2 }, ["assignees"])).toEqual({ assignees: 1, assigness: 2 });
   });
 });
 
@@ -44,7 +60,7 @@ describe("matchPerson", () => {
 });
 
 describe("resolveProposals", () => {
-  const raw = (tasks: object[]) => ({ reply: "", tasks: tasks as never, alerts: [] });
+  const raw = (tasks: object[]) => ({ reply: "", tasks: tasks as never, alerts: [], actions: [] });
 
   it("puts a task with a person and no day on today, and defaults the priority", () => {
     const [p] = resolveProposals(raw([{ title: "Count stock", who: ["Sara"] }]), { people, today });
@@ -97,11 +113,16 @@ describe("resolveAlerts", () => {
     { ref: "T1", id: "task-a", title: "Fred ke stores", assigneeNames: ["Saim Ali"], date: "2026-11-18", dueTime: "12:00" },
     { ref: "T2", id: "task-b", title: "Invoices", assigneeNames: ["Sara Ahmed"], date: "2026-11-19", dueTime: "17:00" },
   ];
-  const raw = (alerts: object[]) => ({ reply: "", tasks: [], alerts: alerts as never });
+  const raw = (alerts: object[]) => ({ reply: "", tasks: [], alerts: alerts as never, actions: [] });
 
   it("matches a label to the task it stands for", () => {
     const [a] = resolveAlerts(raw([{ task: "t1", minutes: 10 }]), open);
     expect(a).toMatchObject({ taskId: "task-a", taskTitle: "Fred ke stores", assigneeNames: ["Saim Ali"], minutes: 10, issues: [], dueLabel: "Wed 11-18 12:00" });
+  });
+
+  it("flags a task that has no due time", () => {
+    const [a] = resolveAlerts(raw([{ task: "T3", minutes: 10 }]), [...open, { ref: "T3", id: "task-c", title: "Cleaning", assigneeNames: [], date: "2026-11-18", dueTime: "" }]);
+    expect(a.issues).toEqual(["This task has no due time, so there is nothing to be late for."]);
   });
 
   it("uses 10 minutes when none was given, and rounds", () => {
@@ -143,9 +164,13 @@ describe("the prompt", () => {
       people,
       businesses: [],
       loads: [],
-      openTasks: [{ ref: "T1", id: "x", title: "Fred ke stores", assigneeNames: ["Saim Ali"], date: "2026-11-18", dueTime: "12:00" }],
+      tasks: [{ ref: "T1", id: "x", title: "Fred ke stores", kind: "oneoff", assigneeNames: ["Saim Ali"], date: "2026-11-18", dueTime: "12:00", priority: "high", status: "todo" }],
+      routines: [{ ref: "R1", id: "r", title: "Open shop", employeeName: "Ali", dueTime: "09:00", activeDays: [1, 2, 3], active: false }],
+      leaves: [{ ref: "L1", id: "l", employeeName: "Sara", kind: "leave", fromDate: "2026-11-20", toDate: "2026-11-21", reason: "Wedding" }],
     });
-    expect(prompt).toContain("T1: “Fred ke stores” for Saim Ali, due Wed 2026-11-18 12:00");
+    expect(prompt).toContain("T1: “Fred ke stores” (one-off, todo) for Saim Ali, high priority, Wed 2026-11-18 due 12:00");
+    expect(prompt).toContain("R1: “Open shop” for Ali, days 123, due 09:00, paused");
+    expect(prompt).toContain("L1: Sara, leave, 2026-11-20 to 2026-11-21, “Wedding”");
     expect(prompt).toContain("Ali Raza (no business): no figures");
   });
 });

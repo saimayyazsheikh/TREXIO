@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AlarmClock, CalendarDays, Check, Clock, Flame, Minus, ArrowDown, Pencil, Send, Sparkles, UserRound, X } from "lucide-react";
 import { addDoc, limit, orderBy, query, serverTimestamp, where } from "firebase/firestore";
 import { toast } from "sonner";
@@ -9,12 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tooltip } from "@/components/ui/tooltip";
 import { pill } from "@/components/features/badges";
+import { ActionCard } from "@/components/features/assistant/action-card";
 import { TaskSheet } from "@/components/features/tasks/task-sheet";
 import { useCollection } from "@/hooks/use-collection";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection } from "@/lib/firebase/org";
 import { MAX_ASSISTANT_MESSAGE, type AssistantAnswer, type ProposedAlert, type ProposedTask } from "@/lib/domain/assistant";
+import type { ProposedAction } from "@/lib/domain/assistant-actions";
 import { PRIORITY_LABEL, type Priority } from "@/lib/domain/constants";
 import { formatPkt, pktDateString, pktInstant } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -27,13 +30,19 @@ const EXAMPLES = [
   "Remind me to ask Ahmed about the paint order",
   "Agar Sara ka invoices wala task 15 minute late ho to mujhe batana",
   "Sara ko Friday tak invoices bhejne hain: check, send, confirm",
+  "Sara ki leave approve kar do",
+  "Sab ko bata do kal dukan band hai",
+  "Daily report kholo",
   "Who has the most free time this week?",
 ];
 
 const PRIORITY_ICON = { high: Flame, medium: Minus, low: ArrowDown } as const;
 
 type Status = "ready" | "creating" | "created" | "failed" | "skipped";
-type Entry = { id: number; text: string; answer?: AssistantAnswer; error?: string; status: Record<string, Status>; failure: Record<string, string> };
+type Entry = { id: number; text: string; answer?: AssistantAnswer; error?: string; status: Record<string, Status>; failure: Record<string, string>; done: Record<string, string> };
+
+/** "Confirm all" only takes the harmless cards: nothing that deletes, turns someone off, or needs a password. Those are pressed one by one. */
+const canConfirmAll = (a: ProposedAction) => !!a.payload && a.issues.length === 0 && !a.danger && !a.needsPassword && a.kind !== "open.page";
 
 const dayLabel = (date: string) => formatPkt(pktInstant(date, "12:00"), "EEE d MMM");
 
@@ -173,6 +182,7 @@ function AlertCard({ a, minutes, onMinutes, status, failure, busy, onCreate, onS
  */
 export function AssistantPanel() {
   const { db } = getFirebase();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -223,10 +233,10 @@ export function AssistantPanel() {
     const id = nextId.current++;
     setText("");
     setBusy(true);
-    setEntries((list) => [...list, { id, text: t, status: {}, failure: {} }]);
+    setEntries((list) => [...list, { id, text: t, status: {}, failure: {}, done: {} }]);
     try {
       const answer = await apiFetch<AssistantAnswer>("/api/admin/assistant", "POST", { message: t });
-      patch(id, (e) => ({ ...e, answer, status: Object.fromEntries([...answer.proposals, ...answer.alerts].map((p) => [p.key, "ready" as Status])) }));
+      patch(id, (e) => ({ ...e, answer, status: Object.fromEntries([...answer.proposals, ...answer.alerts, ...answer.actions].map((p) => [p.key, "ready" as Status])) }));
     } catch (error) {
       patch(id, (e) => ({ ...e, error: error instanceof Error ? error.message : "Something went wrong. Please try again." }));
     } finally {
@@ -263,6 +273,26 @@ export function AssistantPanel() {
     }
   }
 
+  /** One confirmed card (a change to something that exists, people, holidays, settings…). The server checks it again and runs it. */
+  async function runAction(entryId: number, a: ProposedAction, password?: string): Promise<boolean> {
+    if (!a.payload) return false;
+    if (a.payload.kind === "open.page") {
+      setStatus(entryId, a.key, "created");
+      setOpen(false);
+      router.push(a.href ?? "/admin");
+      return true;
+    }
+    setStatus(entryId, a.key, "creating");
+    try {
+      const result = await apiFetch<{ message: string }>("/api/admin/assistant/do", "POST", { action: a.payload, ...(password ? { password } : {}) });
+      patch(entryId, (e) => ({ ...e, status: { ...e.status, [a.key]: "created" }, failure: { ...e.failure, [a.key]: "" }, done: { ...e.done, [a.key]: result.message } }));
+      return true;
+    } catch (error) {
+      setStatus(entryId, a.key, "failed", error instanceof Error ? error.message : "Couldn't do that.");
+      return false;
+    }
+  }
+
   const minutesOf = (entryId: number, a: ProposedAlert) => alertMinutes[`${entryId}:${a.key}`] ?? a.minutes;
 
   /** One proposed late alert is set on its task. Returns whether it worked. */
@@ -282,12 +312,14 @@ export function AssistantPanel() {
     const open = (key: string) => ["ready", "failed"].includes(entry.status[key]);
     const todo = (entry.answer?.proposals ?? []).filter((p) => p.issues.length === 0 && open(p.key));
     const alerts = (entry.answer?.alerts ?? []).filter((a) => a.issues.length === 0 && open(a.key));
+    const actions = (entry.answer?.actions ?? []).filter((a) => canConfirmAll(a) && open(a.key));
     setCreating(true);
     let ok = 0;
     for (const p of todo) if (await create(entry.id, p)) ok++;
     for (const a of alerts) if (await setAlert(entry.id, a)) ok++;
+    for (const a of actions) if (await runAction(entry.id, a)) ok++;
     setCreating(false);
-    const total = todo.length + alerts.length;
+    const total = todo.length + alerts.length + actions.length;
     if (total > 0) toast[ok === total ? "success" : "warning"](`${ok} of ${total} done`);
   }
 
@@ -340,7 +372,7 @@ export function AssistantPanel() {
       </Tooltip>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent title="Assistant" description="Say what you need in English, Urdu or Roman Urdu. Nothing is created until you press Create." footer={form}>
+        <SheetContent title="Assistant" description="Say what you need in English, Urdu or Roman Urdu. Nothing happens until you confirm it." footer={form}>
           <div className="flex flex-col gap-5" aria-live="polite">
             {entries.length === 0 ? (
               <div>
@@ -356,7 +388,7 @@ export function AssistantPanel() {
             ) : null}
 
             {entries.map((entry) => {
-              const ready = [...(entry.answer?.proposals ?? []), ...(entry.answer?.alerts ?? [])].filter((p) => p.issues.length === 0 && ["ready", "failed"].includes(entry.status[p.key]));
+              const ready = [...(entry.answer?.proposals ?? []), ...(entry.answer?.alerts ?? []), ...(entry.answer?.actions ?? []).filter(canConfirmAll)].filter((p) => p.issues.length === 0 && ["ready", "failed"].includes(entry.status[p.key]));
               return (
                 <div key={entry.id} className="flex flex-col gap-3">
                   <p className="ml-auto max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-md bg-brand px-3.5 py-2 text-sm text-brand-fg">{entry.text}</p>
@@ -393,6 +425,22 @@ export function AssistantPanel() {
                               failure={entry.failure[a.key]}
                               busy={creating}
                               onCreate={() => void setAlert(entry.id, a)}
+                              onSkip={() => setStatus(entry.id, a.key, "skipped")}
+                            />
+                          ))}
+                        </ul>
+                      ) : null}
+                      {entry.answer.actions.length > 0 ? (
+                        <ul className="flex flex-col gap-2.5">
+                          {entry.answer.actions.map((a) => (
+                            <ActionCard
+                              key={a.key}
+                              a={a}
+                              status={entry.status[a.key] ?? "ready"}
+                              failure={entry.failure[a.key]}
+                              doneMessage={entry.done[a.key]}
+                              busy={creating}
+                              onConfirm={(password) => void runAction(entry.id, a, password)}
                               onSkip={() => setStatus(entry.id, a.key, "skipped")}
                             />
                           ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Columns3, ListPlus, Search, SearchX } from "lucide-react";
+import { Columns3, ListChecks, ListPlus, Search, SearchX } from "lucide-react";
 import { getDoc, limit, orderBy, query, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/features/empty-state";
 import { ErrorState } from "@/components/features/error-state";
 import { PageHeader } from "@/components/features/page-header";
+import { BulkBar } from "@/components/features/kanban/bulk-bar";
 import { KanbanBoard, type BoardRow } from "@/components/features/kanban/kanban-board";
 import type { Person } from "@/components/features/kanban/kanban-card";
 import { BlockDialog } from "@/components/features/tasks/block-dialog";
@@ -76,6 +77,8 @@ export function BoardView({ viewer }: { viewer: { uid: string; role: Role } }) {
   const [noting, setNoting] = useState<NoteTarget | null>(null);
   const { displayStatus, move, tickSubtask, savingSubtasks } = useTaskActions(viewer, tasks, { onNote: (task, about, subtaskTitle) => setNoting({ task, about, subtaskTitle }) });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const [blocking, setBlocking] = useState<WithId<TaskDoc> | null>(null);
   const [sheet, setSheet] = useState<{ open: boolean; task?: WithId<TaskDoc> }>({ open: false });
   const [routine, setRoutine] = useState<{ template: WithId<TemplateDoc>; task: WithId<TaskDoc> } | null>(null);
@@ -117,10 +120,31 @@ export function BoardView({ viewer }: { viewer: { uid: string; role: Role } }) {
   const set = (patch: Partial<BoardFilters>) => setFilters((f) => ({ ...f, ...patch }));
   const filtersActive = JSON.stringify(filters) !== JSON.stringify(NO_FILTERS);
   const assignButton = isAdmin ? (
-    <Button onClick={() => setSheet({ open: true })}>
-      <ListPlus aria-hidden /> Assign task
-    </Button>
+    <div className="flex flex-wrap gap-2">
+      <Button variant={selecting ? "primary" : "secondary"} aria-pressed={selecting} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
+        <ListChecks aria-hidden /> {selecting ? "Stop selecting" : "Select tasks"}
+      </Button>
+      <Button onClick={() => setSheet({ open: true })}>
+        <ListPlus aria-hidden /> Assign task
+      </Button>
+    </div>
   ) : undefined;
+
+  function stopSelecting() {
+    setSelecting(false);
+    setPicked(new Set());
+  }
+
+  /** While selecting, a click picks the card; daily routines can't be changed in bulk, so they say so. */
+  function openOrPick(t: WithId<TaskDoc>) {
+    if (!selecting) return setSelectedId(t.id);
+    if (t.kind === "daily") return void toast.info("Daily routines are changed on their routine, not in bulk.");
+    setPicked((p) => {
+      const next = new Set(p);
+      if (!next.delete(t.id)) next.add(t.id);
+      return next;
+    });
+  }
 
   return (
     <>
@@ -227,8 +251,9 @@ export function BoardView({ viewer }: { viewer: { uid: string; role: Role } }) {
           today={today}
           accentFor={(id) => (businessById.has(id) ? businessColorVar(businessById.get(id)!.color) : undefined)}
           businessNameFor={(id) => businessById.get(id)?.name}
-          onOpen={(t) => setSelectedId(t.id)}
+          onOpen={openOrPick}
           onMove={requestMove}
+          selection={isAdmin ? { on: selecting, ids: picked } : undefined}
         />
       )}
 
@@ -261,6 +286,7 @@ export function BoardView({ viewer }: { viewer: { uid: string; role: Role } }) {
           todayTask={routine.task.date === today ? routine.task : undefined}
         />
       ) : null}
+      {isAdmin && selecting ? <BulkBar ids={[...picked]} employees={users.data ?? []} onDone={() => setPicked(new Set())} onCancel={stopSelecting} /> : null}
       {isAdmin ? <TaskSheet open={sheet.open} onOpenChange={(o) => setSheet((s) => ({ ...s, open: o }))} task={sheet.task} employees={users.data ?? []} businesses={businesses.data ?? []} /> : null}
     </>
   );

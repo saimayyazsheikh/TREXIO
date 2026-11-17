@@ -76,9 +76,11 @@ type Props = {
   businessNameFor?: (businessId: string) => string | undefined;
   onOpen: (task: WithId<TaskDoc>) => void;
   onMove: (task: WithId<TaskDoc>, status: TaskStatus, opts?: { kind?: "untick" }) => void;
+  /** Bulk selection (admin): while on, clicking a card picks it. */
+  selection?: { on: boolean; ids: ReadonlySet<string> };
 };
 
-export function KanbanBoard({ lanes, viewer, people, now, today, accentFor, businessNameFor, onOpen, onMove }: Props) {
+export function KanbanBoard({ lanes, viewer, people, now, today, accentFor, businessNameFor, onOpen, onMove, selection }: Props) {
   const [active, setActive] = useState<{ task: WithId<TaskDoc>; status: TaskStatus; laneKey: string } | null>(null);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
 
@@ -162,6 +164,7 @@ export function KanbanBoard({ lanes, viewer, people, now, today, accentFor, busi
                             businessName={businessNameFor?.(row.businessId)}
                             onOpen={onOpen}
                             onMove={onMove}
+                            select={selection ? { on: selection.on, picked: selection.ids.has(row.id) } : undefined}
                           />
                         ))}
                       </KanbanColumn>

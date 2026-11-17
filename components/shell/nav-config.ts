@@ -1,4 +1,4 @@
-import { Activity, Archive, Bell, BellRing, Building2, CalendarDays, CalendarOff, ChartColumn, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, NotebookPen, ScrollText, Sparkles, Sun, Users, type LucideIcon } from "lucide-react";
+import { Activity, Archive, Bell, CalendarRange, ClipboardList, Gauge, BellRing, Building2, CalendarDays, CalendarOff, ChartColumn, CircleHelp, Columns3, Inbox, LayoutDashboard, MessageCircle, NotebookPen, ScrollText, Sparkles, Sun, Users, type LucideIcon } from "lucide-react";
 
 export type NavItem = { href: string; label: string; icon: LucideIcon; hint: string; /** Shown as a tab on phones; the rest live under "More". */ primary?: boolean };
 export type NavGroup = { label: string; items: NavItem[]; /** Rendered at the bottom of the sidebar. */ pinned?: boolean };
@@ -13,6 +13,8 @@ export const ADMIN_NAV: NavGroup[] = [
     label: "Work",
     items: [
       { href: "/admin/kanban", label: "Kanban", icon: Columns3, hint: "Every task by status; drag cards to move them" },
+      { href: "/admin/workload", label: "Workload", icon: Gauge, hint: "Who has room for the next task, and who is overloaded" },
+      { href: "/admin/calendar", label: "Calendar", icon: CalendarRange, hint: "Tasks, holidays and leave on a month view" },
       { href: "/admin/dump", label: "Dump tasks", icon: Archive, hint: "Write down tasks you will give out later, then schedule them" },
       { href: "/admin/reminders", label: "Reminders", icon: Bell, hint: "Nudge the team and see who has read it" },
     ],
@@ -28,6 +30,7 @@ export const ADMIN_NAV: NavGroup[] = [
   {
     label: "Insights",
     items: [
+      { href: "/admin/daily-report", label: "Daily report", icon: ClipboardList, hint: "How the day went: who did what, who was late, and why" },
       { href: "/admin/analytics", label: "Analytics", icon: ChartColumn, hint: "Completion, timing, time use and journals" },
       { href: "/admin/ai-summaries", label: "AI summaries", icon: Sparkles, hint: "A short weekly read on how your teams did" },
       { href: "/admin/audit", label: "Audit log", icon: ScrollText, hint: "Every task change: who, what and when" },

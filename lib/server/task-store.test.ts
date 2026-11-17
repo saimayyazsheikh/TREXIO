@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { commentOnTask, createOneOffTask, createSelfTask, deleteSelfTask, deleteTask, explainMissedRoutine, setAllSubtasks, toggleSubtask, transitionTask, updateDailyForToday, updateOneOffTask, updatePersonalSteps, updateSelfTask, type TaskDb } from "@/lib/server/task-store";
+import { bulkChangeTasks, commentOnTask, createOneOffTask, createSelfTask, deleteSelfTask, deleteTask, explainMissedRoutine, setAllSubtasks, toggleSubtask, transitionTask, updateDailyForToday, updateOneOffTask, updatePersonalSteps, updateSelfTask, type TaskDb } from "@/lib/server/task-store";
 import { makeDb, newWorld, type World } from "@/lib/server/test-support/memory-task-db";
 import { createSelfTaskSchema, createTaskSchema, updateDailyTodaySchema, updateSelfTaskSchema, updateTaskSchema } from "@/lib/domain/task-schemas";
+import { bulkSchema } from "@/lib/domain/bulk";
 import type { Actor, TaskData } from "@/lib/domain/tasks";
 
 const now = new Date("2026-10-21T06:00:00Z");
@@ -492,6 +493,72 @@ describe("scheduling a dump task", () => {
     world.dump.add("d2");
     await expect(createOneOffTask(db, admin, make({ assigneeIds: ["ghost"] }), { dumpId: "d2" })).rejects.toThrow();
     expect(world.dump.has("d2")).toBe(true);
+  });
+});
+
+describe("changing several tasks at once", () => {
+  const setup = async () => {
+    const world = newWorld();
+    world.users.set("omar", { name: "Omar", businessId: "b1", role: "employee", status: "active" });
+    const db = makeDb(world, now);
+    const a = (await createOneOffTask(db, admin, make({ title: "Task A", subtasks: [] }))).taskId;
+    const b = (await createOneOffTask(db, admin, make({ title: "Task B", subtasks: ["Step"] }))).taskId;
+    const c = (await createOneOffTask(db, admin, make({ title: "Task C", priority: "low", subtasks: [] }))).taskId;
+    return { world, db, ids: [a, b, c] };
+  };
+
+  it("sets the priority on all of them, one audit line each", async () => {
+    const { world, db, ids } = await setup();
+    const before = world.audits.length;
+    const result = await bulkChangeTasks(db, admin, bulkSchema.parse({ taskIds: ids, change: { kind: "priority", priority: "low" } }));
+    expect(result).toEqual({ done: 3, failed: [] });
+    expect(ids.map((id) => world.tasks.get(id)!.priority)).toEqual(["low", "low", "low"]);
+    // C was already low: nothing to write for it.
+    expect(world.audits.length - before).toBe(2);
+    expect(world.audits.at(-1)).toMatchObject({ action: "task.update", actorId: "admin1" });
+  });
+
+  it("moves them to another day and keeps each due time and checklist", async () => {
+    const { world, db, ids } = await setup();
+    await bulkChangeTasks(db, admin, bulkSchema.parse({ taskIds: ids, change: { kind: "date", date: "2026-10-25" } }));
+    for (const id of ids) expect(world.tasks.get(id)!.date).toBe("2026-10-25");
+    expect(world.tasks.get(ids[0])!.dueAt!.toISOString()).toBe("2026-10-25T12:00:00.000Z");
+    expect(world.tasks.get(ids[1])!.subtasks.map((s) => s.title)).toEqual(["Step"]);
+  });
+
+  it("hands them to someone else", async () => {
+    const { world, db, ids } = await setup();
+    await bulkChangeTasks(db, admin, bulkSchema.parse({ taskIds: ids, change: { kind: "assign", assigneeIds: ["omar"] } }));
+    expect(ids.map((id) => world.tasks.get(id)!.assigneeIds)).toEqual([["omar"], ["omar"], ["omar"]]);
+    expect(world.tasks.get(ids[0])!.assigneeNames).toEqual({ omar: "Omar" });
+  });
+
+  it("deletes them, with a trail", async () => {
+    const { world, db, ids } = await setup();
+    const result = await bulkChangeTasks(db, admin, bulkSchema.parse({ taskIds: ids, change: { kind: "delete" } }));
+    expect(result.done).toBe(3);
+    expect(world.tasks.size).toBe(0);
+    expect(world.audits.filter((a) => a.action === "task.delete")).toHaveLength(3);
+  });
+
+  it("reports the ones it could not change and still does the rest", async () => {
+    const { world, db, ids } = await setup();
+    world.tasks.set("r1", await seedDaily(db, world));
+    const result = await bulkChangeTasks(db, admin, bulkSchema.parse({ taskIds: [ids[0], "r1", "ghost", ids[1]], change: { kind: "priority", priority: "high" } }));
+    expect(result.done).toBe(2);
+    expect(result.failed.map((f) => [f.id, f.message])).toEqual([
+      ["r1", expect.stringMatching(/Daily routines/)],
+      ["ghost", expect.stringMatching(/doesn.t exist/)],
+    ]);
+    expect(world.tasks.get(ids[0])!.priority).toBe("high");
+  });
+
+  it("is for the admin only, and limited in size", async () => {
+    const { db, ids } = await setup();
+    await expect(bulkChangeTasks(db, ali, bulkSchema.parse({ taskIds: ids, change: { kind: "delete" } }))).rejects.toMatchObject({ status: 403 });
+    expect(bulkSchema.safeParse({ taskIds: [], change: { kind: "delete" } }).success).toBe(false);
+    expect(bulkSchema.safeParse({ taskIds: Array.from({ length: 51 }, (_, i) => `t${i}`), change: { kind: "delete" } }).success).toBe(false);
+    expect(bulkSchema.parse({ taskIds: ["a", "a", "b"], change: { kind: "delete" } }).taskIds).toEqual(["a", "b"]);
   });
 });
 

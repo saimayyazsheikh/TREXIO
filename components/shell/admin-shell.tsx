@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { NotificationBell } from "@/components/features/notifications/notification-bell";
 import { ThemeToggle } from "@/components/features/theme-toggle";
 import { BrandLink } from "@/components/shell/brand";
+import { CommandPalette } from "@/components/shell/command-palette";
 import { IdleLogout } from "@/components/shell/idle-logout";
 import { NavBadge } from "@/components/shell/nav-badge";
 import { UserMenu } from "@/components/shell/user-menu";
@@ -108,6 +109,7 @@ export function AdminShell({ userName, uid, children }: { userName: string; uid:
             <BrandLink href="/admin" compact />
           </div>
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
+            <CommandPalette role="admin" />
             <NotificationBell uid={uid} role="admin" />
             <ThemeToggle />
             <UserMenu name={userName} roleLabel="Admin" />

@@ -12,6 +12,7 @@ import { NotificationBell } from "@/components/features/notifications/notificati
 import { HourlyPrompt } from "@/components/features/journal/hourly-prompt";
 import { PresencePill, goOffline } from "@/components/features/presence/presence-pill";
 import { BrandLink } from "@/components/shell/brand";
+import { CommandPalette } from "@/components/shell/command-palette";
 import { IdleLogout } from "@/components/shell/idle-logout";
 import { SystemIdlePrompt } from "@/components/features/presence/system-idle-prompt";
 import { EMPLOYEE_NAV } from "@/components/shell/nav-config";
@@ -95,6 +96,7 @@ export function EmployeeShell({ userName, uid, children }: { userName: string; u
           <BrandLink href="/me" compact className="md:hidden" />
           <div className="ml-auto flex items-center gap-2 sm:gap-3">
             <PresencePill uid={uid} name={userName} idleMin={hours.user?.idleThresholdMin ?? settings.idleMin} />
+            <CommandPalette role="employee" />
             <NotificationBell uid={uid} role="employee" />
             <ThemeToggle />
             <UserMenu name={userName} roleLabel="Team member" onBeforeSignOut={() => goOffline(uid)} />

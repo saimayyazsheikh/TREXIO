@@ -4,7 +4,8 @@ import { assertNoDependencyCycle, diffIds } from "@/lib/domain/dependencies";
 import { planComment, planMissedReason, planPersonalSteps, planSubtaskSetAll, planSubtaskToggle, planTransition, type PersonalStepOp, type Actor, type DependencySnapshot, type TaskData, type TaskNote, type TaskPlan } from "@/lib/domain/tasks";
 import { pktDateString } from "@/lib/time";
 import { buildOneOffTask, buildSelfTask, planDailyEdit, planSelfUpdate, planTaskUpdate, type Assignee, type ResolvedLinks, type TemplateData } from "@/lib/domain/task-builders";
-import type { CreateSelfTaskInput, CreateTaskInput, UpdateDailyTodayInput, UpdateSelfTaskInput, UpdateTaskInput } from "@/lib/domain/task-schemas";
+import { updateTaskSchema, type CreateSelfTaskInput, type CreateTaskInput, type UpdateDailyTodayInput, type UpdateSelfTaskInput, type UpdateTaskInput } from "@/lib/domain/task-schemas";
+import { editWith, type BulkInput, type BulkResult } from "@/lib/domain/bulk";
 
 export const ACTIVITY_TTL_DAYS = 90;
 
@@ -437,4 +438,32 @@ export async function deleteTask(db: TaskDb, actor: Actor, taskId: string) {
     tx.addAudit(audit);
     tx.addActivity(activity);
   });
+}
+
+/**
+ * Changes several one-off tasks at once: priority, day, who it is for, or delete. Each task goes through the normal single
+ * edit (or delete), so every rule and audit line is the same as doing it by hand. One task failing never stops the rest;
+ * the result says which ones didn't change and why.
+ */
+export async function bulkChangeTasks(db: TaskDb, actor: Actor, input: BulkInput): Promise<BulkResult> {
+  if (actor.role !== "admin") throw new DomainError("Only the admin can change tasks in bulk.", 403);
+  const result: BulkResult = { done: 0, failed: [] };
+  for (const taskId of input.taskIds) {
+    let title = "A task";
+    try {
+      const task = await db.transaction((tx) => loadTask(tx, taskId));
+      title = task.title;
+      if (input.change.kind === "delete") await deleteTask(db, actor, taskId);
+      else {
+        // Parsed like a form post, so it is checked exactly as an edit made by hand would be.
+        await updateOneOffTask(db, actor, updateTaskSchema.parse(editWith(task, taskId, input.change)));
+      }
+      result.done++;
+    } catch (error) {
+      // An edit that changes nothing (already that priority, already on that day) is simply done.
+      if (error instanceof DomainError && error.message === "Nothing changed.") result.done++;
+      else result.failed.push({ id: taskId, title, message: error instanceof DomainError ? error.message : "Couldn't change this one." });
+    }
+  }
+  return result;
 }

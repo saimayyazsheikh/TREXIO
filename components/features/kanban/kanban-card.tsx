@@ -31,11 +31,13 @@ type Props = {
   /** The business the task belongs to, shown at the top of the card. */
   businessName?: string;
   onOpen: (task: WithId<TaskDoc>) => void;
+  /** Selecting several cards for a bulk change: clicking picks instead of opening, and dragging is off. */
+  select?: { on: boolean; picked: boolean };
   onMove: (task: WithId<TaskDoc>, status: TaskStatus, opts?: { kind?: "untick" }) => void;
 };
 
 /** The visual card, used both in the column and in the drag overlay. */
-export function KanbanCardBody({ task, status, viewer, people, now, today, accent, businessName, onMove, dragging }: Omit<Props, "laneKey" | "onOpen"> & { dragging?: boolean }) {
+export function KanbanCardBody({ task, status, viewer, people, now, today, accent, businessName, onMove, dragging }: Omit<Props, "laneKey" | "onOpen" | "select"> & { dragging?: boolean }) {
   const moves = availableMoves({ ...task, status }, viewer);
   const done = task.assigneeIds.filter((uid) => task.completion[uid]?.done).length;
   const waiting = task.waitingOnIds.map((id) => task.linkTitles[id] ?? "another task");
@@ -150,8 +152,9 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
 }
 
 export function KanbanCard(props: Props) {
-  const { task, laneKey, status, viewer, onOpen } = props;
-  const canDrag = availableMoves({ ...task, status }, viewer).some((m) => m.enabled && m.kind !== "untick");
+  const { task, laneKey, status, viewer, onOpen, select, ...body } = props;
+  const selecting = !!select?.on;
+  const canDrag = !selecting && availableMoves({ ...task, status }, viewer).some((m) => m.enabled && m.kind !== "untick");
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `${laneKey}::${task.id}`, data: { task, laneKey }, disabled: !canDrag });
 
   return (
@@ -159,8 +162,9 @@ export function KanbanCard(props: Props) {
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      role="button"
-      aria-label={`${task.title}. Press Enter to open details${canDrag ? ", Space to pick up and move" : ""}`}
+      role={selecting ? "checkbox" : "button"}
+      aria-checked={selecting ? select!.picked : undefined}
+      aria-label={selecting ? `Select “${task.title}”` : `${task.title}. Press Enter to open details${canDrag ? ", Space to pick up and move" : ""}`}
       tabIndex={0}
       onClick={() => onOpen(task)}
       onKeyDown={(e) => {
@@ -169,9 +173,17 @@ export function KanbanCard(props: Props) {
           onOpen(task);
         } else listeners?.onKeyDown?.(e);
       }}
-      className={cn("cursor-grab rounded-control active:cursor-grabbing", !canDrag && "cursor-pointer", isDragging && "opacity-40")}
+      className={cn("relative cursor-grab rounded-control active:cursor-grabbing", !canDrag && "cursor-pointer", isDragging && "opacity-40", select?.picked && "ring-2 ring-brand ring-offset-2 ring-offset-background")}
     >
-      <KanbanCardBody {...props} />
+      {selecting ? (
+        <span
+          aria-hidden
+          className={cn("absolute -left-2 -top-2 z-10 flex size-6 items-center justify-center rounded-full border-2 bg-surface-solid", select!.picked ? "border-transparent bg-brand text-brand-fg" : "border-input")}
+        >
+          {select!.picked ? <Check className="size-3.5" /> : null}
+        </span>
+      ) : null}
+      <KanbanCardBody task={task} status={status} viewer={viewer} {...body} />
     </div>
   );
 }

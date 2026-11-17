@@ -47,6 +47,8 @@ Answer with ONE JSON object and nothing else (no markdown, no code fences):
 }
 
 Rules:
+- "who" is ONLY the person who must do the task. A name that appears only as someone to ask, call or meet (for example "ask Ahmed about the paint") is NOT the assignee: leave "who" empty and keep that name in the title.
+- Never say you created, added or assigned anything. You only propose; say what you understood and ask the admin to check and press Create.
 - A task with a person and no day means today. A task with a day goes on that day. Words like kal (tomorrow), parson (day after tomorrow), aaj (today), agle hafte (next week) and weekday names must be turned into real dates using the calendar you are given.
 - If the admin only wants to remember something for later, with no person and no day, set "dump": true and leave date and who empty.
 - Priority is "medium" unless the admin says it is urgent, important, or asks for it first (high), or says it is not urgent (low).
@@ -117,13 +119,16 @@ export type ProposedTask = {
 
 const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").replace(/\s+/g, " ").trim();
 
-/** Finds who a written name means: the full name, or a first/last name that only one person has. */
+/**
+ * Finds who a written name means: the full name, or a first name that only one person has. A surname alone is not enough: people
+ * are called by their first name, and a surname can easily be a different person (someone to ask, a customer) rather than a colleague.
+ */
 export function matchPerson(name: string, people: AssistantPerson[]): { person?: AssistantPerson; problem?: string } {
   const n = norm(name);
   if (!n) return { problem: "Empty name" };
   const full = people.filter((p) => norm(p.name) === n);
   if (full.length === 1) return { person: full[0] };
-  const part = people.filter((p) => norm(p.name).split(" ").includes(n) || norm(p.name).startsWith(n));
+  const part = people.filter((p) => norm(p.name).split(" ")[0] === n || norm(p.name).startsWith(`${n} `));
   if (part.length === 1) return { person: part[0] };
   if (part.length > 1) return { problem: `Which one: ${part.map((p) => p.name).join(" or ")}?` };
   return { problem: `No team member called “${name}”` };

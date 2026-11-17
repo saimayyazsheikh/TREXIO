@@ -52,43 +52,68 @@ export function anthropicProvider(o: { apiKey?: string; model?: string; client?:
 
 type GeminiResponse = { candidates?: { content?: { parts?: { text?: string }[] }; finishReason?: string }[]; error?: { message?: string } };
 
-/** Google answers these when it is overloaded or hiccuping; they usually clear within seconds, so they are tried again. */
+/** Google answers these when a model is overloaded or hiccuping; they usually clear within seconds, so they are tried again. */
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
-/** Waits before the second and third try. */
-export const GEMINI_RETRY_DELAYS_MS = [1500, 3500];
+/** Waits before the second try on the same model. */
+export const GEMINI_RETRY_DELAYS_MS = [1200];
+/** How long one try on one model may take. A model that hangs is given up on so a lighter one can answer, instead of the admin waiting a minute. */
+export const GEMINI_TIMEOUT_MS = 20_000;
+/**
+ * Lighter models to turn to when the main one stays busy (Google overloads the newest one often). They are quick and good enough for
+ * short summaries and for reading a task out of a sentence. Names Google no longer serves are simply skipped.
+ */
+export const GEMINI_FALLBACK_MODELS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** Gemini over its REST API (the key goes in a header, never the URL). A busy answer (503, 429) is retried twice before giving up. */
-export function geminiProvider(o: { apiKey: string; model?: string; fetchImpl?: typeof fetch; retryDelaysMs?: number[] }): AiProvider {
+/**
+ * Gemini over its REST API (the key goes in a header, never the URL). A busy answer (503, 429) is tried once more, and if the model
+ * is still busy the next lighter model answers instead, so a Google overload doesn't reach the admin.
+ */
+export function geminiProvider(o: { apiKey: string; model?: string; fetchImpl?: typeof fetch; retryDelaysMs?: number[]; fallbackModels?: string[]; timeoutMs?: number }): AiProvider {
   const model = o.model || DEFAULT_GEMINI_MODEL;
   const doFetch = o.fetchImpl ?? fetch;
   const delays = o.retryDelaysMs ?? GEMINI_RETRY_DELAYS_MS;
+  const timeoutMs = o.timeoutMs ?? GEMINI_TIMEOUT_MS;
+  const models = [model, ...(o.fallbackModels ?? GEMINI_FALLBACK_MODELS).filter((m) => m !== model)];
   return {
     name: "gemini",
     model,
     async generate({ system, prompt }) {
-      let res!: Response;
+      let res: Response | undefined;
       let body: GeminiResponse = {};
-      for (let attempt = 0; ; attempt++) {
-        try {
-          res = await doFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-            method: "POST",
-            signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-            headers: { "Content-Type": "application/json", "x-goog-api-key": o.apiKey },
-            body: JSON.stringify({
-              systemInstruction: { parts: [{ text: system }] },
-              contents: [{ role: "user", parts: [{ text: prompt }] }],
-              generationConfig: { maxOutputTokens: 8192, temperature: 0.3 },
-            }),
-          });
-        } catch (error) {
-          const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
-          throw new DomainError(timedOut ? "The AI service took too long to answer. Try again." : "Couldn't reach the AI service. Try again.", 502);
+      let timedOut = false;
+      for (const m of models) {
+        timedOut = false;
+        for (let attempt = 0; ; attempt++) {
+          try {
+            res = await doFetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`, {
+              method: "POST",
+              signal: AbortSignal.timeout(timeoutMs),
+              headers: { "Content-Type": "application/json", "x-goog-api-key": o.apiKey },
+              body: JSON.stringify({
+                systemInstruction: { parts: [{ text: system }] },
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: { maxOutputTokens: 8192, temperature: 0.3 },
+              }),
+            });
+          } catch (error) {
+            // A model that hangs is skipped, not retried: the next one is much more likely to answer.
+            if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+              timedOut = true;
+              res = undefined;
+              break;
+            }
+            throw new DomainError("Couldn't reach the AI service. Try again.", 502);
+          }
+          body = (await res.json().catch(() => ({}))) as GeminiResponse;
+          if (res.ok || !RETRYABLE.has(res.status) || attempt >= delays.length) break;
+          await wait(delays[attempt]);
         }
-        body = (await res.json().catch(() => ({}))) as GeminiResponse;
-        if (res.ok || !RETRYABLE.has(res.status) || attempt >= delays.length) break;
-        await wait(delays[attempt]);
+        // Anything but "busy", "too slow" or "this model isn't served any more" is final: a rejected key stays rejected on every model.
+        if (timedOut) continue;
+        if (res && (res.ok || !(RETRYABLE.has(res.status) || res.status === 404))) break;
       }
+      if (!res) throw new DomainError("The AI service took too long to answer. Try again.", 502);
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) throw new DomainError("The Gemini API key was rejected. Check GEMINI_API_KEY.", 502);
         if (res.status === 429 || res.status === 503) throw new DomainError("The AI service is busy right now. Wait a minute and try again.", 502);

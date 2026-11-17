@@ -32,7 +32,10 @@ describe("matchPerson", () => {
   it("matches a full name, or a first name only one person has", () => {
     expect(matchPerson("Sara", people).person?.id).toBe("sara");
     expect(matchPerson("ali khan", people).person?.id).toBe("ali");
-    expect(matchPerson("Ahmed", people).person?.id).toBe("sara");
+  });
+  it("does not take a surname alone for a colleague", () => {
+    expect(matchPerson("Ahmed", people).problem).toMatch(/No team member called/);
+    expect(matchPerson("Khan", people).problem).toMatch(/No team member called/);
   });
   it("says so when a name is ambiguous or unknown", () => {
     expect(matchPerson("Ali", people).problem).toMatch(/Which one: Ali Khan or Ali Raza/);

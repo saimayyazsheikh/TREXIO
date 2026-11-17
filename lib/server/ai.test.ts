@@ -43,32 +43,52 @@ describe("anthropicProvider", () => {
 describe("geminiProvider when Google is busy", () => {
   const ok = () => new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "fine" }] } }] }), { status: 200 });
   const busy = () => new Response(JSON.stringify({ error: { message: "high demand" } }), { status: 503 });
-  const make = (answers: (() => Response)[]) => {
-    let calls = 0;
-    const provider = geminiProvider({ apiKey: "k", retryDelaysMs: [0, 0], fetchImpl: (async () => answers[Math.min(calls++, answers.length - 1)]()) as unknown as typeof fetch });
-    return { provider, calls: () => calls };
+  /** Answers per call, and which model each call asked for. */
+  const make = (answers: (() => Response)[], fallbackModels?: string[]) => {
+    const asked: string[] = [];
+    const provider = geminiProvider({
+      apiKey: "k",
+      model: "main",
+      retryDelaysMs: [0],
+      fallbackModels,
+      fetchImpl: (async (url: string) => {
+        asked.push(String(url).match(/models\/([^:]+):/)![1]);
+        return answers[Math.min(asked.length - 1, answers.length - 1)]();
+      }) as unknown as typeof fetch,
+    });
+    return { provider, asked };
   };
   const ask = { system: "s", prompt: "p" };
 
-  it("tries again and returns the answer once Google recovers", async () => {
-    const { provider, calls } = make([busy, busy, ok]);
+  it("tries the same model once more and returns the answer once Google recovers", async () => {
+    const { provider, asked } = make([busy, ok], ["lite"]);
     expect(await provider.generate(ask)).toBe("fine");
-    expect(calls()).toBe(3);
+    expect(asked).toEqual(["main", "main"]);
   });
 
-  it("gives up after three tries with a plain message", async () => {
-    const { provider, calls } = make([busy]);
-    await expect(provider.generate(ask)).rejects.toThrow(/busy right now/);
-    expect(calls()).toBe(3);
+  it("turns to a lighter model when the main one stays busy", async () => {
+    const { provider, asked } = make([busy, busy, ok], ["lite", "lite2"]);
+    expect(await provider.generate(ask)).toBe("fine");
+    expect(asked).toEqual(["main", "main", "lite"]);
   });
 
-  it("does not retry a rejected key or a bad request", async () => {
-    const rejected = make([() => new Response("{}", { status: 403 })]);
+  it("skips a model Google no longer serves, and gives up with a plain message when every model is busy", async () => {
+    const gone = make([() => new Response("{}", { status: 404 }), ok], ["lite"]);
+    expect(await gone.provider.generate(ask)).toBe("fine");
+    expect(gone.asked).toEqual(["main", "lite"]);
+
+    const allBusy = make([busy], ["lite"]);
+    await expect(allBusy.provider.generate(ask)).rejects.toThrow(/busy right now/);
+    expect(allBusy.asked).toEqual(["main", "main", "lite", "lite"]);
+  });
+
+  it("does not try other models for a rejected key or a bad request", async () => {
+    const rejected = make([() => new Response("{}", { status: 403 })], ["lite"]);
     await expect(rejected.provider.generate(ask)).rejects.toThrow(/key was rejected/);
-    expect(rejected.calls()).toBe(1);
-    const bad = make([() => new Response("{}", { status: 400 })]);
+    expect(rejected.asked).toEqual(["main"]);
+    const bad = make([() => new Response("{}", { status: 400 })], ["lite"]);
     await expect(bad.provider.generate(ask)).rejects.toThrow(/couldn't write/);
-    expect(bad.calls()).toBe(1);
+    expect(bad.asked).toEqual(["main"]);
   });
 });
 
@@ -84,7 +104,7 @@ describe("geminiProvider", () => {
     expect(JSON.parse(String(init.body)).systemInstruction.parts[0].text).toBe("Be brief.");
   });
   it("turns failures into friendly errors", async () => {
-    const respond = (status: number, body: unknown) => geminiProvider({ apiKey: "k", retryDelaysMs: [0, 0], fetchImpl: (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch });
+    const respond = (status: number, body: unknown) => geminiProvider({ apiKey: "k", retryDelaysMs: [0], fallbackModels: [], fetchImpl: (async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch });
     await expect(respond(403, {}).generate(req)).rejects.toThrow(/key was rejected/);
     await expect(respond(500, {}).generate(req)).rejects.toMatchObject({ status: 502 });
     await expect(respond(200, { candidates: [] }).generate(req)).rejects.toThrow(/empty answer/);

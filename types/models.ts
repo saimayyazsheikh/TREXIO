@@ -30,6 +30,8 @@ export type UserDoc = {
   workEnd: string | null;
   idleThresholdMin: number | null;
   fcmTokens: string[];
+  /** Phone and browser alerts are held back between these times (Pakistan time). The bell still fills up. */
+  quietHours?: { from: string; to: string } | null;
   createdAt: Timestamp | null;
 };
 
@@ -41,7 +43,7 @@ export type TaskDoc = {
   businessId: string;
   assigneeIds: string[];
   assigneeNames: Record<string, string>;
-  completion: Record<string, { done: boolean }>;
+  completion: Record<string, { done: boolean; at?: Timestamp | null }>;
   completionMode: "all" | "any";
   title: string;
   description: string;
@@ -67,6 +69,12 @@ export type TaskDoc = {
   createdBy?: string;
   /** The client this one-off task is for, if any. */
   client?: string;
+  /** How long the admin expects it to take, in minutes. */
+  estimateMin?: number | null;
+  /** Seconds each person has spent on it with the timer. */
+  timeSpent?: Record<string, number>;
+  /** Running timers: who started one, and since when. */
+  timers?: Record<string, Timestamp>;
   /** Added by the employee for themselves. */
   selfCreated?: boolean;
   /** Each assignee's own steps on this task, keyed by user id. */

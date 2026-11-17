@@ -31,6 +31,10 @@ export function createTaskDb(db: OrgDb): TaskDb {
             for (const d of [...dependents.docs, ...related.docs]) byId.set(d.id, taskFromFirestore(d.data()));
             return [...byId].map(([id, task]) => ({ id, task }));
           },
+          getTasksTimedBy: async (uid) => {
+            const snap = await t.get(db.collection("tasks").where("timerUids", "array-contains", uid));
+            return snap.docs.map((d) => ({ id: d.id, task: taskFromFirestore(d.data()) }));
+          },
           getUser: async (uid): Promise<AssigneeRecord | null> => {
             const snap = await t.get(db.doc(`users/${uid}`));
             if (!snap.exists) return null;

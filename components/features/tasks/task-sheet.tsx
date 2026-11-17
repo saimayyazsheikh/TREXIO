@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Controller, useForm, type Resolver } from "react-hook-form";
+import { Controller, useForm, type Resolver, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ type FormValues = {
   title: string;
   description: string;
   client: string;
+  estimateMin: string;
   priority: Priority;
   date: string;
   dueTime: string;
@@ -94,6 +95,7 @@ export function TaskSheet({
             title: task.title,
             description: task.description,
             client: task.client ?? "",
+            estimateMin: task.estimateMin ? String(task.estimateMin) : "",
             priority: task.priority,
             date: task.date,
             dueTime: task.dueAt ? new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(task.dueAt.toDate()) : "",
@@ -105,7 +107,7 @@ export function TaskSheet({
             subtasks: task.subtasks.map((s) => ({ id: s.id, title: s.title })),
           }
         : {
-            title: prefill?.title ?? "", description: prefill?.description ?? "", client: "", priority: prefill?.priority ?? "medium", date: prefill?.date ?? pktDateString(), dueTime: prefill?.dueTime ?? "",
+            title: prefill?.title ?? "", description: prefill?.description ?? "", client: "", estimateMin: "", priority: prefill?.priority ?? "medium", date: prefill?.date ?? pktDateString(), dueTime: prefill?.dueTime ?? "",
             assigneeIds: prefill?.assigneeIds?.length ? prefill.assigneeIds : defaultAssigneeId ? [defaultAssigneeId] : [],
             completionMode: "all", dependsOnIds: [], relatedTaskIds: [], requiresReview: false, subtasks: (prefill?.subtasks ?? []).map((title) => ({ title })),
           },
@@ -116,7 +118,7 @@ export function TaskSheet({
     setFormError(null);
     const raw = getValues();
     const base = {
-      title: raw.title, description: raw.description, client: raw.client ?? "", priority: raw.priority, date: raw.date, dueTime: raw.dueTime,
+      title: raw.title, description: raw.description, client: raw.client ?? "", estimateMin: raw.estimateMin ?? "", priority: raw.priority, date: raw.date, dueTime: raw.dueTime,
       assigneeIds: raw.assigneeIds, completionMode: raw.completionMode, dependsOnIds: raw.dependsOnIds, relatedTaskIds: raw.relatedTaskIds,
       requiresReview: raw.requiresReview,
     };
@@ -151,7 +153,7 @@ export function TaskSheet({
           </>
         }
       >
-        <form id="task-form" onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5" noValidate>
+        <form id="task-form" onSubmit={handleSubmit(onSubmit as unknown as SubmitHandler<FormValues>)} className="flex flex-col gap-5" noValidate>
           <Field id="task-title" label="Title" required error={errors.title?.message}>
             {(aria) => <Input {...aria} autoComplete="off" {...register("title")} />}
           </Field>
@@ -234,6 +236,10 @@ export function TaskSheet({
               {(aria) => <Controller control={control} name="dueTime" render={({ field }) => <TimeField {...aria} value={field.value ?? ""} onChange={field.onChange} onBlur={field.onBlur} />} />}
             </Field>
           </div>
+
+          <Field id="task-estimate" label="Time estimate (minutes)" hint="Optional. How long you expect it to take; the employee's timer is compared with it." error={errors.estimateMin?.message}>
+            {(aria) => <Input {...aria} inputMode="numeric" placeholder="For example 90" {...register("estimateMin")} />}
+          </Field>
 
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium">Checklist</span>

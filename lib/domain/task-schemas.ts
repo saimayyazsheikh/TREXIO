@@ -12,6 +12,9 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date");
 const title = z.string().trim().min(2, "Give it a short title").max(120, "Keep the title under 120 characters");
 const description = z.string().trim().max(2000, "Keep the description under 2000 characters").default("");
 
+/** How long the admin expects the task to take, in minutes (blank means no estimate). */
+const estimateMin = z.preprocess((v) => (v === "" || v === undefined || v === null ? null : typeof v === "string" ? Number(v) : v), z.number().int("Use whole minutes").min(5, "At least 5 minutes").max(1440, "At most 24 hours").nullable()).default(null);
+
 const client = z.string().trim().max(60, "Keep the client name under 60 characters").default("");
 
 const subtaskTitle = z.string().trim().min(1).max(120, "Keep each step under 120 characters");
@@ -57,6 +60,7 @@ export const createTaskSchema = z.object({
   title,
   description,
   client,
+  estimateMin,
   priority: z.enum(PRIORITIES),
   date,
   dueTime: hhmmOrEmpty,
@@ -71,6 +75,7 @@ export const updateTaskSchema = z.object({
   title,
   description,
   client,
+  estimateMin,
   priority: z.enum(PRIORITIES),
   date,
   dueTime: hhmmOrEmpty,
@@ -109,6 +114,8 @@ export const commentSchema = z.object({
 export const missedReasonSchema = z.object({ taskId: z.string().min(1), reason: z.string().trim().min(3, "Tell us why it wasn't done (a few words is enough)").max(300, "Keep the reason under 300 characters") });
 
 export const subtaskToggleSchema = z.object({ taskId: z.string().min(1), subtaskId: z.string().min(1), done: z.boolean() });
+
+export const timerSchema = z.object({ taskId: z.string().min(1), action: z.enum(["start", "stop"]) });
 
 export const subtasksAllSchema = z.object({ taskId: z.string().min(1), done: z.boolean() });
 

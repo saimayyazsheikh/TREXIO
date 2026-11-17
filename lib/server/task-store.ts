@@ -1,7 +1,7 @@
 import { DomainError } from "@/lib/domain/errors";
 import type { TaskStatus } from "@/lib/domain/constants";
 import { assertNoDependencyCycle, diffIds } from "@/lib/domain/dependencies";
-import { planComment, planMissedReason, planPersonalSteps, planSubtaskSetAll, planSubtaskToggle, planTransition, type PersonalStepOp, type Actor, type DependencySnapshot, type TaskData, type TaskNote, type TaskPlan } from "@/lib/domain/tasks";
+import { planComment, planMissedReason, planPersonalSteps, planStartTimer, planStopTimer, planSubtaskSetAll, planSubtaskToggle, planTransition, withTimersStopped, type PersonalStepOp, type Actor, type DependencySnapshot, type TaskData, type TaskNote, type TaskPlan } from "@/lib/domain/tasks";
 import { pktDateString } from "@/lib/time";
 import { buildOneOffTask, buildSelfTask, planDailyEdit, planSelfUpdate, planTaskUpdate, type Assignee, type ResolvedLinks, type TemplateData } from "@/lib/domain/task-builders";
 import { updateTaskSchema, type CreateSelfTaskInput, type CreateTaskInput, type UpdateDailyTodayInput, type UpdateSelfTaskInput, type UpdateTaskInput } from "@/lib/domain/task-schemas";
@@ -46,6 +46,8 @@ export type TaskTx = {
   getTask(id: string): Promise<TaskData | null>;
   /** Tasks that list `taskId` as a prerequisite or as a related task. */
   getTasksLinkingTo(taskId: string): Promise<{ id: string; task: TaskData }[]>;
+  /** Tasks where this person has a timer running. */
+  getTasksTimedBy(uid: string): Promise<{ id: string; task: TaskData }[]>;
   getUser(uid: string): Promise<AssigneeRecord | null>;
   setTask(id: string, data: TaskData): void;
   updateTask(id: string, patch: Partial<TaskData>): void;
@@ -172,7 +174,8 @@ export function transitionTask(db: TaskDb, actor: Actor, input: { taskId: string
     const isDone = (plan.patch.status ?? task.status) === "completed";
     const dependents = wasDone !== isDone ? (await tx.getTasksLinkingTo(input.taskId)).filter((d) => d.task.dependsOnIds.includes(input.taskId)) : [];
 
-    commitTaskPlan(tx, actor, input.taskId, task, plan, now);
+    // Finishing, blocking or sending for review also stops any running timers on it.
+    commitTaskPlan(tx, actor, input.taskId, task, { ...plan, patch: withTimersStopped(task, plan.patch, actor, now) }, now);
     for (const d of dependents) {
       const waiting = isDone ? without(d.task.waitingOnIds, input.taskId) : [...new Set([...d.task.waitingOnIds, input.taskId])];
       tx.updateTask(d.id, { waitingOnIds: waiting, updatedAt: now });
@@ -219,11 +222,35 @@ function changeChecklist(db: TaskDb, actor: Actor, taskId: string, done: boolean
 
     if (!finish) return commitTaskPlan(tx, actor, input.taskId, task, toggled, now);
     // One write for the task, two lines in the trail: the tick, then the finish.
-    commitTaskPlan(tx, actor, input.taskId, task, { ...toggled, patch: { ...toggled.patch, ...finish.plan.patch } }, now);
+    commitTaskPlan(tx, actor, input.taskId, task, { ...toggled, patch: withTimersStopped(task, { ...toggled.patch, ...finish.plan.patch }, actor, now) }, now);
     const second = auditAndActivity(actor, { entityType: "task", entityId: input.taskId, businessId: task.businessId }, { ...finish.plan, audit: { ...finish.plan.audit, meta: { title: task.title, ...finish.plan.audit.meta } } }, now);
     tx.addAudit(second.audit);
     tx.addActivity(second.activity);
     for (const d of finish.dependents) tx.updateTask(d.id, { waitingOnIds: without(d.task.waitingOnIds, input.taskId), updatedAt: now });
+  });
+}
+
+/**
+ * Starts the person's timer on a task. A person times one task at a time, so starting this one stops (and banks) any other
+ * timer of theirs first.
+ */
+export function startTimer(db: TaskDb, actor: Actor, input: { taskId: string }) {
+  return db.transaction(async (tx) => {
+    const task = await loadTask(tx, input.taskId);
+    const now = db.now();
+    const others = (await tx.getTasksTimedBy(actor.uid)).filter((o) => o.id !== input.taskId);
+    const plan = planStartTimer(task, actor, now);
+    for (const o of others) commitTaskPlan(tx, actor, o.id, o.task, planStopTimer(o.task, actor, now), now);
+    commitTaskPlan(tx, actor, input.taskId, task, plan, now);
+  });
+}
+
+/** Stops the person's timer and adds the time to the task. */
+export function stopTimer(db: TaskDb, actor: Actor, input: { taskId: string }) {
+  return db.transaction(async (tx) => {
+    const task = await loadTask(tx, input.taskId);
+    const now = db.now();
+    commitTaskPlan(tx, actor, input.taskId, task, planStopTimer(task, actor, now), now);
   });
 }
 

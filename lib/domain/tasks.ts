@@ -61,6 +61,14 @@ export type TaskData = {
   selfCreated?: boolean;
   /** Each assignee's own private-to-the-task step list, keyed by user id. */
   personalSteps?: Record<string, PersonalStep[]>;
+  /** How long the admin expects it to take, in minutes. */
+  estimateMin?: number | null;
+  /** Seconds each person has spent on it with the timer. */
+  timeSpent?: Record<string, number>;
+  /** Running timers: who started one, and when. */
+  timers?: Record<string, Date>;
+  /** The people with a running timer, so a person's other running timer can be found. */
+  timerUids?: string[];
 };
 
 export type Actor = { uid: string; name: string; role: Role };
@@ -413,4 +421,75 @@ export function planPersonalSteps(task: TaskData, input: PersonalStepOp, actor: 
     }
   }
   return { patch: { personalSteps: { ...(task.personalSteps ?? {}), [actor.uid]: next }, updatedAt: now }, audit, activityText: text };
+}
+
+/* ----------------------------------- Timers ----------------------------------- */
+
+/** One timer session never counts for longer than this, so a timer left running overnight doesn't claim a whole night. */
+export const MAX_TIMER_SESSION_SEC = 12 * 60 * 60;
+
+export function elapsedSec(since: Date, now: Date): number {
+  return Math.min(MAX_TIMER_SESSION_SEC, Math.max(0, Math.round((now.getTime() - since.getTime()) / 1000)));
+}
+
+/** Total seconds anyone has spent on the task, including timers that are running right now. */
+export function totalSpentSec(task: Pick<TaskData, "timeSpent" | "timers">, now: Date): number {
+  const done = Object.values(task.timeSpent ?? {}).reduce((n, s) => n + s, 0);
+  const running = Object.values(task.timers ?? {}).reduce((n, since) => n + elapsedSec(since, now), 0);
+  return done + running;
+}
+
+/**
+ * The change that stops running timers (everyone's, or only `only`) and banks their time. Empty when none is running, so it can
+ * always be merged into another change.
+ */
+export function stopTimersPatch(task: Pick<TaskData, "timers" | "timeSpent">, now: Date, only?: string[]): Partial<TaskData> {
+  const running = Object.entries(task.timers ?? {}).filter(([uid]) => !only || only.includes(uid));
+  if (running.length === 0) return {};
+  const timeSpent = { ...(task.timeSpent ?? {}) };
+  const timers = { ...(task.timers ?? {}) };
+  for (const [uid, since] of running) {
+    timeSpent[uid] = (timeSpent[uid] ?? 0) + elapsedSec(since, now);
+    delete timers[uid];
+  }
+  return { timeSpent, timers, timerUids: Object.keys(timers) };
+}
+
+/** Starts the person's timer on a task they were given. Only open work can be timed. */
+export function planStartTimer(task: TaskData, actor: Actor, now: Date): TaskPlan {
+  if (actor.role === "admin") throw new DomainError("Timers are for the people the task was given to.", 403);
+  assertCanAct(task, actor);
+  if (task.status !== "todo" && task.status !== "in_progress") throw new DomainError("Only open work can be timed.", 409);
+  if (task.timers?.[actor.uid]) throw new DomainError("Your timer is already running on this task.", 409);
+  const timers = { ...(task.timers ?? {}), [actor.uid]: now };
+  return {
+    patch: { timers, timerUids: Object.keys(timers), updatedAt: now },
+    audit: { action: "task.timer", from: null, to: "started", meta: {} },
+    activityText: `${actor.name} started the timer on “${task.title}”`,
+  };
+}
+
+/** Stops the person's timer and adds the time to the task. */
+export function planStopTimer(task: TaskData, actor: Actor, now: Date): TaskPlan {
+  if (actor.role === "admin") throw new DomainError("Timers are for the people the task was given to.", 403);
+  assertCanAct(task, actor);
+  const since = task.timers?.[actor.uid];
+  if (!since) throw new DomainError("Your timer isn't running on this task.", 409);
+  const seconds = elapsedSec(since, now);
+  return {
+    patch: { ...stopTimersPatch(task, now, [actor.uid]), updatedAt: now },
+    audit: { action: "task.timer", from: null, to: "stopped", meta: { seconds } },
+    activityText: `${actor.name} stopped the timer on “${task.title}” after ${Math.max(1, Math.round(seconds / 60))} min`,
+  };
+}
+
+/**
+ * Finishing, blocking or sending a task for review stops its timers: everyone's when the task as a whole stops being open, and
+ * just the actor's when only their own part is finished. Merged into the change that is about to be saved.
+ */
+export function withTimersStopped(task: TaskData, patch: Partial<TaskData>, actor: Actor, now: Date): Partial<TaskData> {
+  const status = patch.status ?? task.status;
+  if (status !== "todo" && status !== "in_progress") return { ...patch, ...stopTimersPatch(task, now) };
+  if (actor.role === "employee" && patch.completion?.[actor.uid]?.done && !task.completion[actor.uid]?.done) return { ...patch, ...stopTimersPatch(task, now, [actor.uid]) };
+  return patch;
 }

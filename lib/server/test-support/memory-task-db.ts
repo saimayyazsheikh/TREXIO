@@ -38,6 +38,7 @@ export function makeDb(world: World, now: Date): TaskDb {
       const result = await fn({
         getTask: async (id) => world.tasks.get(id) ?? null,
         getTasksLinkingTo: async (taskId) => [...world.tasks].filter(([, t]) => t.dependsOnIds.includes(taskId) || t.relatedTaskIds.includes(taskId)).map(([id, task]) => ({ id, task })),
+        getTasksTimedBy: async (uid) => [...world.tasks].filter(([, t]) => !!t.timers?.[uid]).map(([id, task]) => ({ id, task })),
         getUser: async (uid) => world.users.get(uid) ?? null,
         setTask: (id, data) => writes.push(() => world.tasks.set(id, data)),
         updateTask: (id, patch) => writes.push(() => world.tasks.set(id, { ...world.tasks.get(id)!, ...patch })),

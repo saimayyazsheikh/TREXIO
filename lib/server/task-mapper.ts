@@ -28,6 +28,7 @@ export function taskFromFirestore(raw: Record<string, unknown>): TaskData {
     notes: ((raw.notes ?? []) as (Record<string, unknown> & { id: string; by: string; byName: string; text: string; about: "comment" | "finish" | "step"; subtaskTitle?: string | null })[]).map((n) => ({
       id: n.id, by: n.by, byName: n.byName, text: n.text, about: n.about, subtaskTitle: n.subtaskTitle ?? null, at: required(n.at),
     })),
+    timers: Object.fromEntries(Object.entries((raw.timers ?? {}) as Record<string, unknown>).flatMap(([uid, v]) => (toDate(v) ? [[uid, toDate(v) as Date]] : []))),
     missedReason: (raw.missedReason as string | null | undefined) ?? null,
     missedReasonAt: toDate(raw.missedReasonAt),
     escalation: {

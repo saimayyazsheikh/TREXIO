@@ -12,6 +12,8 @@ export const explainMissed = (taskId: string, reason: string) => apiFetch("/api/
 export const toggleSubtask = (taskId: string, subtaskId: string, done: boolean) =>
   apiFetch("/api/tasks/subtask", "POST", { taskId, subtaskId, done });
 
+export const timerTask = (taskId: string, action: "start" | "stop") => apiFetch("/api/tasks/timer", "POST", { taskId, action });
+
 export const setAllSubtasks = (taskId: string, done: boolean) => apiFetch("/api/tasks/subtask/all", "POST", { taskId, done });
 
 export type PersonalStepCall = { op: "add"; title: string } | { op: "toggle"; stepId: string; done: boolean } | { op: "all"; done: boolean } | { op: "remove"; stepId: string };

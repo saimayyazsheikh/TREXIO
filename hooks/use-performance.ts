@@ -60,6 +60,8 @@ export function usePerformanceInput(employeeId: string, range: { from: string; t
         doneByMe: !!t.completion?.[employeeId]?.done,
         blockedReason: t.blockedReason,
         missedReason: t.missedReason ?? null,
+        spentSec: t.timeSpent?.[employeeId] ?? 0,
+        estimateMin: t.estimateMin ?? null,
       })),
       journals: journals.data!.map((j) => ({ date: j.date, slots: Object.fromEntries(Object.entries(j.slots ?? {}).flatMap(([k, v]) => (v ? [[k, { text: v.text, taskIds: v.taskIds }]] : []))) })),
       presence: presence.data!.map((p) => ({ date: p.date, activeSec: p.activeSec, idleSec: p.idleSec, breakSec: p.breakSec, firstSeenMs: (p.firstSeenAt ?? p.lastSeenAt)?.toMillis() ?? Date.now(), lastSeenMs: (p.lastSeenAt ?? p.firstSeenAt)?.toMillis() ?? Date.now() })),

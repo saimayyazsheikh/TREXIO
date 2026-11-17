@@ -144,7 +144,11 @@ export function PerformanceReport({ employeeId, initialPeriod = "week", fixedRan
             <div className="space-y-5">
               <div>
                 <h3 className="mb-2 text-sm font-semibold">Finished ({report.done.length})</h3>
-                <TaskList items={report.done} empty="Nothing finished in this period." extra={(t) => (t.kind === "daily" && t.missedReason && t.dueAtMs !== null && t.completedAtMs !== null && t.completedAtMs > t.dueAtMs ? `Done late. Reason: ${t.missedReason}` : null)} />
+                <TaskList items={report.done} empty="Nothing finished in this period." extra={(t) => {
+                  const late = t.kind === "daily" && t.missedReason && t.dueAtMs !== null && t.completedAtMs !== null && t.completedAtMs > t.dueAtMs ? `Done late. Reason: ${t.missedReason}` : null;
+                  const took = t.spentSec ? `Took ${formatDuration(t.spentSec)}${t.estimateMin ? ` (estimate ${formatDuration(t.estimateMin * 60)})` : ""}` : null;
+                  return [late, took].filter(Boolean).join(" · ") || null;
+                }} />
               </div>
               <div>
                 <h3 className="mb-2 text-sm font-semibold">Still open ({report.open.length})</h3>

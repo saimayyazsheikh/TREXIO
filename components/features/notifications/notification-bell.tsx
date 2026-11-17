@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Bell, BellOff, BellRing, CheckCheck, Volume2, VolumeX } from "lucide-react";
+import { Bell, BellOff, BellRing, CheckCheck, Moon, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip } from "@/components/ui/tooltip";
+import { QuietHoursDialog } from "@/components/features/notifications/quiet-hours-dialog";
 import { useNotificationAlert } from "@/hooks/use-notification-alert";
 import { useNotifications } from "@/hooks/use-notifications";
 import { usePush } from "@/hooks/use-push";
@@ -38,6 +39,7 @@ function BellMenu({ uid, role }: { uid: string; role: Role }) {
   const now = useNow();
   const count = n.unread.length;
   const alert = useNotificationAlert(n.unread, !n.loading);
+  const [quietOpen, setQuietOpen] = useState(false);
 
   async function togglePush() {
     const problem = push.state === "on" ? await push.disable() : await push.enable();
@@ -104,6 +106,14 @@ function BellMenu({ uid, role }: { uid: string; role: Role }) {
           </DropdownMenuItem>
         </div>
 
+        <div className="border-t p-1.5">
+          <DropdownMenuItem onSelect={() => setQuietOpen(true)}>
+            <Moon aria-hidden />
+            <span className="flex-1">Quiet hours</span>
+            <span className="text-xs text-muted">No phone alerts at night</span>
+          </DropdownMenuItem>
+        </div>
+
         {push.state !== "unsupported" ? (
           <div className="border-t p-1.5">
             {push.state === "blocked" ? (
@@ -119,6 +129,7 @@ function BellMenu({ uid, role }: { uid: string; role: Role }) {
           </div>
         ) : null}
       </DropdownMenuContent>
+      <QuietHoursDialog uid={uid} open={quietOpen} onOpenChange={setQuietOpen} />
     </DropdownMenu>
   );
 }

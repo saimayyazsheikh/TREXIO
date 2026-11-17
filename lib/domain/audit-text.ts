@@ -15,6 +15,7 @@ const FIELD_LABEL: Record<string, string> = {
   title: "the title",
   description: "the details",
   client: "the client",
+  estimateMin: "the time estimate",
   priority: "the priority",
   date: "the day",
   dueAt: "the due time",

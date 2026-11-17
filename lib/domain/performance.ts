@@ -18,6 +18,9 @@ export type PerformanceTask = {
   doneByMe: boolean;
   blockedReason: string | null;
   missedReason: string | null;
+  /** Seconds this person spent on it with the timer, and how long the admin expected it to take. */
+  spentSec?: number;
+  estimateMin?: number | null;
 };
 
 export type PerformanceInput = {
@@ -154,7 +157,7 @@ export type TeamInput = {
   nowMs: number;
   people: { id: string; name: string; businessId: string | null; workStart: string | null; workEnd: string | null; joinedOn?: string }[];
   businesses: { id: string; name: string; workDays: number[]; workStart: string; workEnd: string }[];
-  tasks: (Omit<PerformanceTask, "doneByMe"> & { assigneeIds: string[]; doneBy: string[]; businessId: string })[];
+  tasks: (Omit<PerformanceTask, "doneByMe" | "spentSec"> & { assigneeIds: string[]; doneBy: string[]; businessId: string; timeSpent?: Record<string, number> })[];
   journals: { employeeId: string; date: string; slots: Slots }[];
   presence: { employeeId: string; date: string; activeSec: number; idleSec: number; breakSec: number; firstSeenMs: number; lastSeenMs: number }[];
   /** Approved leave and excuses for anyone. */
@@ -178,7 +181,7 @@ export function buildTeamReports(i: TeamInput): PersonReport[] {
       business,
       tasks: i.tasks.filter((t) => t.assigneeIds.includes(person.id)).map((t) => ({
           id: t.id, title: t.title, kind: t.kind, date: t.date, status: t.status, priority: t.priority, dueAtMs: t.dueAtMs, completedAtMs: t.completedAtMs,
-          blockedReason: t.blockedReason, missedReason: t.missedReason, doneByMe: t.doneBy.includes(person.id),
+          blockedReason: t.blockedReason, missedReason: t.missedReason, doneByMe: t.doneBy.includes(person.id), spentSec: t.timeSpent?.[person.id] ?? 0, estimateMin: t.estimateMin ?? null,
         })),
       journals: i.journals.filter((j) => j.employeeId === person.id),
       presence: i.presence.filter((p) => p.employeeId === person.id),

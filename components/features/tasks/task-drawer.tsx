@@ -227,6 +227,27 @@ export function TaskDrawer({
               </Section>
             ) : null}
 
+            {Object.values(task.timeSpent ?? {}).some((s) => s > 0) || Object.keys(task.timers ?? {}).length > 0 || task.estimateMin ? (
+              <Section title="Time">
+                <ul className="space-y-1 text-sm">
+                  {Object.entries(task.timeSpent ?? {})
+                    .filter(([, s]) => s > 0)
+                    .map(([uid, s]) => (
+                      <li key={uid} className="flex justify-between gap-3">
+                        <span>{uid === viewer.uid ? "You" : (task.assigneeNames[uid] ?? "Teammate")}</span>
+                        <span className="num font-medium">{formatDuration(s)}</span>
+                      </li>
+                    ))}
+                  {Object.keys(task.timers ?? {}).map((uid) => (
+                    <li key={`run-${uid}`} className="text-brand-text">
+                      {uid === viewer.uid ? "Your" : `${task.assigneeNames[uid] ?? "Someone"}'s`} timer is running now
+                    </li>
+                  ))}
+                </ul>
+                {task.estimateMin ? <p className="mt-1 text-xs text-muted">Estimate {formatDuration(task.estimateMin * 60)}</p> : null}
+              </Section>
+            ) : null}
+
             {Object.entries(task.personalSteps ?? {}).some(([, steps]) => steps.length > 0) ? (
               <Section title="Their own steps">
                 <ul className="space-y-3">

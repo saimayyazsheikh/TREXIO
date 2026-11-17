@@ -11,6 +11,7 @@ import { TextWithLinks } from "@/components/features/text-with-links";
 import { ChecklistBox } from "@/components/features/tasks/checklist-box";
 import { DueChip } from "@/components/features/tasks/due-chip";
 import { PersonalSteps } from "@/components/features/tasks/personal-steps";
+import { RunningBadge, TaskTimer } from "@/components/features/tasks/task-timer";
 import type { Role, TaskStatus } from "@/lib/domain/constants";
 import { availableMoves } from "@/lib/domain/task-moves";
 import { dueState } from "@/lib/domain/tasks";
@@ -102,6 +103,7 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
                 <span className={cn("font-semibold leading-snug", done && "line-through decoration-muted")}>{task.title}</span>
                 <PriorityBadge priority={task.priority} />
                 {overdue ? <DueChip task={task} status={status} now={now} today={today} /> : null}
+                {viewer.role === "employee" ? <RunningBadge task={task} uid={viewer.uid} /> : null}
               </span>
               <ChevronDown className={cn("size-4 shrink-0 text-muted transition-transform", open && "rotate-180")} aria-hidden />
             </button>
@@ -178,6 +180,7 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
           {task.subtaskTotal > 0 ? (
             <ChecklistBox task={task} locked={done || inReview} savingSubtasks={savingSubtasks} onToggleSubtask={onToggleSubtask} onTickAll={onTickAll} />
           ) : null}
+          {viewer.role === "employee" && task.assigneeIds.includes(viewer.uid) ? <TaskTimer task={task} uid={viewer.uid} canTime={status === "todo" || status === "in_progress"} /> : null}
           {viewer.role === "employee" && task.assigneeIds.includes(viewer.uid) ? <PersonalSteps task={task} uid={viewer.uid} locked={done || inReview} /> : null}
             </div>
           ) : null}

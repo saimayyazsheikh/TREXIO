@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { bulkChangeTasks, commentOnTask, createOneOffTask, createSelfTask, deleteSelfTask, deleteTask, explainMissedRoutine, setAllSubtasks, toggleSubtask, transitionTask, updateDailyForToday, updateOneOffTask, updatePersonalSteps, updateSelfTask, type TaskDb } from "@/lib/server/task-store";
+import { bulkChangeTasks, startTimer, stopTimer, commentOnTask, createOneOffTask, createSelfTask, deleteSelfTask, deleteTask, explainMissedRoutine, setAllSubtasks, toggleSubtask, transitionTask, updateDailyForToday, updateOneOffTask, updatePersonalSteps, updateSelfTask, type TaskDb } from "@/lib/server/task-store";
 import { makeDb, newWorld, type World } from "@/lib/server/test-support/memory-task-db";
 import { createSelfTaskSchema, createTaskSchema, updateDailyTodaySchema, updateSelfTaskSchema, updateTaskSchema } from "@/lib/domain/task-schemas";
 import { bulkSchema } from "@/lib/domain/bulk";
@@ -592,6 +592,88 @@ describe("the client a task is for", () => {
 
   it("is limited in length", () => {
     expect(createTaskSchema.safeParse({ ...base, client: "x".repeat(61) }).success).toBe(false);
+  });
+});
+
+describe("timing a task", () => {
+  const at = (iso: string) => new Date(iso);
+  const setup = async () => {
+    const world = newWorld();
+    world.users.set("omar", { name: "Omar", businessId: "b1", role: "employee", status: "active" });
+    const start = makeDb(world, at("2026-10-21T06:00:00Z"));
+    const a = (await createOneOffTask(start, admin, make({ title: "Task A", subtasks: [] }))).taskId;
+    const b = (await createOneOffTask(start, admin, make({ title: "Task B", subtasks: [] }))).taskId;
+    return { world, a, b, later: (min: number) => makeDb(world, new Date(at("2026-10-21T06:00:00Z").getTime() + min * 60_000)) };
+  };
+
+  it("adds the time between start and stop, and keeps it per person", async () => {
+    const { world, a, later } = await setup();
+    await startTimer(later(0), ali, { taskId: a });
+    expect(world.tasks.get(a)!.timerUids).toEqual(["ali"]);
+    await stopTimer(later(25), ali, { taskId: a });
+    expect(world.tasks.get(a)).toMatchObject({ timeSpent: { ali: 25 * 60 }, timers: {}, timerUids: [] });
+    await startTimer(later(30), ali, { taskId: a });
+    await stopTimer(later(40), ali, { taskId: a });
+    expect(world.tasks.get(a)!.timeSpent).toEqual({ ali: 35 * 60 });
+    expect(world.audits.filter((x) => x.action === "task.timer").map((x) => x.to)).toEqual(["started", "stopped", "started", "stopped"]);
+  });
+
+  it("times one task at a time: starting another stops the first and banks its time", async () => {
+    const { world, a, b, later } = await setup();
+    await startTimer(later(0), ali, { taskId: a });
+    await startTimer(later(10), ali, { taskId: b });
+    expect(world.tasks.get(a)).toMatchObject({ timeSpent: { ali: 600 }, timerUids: [] });
+    expect(world.tasks.get(b)!.timerUids).toEqual(["ali"]);
+  });
+
+  it("is refused twice over, when not running, for the admin, for others, and on finished work", async () => {
+    const { world, a, later } = await setup();
+    await startTimer(later(0), ali, { taskId: a });
+    await expect(startTimer(later(1), ali, { taskId: a })).rejects.toThrow(/already running/);
+    await expect(stopTimer(later(1), sara, { taskId: a })).rejects.toMatchObject({ status: 403 });
+    await expect(startTimer(later(1), admin, { taskId: a })).rejects.toMatchObject({ status: 403 });
+    await stopTimer(later(2), ali, { taskId: a });
+    await expect(stopTimer(later(3), ali, { taskId: a })).rejects.toThrow(/isn.t running/);
+    world.tasks.set(a, { ...world.tasks.get(a)!, status: "completed" });
+    await expect(startTimer(later(4), ali, { taskId: a })).rejects.toThrow(/Only open work/);
+  });
+
+  it("stops by itself when the task is finished, and counts at most 12 hours for one session", async () => {
+    const { world, a, later } = await setup();
+    await startTimer(later(0), ali, { taskId: a });
+    await transitionTask(later(90), ali, { taskId: a, status: "completed" });
+    expect(world.tasks.get(a)).toMatchObject({ status: "completed", timeSpent: { ali: 90 * 60 }, timers: {}, timerUids: [] });
+
+    const second = await setup();
+    await startTimer(second.later(0), ali, { taskId: second.a });
+    await stopTimer(second.later(60 * 30), ali, { taskId: second.a }); // left running for 30 hours
+    expect(second.world.tasks.get(second.a)!.timeSpent).toEqual({ ali: 12 * 3600 });
+  });
+
+  it("stops everyone's timers when a shared task is blocked", async () => {
+    const world = newWorld();
+    world.users.set("omar", { name: "Omar", businessId: "b1", role: "employee", status: "active" });
+    const t0 = makeDb(world, new Date("2026-10-21T06:00:00Z"));
+    const { taskId } = await createOneOffTask(t0, admin, make({ assigneeIds: ["ali", "omar"], subtasks: [] }));
+    await startTimer(t0, ali, { taskId });
+    await startTimer(t0, omar, { taskId });
+    await transitionTask(makeDb(world, new Date("2026-10-21T06:20:00Z")), ali, { taskId, status: "blocked", reason: "Waiting on stock" });
+    expect(world.tasks.get(taskId)).toMatchObject({ timeSpent: { ali: 1200, omar: 1200 }, timerUids: [] });
+  });
+
+  it("keeps an estimate through edits and bulk changes", async () => {
+    const world = newWorld();
+    const db = makeDb(world, now);
+    const { taskId } = await createOneOffTask(db, admin, make({ estimateMin: 90, subtasks: [] }));
+    expect(world.tasks.get(taskId)!.estimateMin).toBe(90);
+    await bulkChangeTasks(db, admin, bulkSchema.parse({ taskIds: [taskId], change: { kind: "priority", priority: "low" } }));
+    expect(world.tasks.get(taskId)!.estimateMin).toBe(90);
+    await updateOneOffTask(db, admin, editOf(world, taskId, { estimateMin: 120 }));
+    expect(world.tasks.get(taskId)!.estimateMin).toBe(120);
+    expect(world.audits.at(-1)!.meta.changed).toEqual(["estimateMin"]);
+    expect(createTaskSchema.safeParse({ ...base, estimateMin: "" }).data?.estimateMin).toBeNull();
+    expect(createTaskSchema.safeParse({ ...base, estimateMin: "45" }).data?.estimateMin).toBe(45);
+    expect(createTaskSchema.safeParse({ ...base, estimateMin: 2 }).success).toBe(false);
   });
 });
 

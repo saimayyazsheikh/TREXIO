@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChartColumn, ChevronDown, ListChecks, PartyPopper, Plus, TriangleAlert } from "lucide-react";
+import { ChartColumn, ChevronDown, Flame, ListChecks, PartyPopper, Plus, TriangleAlert } from "lucide-react";
 import { limit, orderBy, query, where } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,6 +21,7 @@ import { TaskCard } from "@/components/features/tasks/task-card";
 import { useCollection } from "@/hooks/use-collection";
 import { useMyHours } from "@/hooks/use-my-hours";
 import { useNow } from "@/hooks/use-now";
+import { useStreak } from "@/hooks/use-streak";
 import { useTaskActions } from "@/hooks/use-task-actions";
 import { apiFetch } from "@/lib/api-client";
 import { getFirebase } from "@/lib/firebase/client";
@@ -77,6 +78,7 @@ export function TodayView({ uid }: { uid: string }) {
   const oldest = dateStringFromDayIndex(dayIndexFromDateString(today) - NOT_DONE_DAYS);
 
   const todayTasks = sortTasks(todays.data ?? []);
+  const streak = useStreak(uid, today, mine.workDays, todays.data ?? [], nowMs);
   const routines = todayTasks.filter((t) => t.kind === "daily");
   const oneoffs = todayTasks.filter((t) => t.kind === "oneoff");
   const fromAdmin = oneoffs.filter((t) => !t.selfCreated);
@@ -183,7 +185,14 @@ export function TodayView({ uid }: { uid: string }) {
             <GlassCard className="p-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="font-display text-lg font-semibold">{allDone ? "All done for today. Nice work!" : `${doneCount} of ${todayTasks.length} done today`}</p>
-                {allDone ? <PartyPopper className="size-6 text-success" aria-hidden /> : <span className="num text-sm font-semibold text-muted">{pct}%</span>}
+                <div className="flex items-center gap-3">
+                  {streak && streak.current >= 2 ? (
+                    <span title="Days in a row with every task finished on time" className="inline-flex items-center gap-1 rounded-full bg-warning/14 px-2.5 py-1 text-xs font-semibold text-warning">
+                      <Flame className="size-3.5" aria-hidden /> {streak.current}-day streak
+                    </span>
+                  ) : null}
+                  {allDone ? <PartyPopper className="size-6 text-success" aria-hidden /> : <span className="num text-sm font-semibold text-muted">{pct}%</span>}
+                </div>
               </div>
               <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-surface-raised" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Today's progress">
                 <div className="h-full rounded-full bg-brand transition-[width] duration-300" style={{ width: `${pct}%` }} />

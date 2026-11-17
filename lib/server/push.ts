@@ -5,6 +5,7 @@ import type { Notice } from "@/lib/server/communication";
 import { adminDb } from "@/lib/server/admin";
 import { scopeDb } from "@/lib/server/org-scope";
 import { initAdminApp } from "@/lib/server/admin-config";
+import { pushTokensFor, type QuietHours } from "@/lib/domain/quiet-hours";
 
 const DEAD_TOKEN = new Set(["messaging/registration-token-not-registered", "messaging/invalid-registration-token"]);
 
@@ -13,10 +14,12 @@ export async function pushNotice(orgId: string, n: Notice): Promise<void> {
   if (process.env.NEXT_PUBLIC_USE_EMULATORS === "true") return;
   try {
     const db = scopeDb(adminDb(), orgId);
-    const tokens =
-      n.toUid === "admin"
-        ? (await db.collection("users").where("role", "==", "admin").get()).docs.flatMap((d) => (d.get("fcmTokens") as string[] | undefined) ?? [])
-        : (((await db.doc(`users/${n.toUid}`).get()).get("fcmTokens") as string[] | undefined) ?? []);
+    // People in their quiet hours are skipped here; the notification is already in their bell.
+    const docs = n.toUid === "admin" ? (await db.collection("users").where("role", "==", "admin").get()).docs : [await db.doc(`users/${n.toUid}`).get()];
+    const tokens = pushTokensFor(
+      docs.map((d) => ({ fcmTokens: d.get("fcmTokens") as string[] | undefined, quietHours: d.get("quietHours") as QuietHours | null | undefined })),
+      new Date(),
+    );
     if (tokens.length === 0) return;
     const res = await getMessaging(initAdminApp()).sendEachForMulticast({
       tokens,

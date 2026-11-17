@@ -88,6 +88,8 @@ export function useAnalyticsData(range: { from: string; to: string }, businessId
         completedAtMs: t.completedAt?.toMillis() ?? null,
         blockedReason: t.blockedReason,
         missedReason: t.missedReason ?? null,
+        timeSpent: t.timeSpent,
+        estimateMin: t.estimateMin ?? null,
         assigneeIds: t.assigneeIds,
         doneBy: Object.entries(t.completion ?? {}).filter(([, c]) => c.done).map(([uid]) => uid),
         businessId: t.businessId,

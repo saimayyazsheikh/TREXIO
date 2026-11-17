@@ -67,6 +67,7 @@ export function buildOneOffTask(input: CreateTaskInput, assignees: Assignee[], a
     title: input.title,
     description: input.description,
     ...(input.client ? { client: input.client } : {}),
+    ...(input.estimateMin ? { estimateMin: input.estimateMin } : {}),
     priority: input.priority,
     dueAt: dueAtFor(input.date, input.dueTime),
     requiresReview: input.requiresReview,
@@ -80,7 +81,7 @@ export function buildOneOffTask(input: CreateTaskInput, assignees: Assignee[], a
 /** A one-off task an employee adds for themselves: only theirs, no review, no links, flagged so everyone can see who added it. */
 export function buildSelfTask(input: CreateSelfTaskInput, me: Assignee, now: Date, newId: () => string): TaskData {
   const task = buildOneOffTask(
-    { ...input, client: "", requiresReview: false, completionMode: "all", assigneeIds: [me.uid], dependsOnIds: [], relatedTaskIds: [] },
+    { ...input, client: "", estimateMin: null, requiresReview: false, completionMode: "all", assigneeIds: [me.uid], dependsOnIds: [], relatedTaskIds: [] },
     [me],
     { uid: me.uid, name: me.name, role: "employee" },
     now,
@@ -141,6 +142,7 @@ export function planTaskUpdate(task: TaskData, input: UpdateTaskInput, assignees
     requiresReview: input.requiresReview,
     // Only written when it really changes, so an old task without a client doesn't show a phantom edit.
     ...(input.client !== (task.client ?? "") ? { client: input.client } : {}),
+    ...(input.estimateMin !== (task.estimateMin ?? null) ? { estimateMin: input.estimateMin } : {}),
     assigneeIds: assignees.map((a) => a.uid),
     assigneeNames: namesOf(assignees),
     completion,

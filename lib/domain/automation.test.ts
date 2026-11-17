@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, briefingText, escalationDue, lateBy, nudgeDefault, resolveSettings, settingsSchema } from "@/lib/domain/automation";
 
 const MIN = 60_000;
-const S = { escalationL1Min: 60, escalationL2Min: 180 };
+const S = { escalationL1Min: 60, escalationL2Min: 180, escalationHighL1Min: 30, escalationHighL2Min: 90 };
 const task = (o: Partial<Parameters<typeof escalationDue>[0]> = {}) => ({ status: "todo", dueAtMs: 0, escalation: { l1At: null, l2At: null }, ...o });
 
 describe("escalationDue", () => {
@@ -22,13 +22,26 @@ describe("escalationDue", () => {
     expect(escalationDue(task({ dueAtMs: 10 * MIN }), 5 * MIN, S)).toEqual({ l1: false, l2: false });
     expect(escalationDue(task(), 49 * 60 * MIN, S)).toEqual({ l1: false, l2: false });
   });
-  it("respects custom thresholds", () => expect(escalationDue(task(), 30 * MIN, { escalationL1Min: 30, escalationL2Min: 90 }).l1).toBe(true));
+  it("respects custom thresholds", () => expect(escalationDue(task(), 30 * MIN, { ...S, escalationL1Min: 30, escalationL2Min: 90 }).l1).toBe(true));
+
+  it("alerts High-priority tasks sooner than the rest", () => {
+    expect(escalationDue(task({ priority: "high" }), 30 * MIN, S)).toEqual({ l1: true, l2: false });
+    expect(escalationDue(task({ priority: "high" }), 90 * MIN, S)).toEqual({ l1: true, l2: true });
+    expect(escalationDue(task({ priority: "medium" }), 30 * MIN, S)).toEqual({ l1: false, l2: false });
+    expect(escalationDue(task({ priority: "low" }), 59 * MIN, S)).toEqual({ l1: false, l2: false });
+    expect(escalationDue(task(), 30 * MIN, S)).toEqual({ l1: false, l2: false });
+  });
 });
 
 describe("settings", () => {
   it("defaults are valid", () => expect(settingsSchema.safeParse(DEFAULT_SETTINGS).success).toBe(true));
   it("requires the second alert after the first", () => {
     expect(settingsSchema.safeParse({ ...DEFAULT_SETTINGS, escalationL1Min: 120, escalationL2Min: 90 }).success).toBe(false);
+  });
+  it("requires the High-priority second alert after its first", () => {
+    expect(settingsSchema.safeParse({ ...DEFAULT_SETTINGS, escalationHighL1Min: 60, escalationHighL2Min: 40 }).success).toBe(false);
+    expect(resolveSettings({ escalationHighL1Min: 100, escalationHighL2Min: 50 })).toEqual(DEFAULT_SETTINGS);
+    expect(resolveSettings({ escalationL1Min: 45 }).escalationHighL1Min).toBe(30);
   });
   it("resolveSettings fills gaps and repairs bad values", () => {
     expect(resolveSettings(undefined)).toEqual(DEFAULT_SETTINGS);

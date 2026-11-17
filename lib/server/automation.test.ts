@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, type AutomationSettings } from "@/lib/domain/automation";
 import type { TaskData } from "@/lib/domain/tasks";
-import { runBriefing, runEscalations, type AutomationDeps } from "@/lib/server/automation";
+import { alertBlocked, runBriefing, runEscalations, type AutomationDeps } from "@/lib/server/automation";
 import type { Notice } from "@/lib/server/communication";
 
 const MIN = 60_000;
@@ -126,6 +126,39 @@ describe("runEscalations", () => {
     expect(await runEscalations(deps())).toMatchObject({ level1: 0 });
     w.settings = { ...DEFAULT_SETTINGS, escalationL1Min: 30, escalationL2Min: 60 };
     expect(await runEscalations(deps())).toMatchObject({ level1: 1, level2: 1 });
+  });
+});
+
+describe("High-priority tasks", () => {
+  it("alert sooner than the usual hour", async () => {
+    // 40 minutes late: too early for a medium task, past the 30-minute alert for a high one.
+    w.tasks = new Map([["med", task({ dueAt: dueAgo(40) })], ["urgent", task({ priority: "high", dueAt: dueAgo(40), title: "Urgent" })]]);
+    const r = await runEscalations(deps());
+    expect(r).toMatchObject({ level1: 1, level2: 0 });
+    expect(w.notices).toHaveLength(1);
+    expect(w.notices[0].body).toContain("Urgent");
+  });
+
+  it("send the admin the second alert after 90 minutes", async () => {
+    w.tasks = new Map([["urgent", task({ priority: "high", dueAt: dueAgo(100) })]]);
+    expect(await runEscalations(deps())).toMatchObject({ level1: 1, level2: 1 });
+    expect(w.notices.map((n) => n.toUid).sort()).toEqual(["admin", "ali"]);
+  });
+});
+
+describe("alertBlocked", () => {
+  it("tells the admin who is blocked, on what and why", async () => {
+    expect(await alertBlocked(deps(), { employeeName: "Ali Khan", title: "Count stock", reason: "No access to the store" })).toBe(true);
+    expect(w.notices).toEqual([{ toUid: "admin", title: "A task is blocked", body: "Ali Khan is blocked on “Count stock”: No access to the store", link: "/admin/kanban" }]);
+  });
+
+  it("stays quiet when it is switched off, and never throws", async () => {
+    w.settings = { ...DEFAULT_SETTINGS, notifyOnBlocked: false };
+    expect(await alertBlocked(deps(), { employeeName: "Ali", title: "T1", reason: "x" })).toBe(false);
+    expect(w.notices).toEqual([]);
+    const broken = { ...deps(), notify: async () => { throw new Error("down"); } };
+    w.settings = { ...DEFAULT_SETTINGS };
+    expect(await alertBlocked(broken, { employeeName: "Ali", title: "T1", reason: "x" })).toBe(false);
   });
 });
 

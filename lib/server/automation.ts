@@ -1,4 +1,4 @@
-import { ESCALATION_LOOKBACK_MS, escalationAdminText, escalationDue, escalationEmployeeText, type AutomationSettings } from "@/lib/domain/automation";
+import { ESCALATION_LOOKBACK_MS, blockedAdminText, escalationAdminText, escalationDue, escalationEmployeeText, type AutomationSettings } from "@/lib/domain/automation";
 import { isClosedFor, type CalendarEntry } from "@/lib/domain/timeoff";
 import type { TaskData } from "@/lib/domain/tasks";
 import { isoWeekdayOfDate, pktDateString } from "@/lib/time";
@@ -39,14 +39,15 @@ export async function runEscalations(deps: AutomationDeps): Promise<EscalationRe
   const settings = await deps.loadSettings();
   const result: EscalationResult = { checked: 0, level1: 0, level2: 0, paused: 0 };
 
-  const candidates = await deps.loadDueBetween(nowMs - ESCALATION_LOOKBACK_MS, nowMs - settings.escalationL1Min * 60_000);
+  // The earliest alert of any priority decides how far back to look; escalationDue then applies each task's own times.
+  const candidates = await deps.loadDueBetween(nowMs - ESCALATION_LOOKBACK_MS, nowMs - Math.min(settings.escalationL1Min, settings.escalationHighL1Min) * 60_000);
   const today = pktDateString(now);
   const [calendar, onLeave] = await Promise.all([deps.loadCalendar(today), deps.loadEmployeesOnLeave(today)]);
   const people = await deps.loadPeople([...new Set(candidates.flatMap((c) => c.task.assigneeIds))]);
   const businesses = await deps.loadBusinesses([...new Set(candidates.map((c) => c.task.businessId))]);
 
   for (const { id, task } of candidates) {
-    const due = escalationDue({ status: task.status, dueAtMs: task.dueAt?.getTime() ?? null, escalation: task.escalation }, nowMs, settings);
+    const due = escalationDue({ status: task.status, priority: task.priority, dueAtMs: task.dueAt?.getTime() ?? null, escalation: task.escalation }, nowMs, settings);
     if (!due.l1 && !due.l2) continue;
     result.checked++;
 
@@ -74,6 +75,19 @@ export async function runEscalations(deps: AutomationDeps): Promise<EscalationRe
     }
   }
   return result;
+}
+
+/** Tells the admin right away that someone is blocked (when that is switched on). Never throws: the block itself has already been saved. */
+export async function alertBlocked(deps: AutomationDeps, o: { employeeName: string; title: string; reason: string }): Promise<boolean> {
+  try {
+    const settings = await deps.loadSettings();
+    if (!settings.notifyOnBlocked) return false;
+    await deps.notify({ toUid: "admin", ...blockedAdminText(o), link: "/admin/kanban" });
+    return true;
+  } catch (error) {
+    console.error("blocked alert failed", error);
+    return false;
+  }
 }
 
 export type BriefingResult = { eligible: number; sent: number; skipped: number; failed: number };

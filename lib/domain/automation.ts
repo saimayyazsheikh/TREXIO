@@ -13,16 +13,26 @@ export const ESCALATING_STATUSES = ["todo", "in_progress"] as const;
 const baseSchema = z.object({
   escalationL1Min: z.number().int("Use whole minutes").min(10, "At least 10 minutes").max(1440, "At most 24 hours"),
   escalationL2Min: z.number().int("Use whole minutes").min(20, "At least 20 minutes").max(2880, "At most 48 hours"),
+  /** High-priority tasks escalate sooner. */
+  escalationHighL1Min: z.number().int("Use whole minutes").min(10, "At least 10 minutes").max(1440, "At most 24 hours"),
+  escalationHighL2Min: z.number().int("Use whole minutes").min(20, "At least 20 minutes").max(2880, "At most 48 hours"),
+  /** Tell the admin as soon as an employee marks a task as blocked. */
+  notifyOnBlocked: z.boolean(),
   briefingEnabled: z.boolean(),
   promptMinute: z.number().int("Use whole minutes").min(0).max(59, "A minute from 0 to 59"),
   idleMin: z.number().int("Use whole minutes").min(1, "At least 1 minute").max(60, "At most 60 minutes"),
 });
-export const settingsSchema = baseSchema.refine((s) => s.escalationL2Min > s.escalationL1Min, { path: ["escalationL2Min"], message: "The second alert must come after the first" });
+export const settingsSchema = baseSchema
+  .refine((s) => s.escalationL2Min > s.escalationL1Min, { path: ["escalationL2Min"], message: "The second alert must come after the first" })
+  .refine((s) => s.escalationHighL2Min > s.escalationHighL1Min, { path: ["escalationHighL2Min"], message: "The second alert must come after the first" });
 export type AutomationSettings = z.infer<typeof settingsSchema>;
 
 export const DEFAULT_SETTINGS: AutomationSettings = {
   escalationL1Min: 60,
   escalationL2Min: 180,
+  escalationHighL1Min: 30,
+  escalationHighL2Min: 90,
+  notifyOnBlocked: true,
   briefingEnabled: true,
   promptMinute: PROMPT_MINUTE,
   idleMin: DEFAULT_IDLE_MIN,
@@ -35,9 +45,10 @@ export function resolveSettings(raw: unknown): AutomationSettings {
   for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof AutomationSettings)[]) {
     if (baseSchema.shape[key].safeParse(r[key]).success) out[key] = r[key];
   }
-  const s = out as AutomationSettings;
+  let s = out as AutomationSettings;
   // Two thresholds in the wrong order can't both be trusted: use the defaults for the pair.
-  if (s.escalationL2Min <= s.escalationL1Min) return { ...s, escalationL1Min: DEFAULT_SETTINGS.escalationL1Min, escalationL2Min: DEFAULT_SETTINGS.escalationL2Min };
+  if (s.escalationL2Min <= s.escalationL1Min) s = { ...s, escalationL1Min: DEFAULT_SETTINGS.escalationL1Min, escalationL2Min: DEFAULT_SETTINGS.escalationL2Min };
+  if (s.escalationHighL2Min <= s.escalationHighL1Min) s = { ...s, escalationHighL1Min: DEFAULT_SETTINGS.escalationHighL1Min, escalationHighL2Min: DEFAULT_SETTINGS.escalationHighL2Min };
   return s;
 }
 
@@ -45,18 +56,26 @@ export function resolveSettings(raw: unknown): AutomationSettings {
 
 export type EscalationTask = {
   status: string;
+  /** High-priority tasks use the faster pair of alerts. */
+  priority?: string;
   dueAtMs: number | null;
   escalation: { l1At: unknown; l2At: unknown } | null | undefined;
 };
 
+/** The alert times for a priority: High has its own, sooner pair. */
+export function thresholdsFor(priority: string | undefined, s: Pick<AutomationSettings, "escalationL1Min" | "escalationL2Min" | "escalationHighL1Min" | "escalationHighL2Min">): { l1: number; l2: number } {
+  return priority === "high" ? { l1: s.escalationHighL1Min, l2: s.escalationHighL2Min } : { l1: s.escalationL1Min, l2: s.escalationL2Min };
+}
+
 /** Which alerts are due now and haven't fired yet. A level fires once per task (the flag is set when it does). */
-export function escalationDue(t: EscalationTask, nowMs: number, s: Pick<AutomationSettings, "escalationL1Min" | "escalationL2Min">): { l1: boolean; l2: boolean } {
+export function escalationDue(t: EscalationTask, nowMs: number, s: Pick<AutomationSettings, "escalationL1Min" | "escalationL2Min" | "escalationHighL1Min" | "escalationHighL2Min">): { l1: boolean; l2: boolean } {
   if (!(ESCALATING_STATUSES as readonly string[]).includes(t.status) || t.dueAtMs === null) return { l1: false, l2: false };
   const late = nowMs - t.dueAtMs;
   if (late <= 0 || late > ESCALATION_LOOKBACK_MS) return { l1: false, l2: false };
+  const at = thresholdsFor(t.priority, s);
   return {
-    l1: late >= s.escalationL1Min * 60_000 && !t.escalation?.l1At,
-    l2: late >= s.escalationL2Min * 60_000 && !t.escalation?.l2At,
+    l1: late >= at.l1 * 60_000 && !t.escalation?.l1At,
+    l2: late >= at.l2 * 60_000 && !t.escalation?.l2At,
   };
 }
 
@@ -84,6 +103,10 @@ export function briefingText(name: string, tasks: TaskLine[]): string {
   const lines = tasks.slice(0, 12).map((t, i) => `${i + 1}. ${t.title} (${dueText(t.dueAtMs)})`);
   const more = tasks.length > 12 ? `\n…and ${tasks.length - 12} more` : "";
   return `Good morning ${first}! Today you have ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}:\n${lines.join("\n")}${more}`;
+}
+
+export function blockedAdminText(o: { employeeName: string; title: string; reason: string }): { title: string; body: string } {
+  return { title: "A task is blocked", body: `${o.employeeName} is blocked on “${o.title}”: ${o.reason}` };
 }
 
 export function escalationEmployeeText(o: { title: string; lateMs: number }): { title: string; body: string } {

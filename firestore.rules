@@ -291,8 +291,12 @@ service cloud.firestore {
       allow get: if (isAdmin() || isEmployee()) && settingId == 'global';
       allow list: if false;
       allow create, update: if isAdmin() && settingId == 'global'
-        && request.resource.data.keys().hasOnly(['escalationL1Min', 'escalationL2Min', 'briefingEnabled', 'promptMinute', 'idleMin'])
+        && request.resource.data.keys().hasOnly(['escalationL1Min', 'escalationL2Min', 'escalationHighL1Min', 'escalationHighL2Min', 'notifyOnBlocked', 'briefingEnabled', 'promptMinute', 'idleMin'])
         && request.resource.data.keys().hasAll(['escalationL1Min', 'escalationL2Min', 'briefingEnabled', 'promptMinute', 'idleMin'])
+        && (!('escalationHighL1Min' in request.resource.data) || (request.resource.data.escalationHighL1Min is int && request.resource.data.escalationHighL1Min >= 10 && request.resource.data.escalationHighL1Min <= 1440))
+        && (!('escalationHighL2Min' in request.resource.data) || (request.resource.data.escalationHighL2Min is int && request.resource.data.escalationHighL2Min >= 20 && request.resource.data.escalationHighL2Min <= 2880))
+        && (!('escalationHighL1Min' in request.resource.data && 'escalationHighL2Min' in request.resource.data) || request.resource.data.escalationHighL2Min > request.resource.data.escalationHighL1Min)
+        && (!('notifyOnBlocked' in request.resource.data) || request.resource.data.notifyOnBlocked is bool)
         && request.resource.data.escalationL1Min is int && request.resource.data.escalationL1Min >= 10 && request.resource.data.escalationL1Min <= 1440
         && request.resource.data.escalationL2Min is int && request.resource.data.escalationL2Min >= 20 && request.resource.data.escalationL2Min <= 2880
         && request.resource.data.escalationL2Min > request.resource.data.escalationL1Min

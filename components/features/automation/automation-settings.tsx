@@ -18,10 +18,13 @@ import { getFirebase } from "@/lib/firebase/client";
 import { orgDocument } from "@/lib/firebase/org";
 import { DEFAULT_SETTINGS, SETTINGS_PATH, settingsSchema, type AutomationSettings } from "@/lib/domain/automation";
 
-type Draft = Omit<Record<keyof AutomationSettings, string>, "briefingEnabled"> & { briefingEnabled: boolean };
+type Draft = Omit<Record<keyof AutomationSettings, string>, "briefingEnabled" | "notifyOnBlocked"> & { briefingEnabled: boolean; notifyOnBlocked: boolean };
 const toDraft = (s: AutomationSettings): Draft => ({
   escalationL1Min: String(s.escalationL1Min),
   escalationL2Min: String(s.escalationL2Min),
+  escalationHighL1Min: String(s.escalationHighL1Min),
+  escalationHighL2Min: String(s.escalationHighL2Min),
+  notifyOnBlocked: s.notifyOnBlocked,
   briefingEnabled: s.briefingEnabled,
   promptMinute: String(s.promptMinute),
   idleMin: String(s.idleMin),
@@ -68,6 +71,9 @@ export function AutomationSettingsView() {
     const parsed = settingsSchema.safeParse({
       escalationL1Min: num(draft.escalationL1Min),
       escalationL2Min: num(draft.escalationL2Min),
+      escalationHighL1Min: num(draft.escalationHighL1Min),
+      escalationHighL2Min: num(draft.escalationHighL2Min),
+      notifyOnBlocked: draft.notifyOnBlocked,
       briefingEnabled: draft.briefingEnabled,
       promptMinute: num(draft.promptMinute),
       idleMin: num(draft.idleMin),
@@ -130,6 +136,23 @@ export function AutomationSettingsView() {
                 {(aria) => <Input {...aria} inputMode="numeric" value={draft.escalationL2Min} onChange={(e) => set("escalationL2Min", e.target.value)} />}
               </Field>
             </div>
+            <h3 className="mb-1 mt-6 text-sm font-semibold">High-priority tasks</h3>
+            <p className="mb-3 text-sm text-muted">Tasks marked High alert sooner, so something urgent doesn&apos;t sit late for an hour.</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="hl1" label="First alert after (minutes late)" required error={errors.escalationHighL1Min}>
+                {(aria) => <Input {...aria} inputMode="numeric" value={draft.escalationHighL1Min} onChange={(e) => set("escalationHighL1Min", e.target.value)} />}
+              </Field>
+              <Field id="hl2" label="Second alert after (minutes late)" required error={errors.escalationHighL2Min}>
+                {(aria) => <Input {...aria} inputMode="numeric" value={draft.escalationHighL2Min} onChange={(e) => set("escalationHighL2Min", e.target.value)} />}
+              </Field>
+            </div>
+            <label className="mt-6 flex min-h-11 cursor-pointer items-start gap-3 text-sm">
+              <input type="checkbox" className="mt-0.5 size-5 accent-[var(--brand)]" checked={draft.notifyOnBlocked} onChange={(e) => set("notifyOnBlocked", e.target.checked)} />
+              <span>
+                <span className="block font-medium">Tell me when someone is blocked</span>
+                <span className="block text-muted">As soon as an employee marks a task as blocked, you get an alert with their reason.</span>
+              </span>
+            </label>
           </GlassCard>
 
           <GlassCard className="p-5">

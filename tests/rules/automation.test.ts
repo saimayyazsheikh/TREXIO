@@ -9,7 +9,7 @@ const admin = () => env.authenticatedContext("admin1", { role: "admin", orgId: "
 const employee = (uid: string) => env.authenticatedContext(uid, { role: "employee", orgId: "o1", businessId: "b1" }).firestore();
 const stranger = () => env.unauthenticatedContext().firestore();
 
-const settings = (over: Record<string, unknown> = {}) => ({ escalationL1Min: 60, escalationL2Min: 180, briefingEnabled: true, promptMinute: 55, idleMin: 5, ...over });
+const settings = (over: Record<string, unknown> = {}) => ({ escalationL1Min: 60, escalationL2Min: 180, escalationHighL1Min: 30, escalationHighL2Min: 90, notifyOnBlocked: true, briefingEnabled: true, promptMinute: 55, idleMin: 5, ...over });
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
@@ -80,9 +80,20 @@ describe("settings/global", () => {
       { idleMin: 0 },
       { idleMin: 5.5 },
       { briefingEnabled: "yes" },
+      { escalationHighL1Min: 5 },
+      { escalationHighL1Min: 60, escalationHighL2Min: 40 },
+      { escalationHighL2Min: 3000 },
+      { notifyOnBlocked: "yes" },
     ]) {
       await assertFails(setDoc(doc(admin(), "orgs/o1/settings/global"), settings(bad)));
     }
+  });
+  it("still accepts settings saved before the High-priority fields existed", async () => {
+    const old: Record<string, unknown> = settings();
+    delete old.escalationHighL1Min;
+    delete old.escalationHighL2Min;
+    delete old.notifyOnBlocked;
+    await assertSucceeds(setDoc(doc(admin(), "orgs/o1/settings/global"), old));
   });
   it("no extra or missing fields", async () => {
     await assertFails(setDoc(doc(admin(), "orgs/o1/settings/global"), { ...settings(), sneaky: true }));

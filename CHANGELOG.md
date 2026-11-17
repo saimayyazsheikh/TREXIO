@@ -1,5 +1,18 @@
 # Changelog
 
+## Assistant, workload, calendar, daily report and more
+- **Assistant** (admin header): write tasks in plain English, Urdu or Roman Urdu. It lays out the tasks it understood (person, day, time, priority, steps, or a dump entry), shows what is wrong with any it could not resolve, and creates nothing until you press Create. Questions such as "who is free?" are answered from the team's current figures. Needs GEMINI_API_KEY or ANTHROPIC_API_KEY on the server.
+- **Workload**: who has how much open, overdue, blocked and waiting for review right now, with Free / Busy / Heavy / Away, and a "Give a task" button on each person.
+- **Calendar**: a month of one-off tasks, holidays, closures and approved leave; open a day to see it, open a task from it, or assign one for that day.
+- **Daily report**: one day for the whole team (who was in, what was done, not done with reasons, done late, blocked), as a page, copy, WhatsApp text or print.
+- **Search (Ctrl+K)**: jump to any page, or for the admin to any team member, with the keyboard.
+- **Bulk change** on the Kanban board: select tasks, then set priority, give to someone, move to a day or delete, all at once, each through the normal edit so every rule and audit line still applies.
+- **High-priority tasks** alert sooner (their own first and second alert times in Automation), and the admin is told straight away when an employee marks a task blocked (can be switched off).
+- **Client** on a one-off task (with suggestions), shown on cards, searchable on the board, and a **Clients** tab in Analytics with CSV export.
+- **Timer and estimate**: an employee starts and stops a timer on a task (one at a time; finishing or blocking the task stops it), the admin can give a time estimate, and the time shows on the task, in the drawer and in the performance report.
+- **Streak**: days in a row with every task finished on time, on the employee's Today page.
+- **Quiet hours** for phone and browser alerts, set from the bell. A routine's details are now "How to do it", and links in task details are clickable.
+
 ## Dump tasks, own tasks and a calmer Today
 - Admin: **Dump tasks** page for things remembered now but meant for later (optional "remind me on" day, with a count in the menu once it is due). Schedule opens the normal task form with the words filled in, and the entry leaves the dump when the task is created. Employees never see it.
 - Employee Today: Not done is now a tab for everyone (no side panel), with a banner when something needs a reason. A routine can be finished late from there with "I've done it now": a reason is required (or one already given is used), it leaves Not done, and the admin sees "Done late" with how late and why (task, board card, report, audit). Routines that already have a reason sit under "Reason given".

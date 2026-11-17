@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ClientsReport } from "@/components/features/analytics/clients-report";
 import { AttendanceReport, JournalsReport, PresenceReport, TasksReport } from "@/components/features/analytics/team-reports";
 import { PerformanceReport } from "@/components/features/reports/performance-report";
 import { PeriodPicker, type PeriodState } from "@/components/features/reports/period-picker";
@@ -30,10 +31,11 @@ import { rangeForPeriod } from "@/lib/domain/periods";
 import { pktDateString } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
-type TabId = "overview" | "tasks" | "journals" | "attendance" | "presence" | "person";
+type TabId = "overview" | "tasks" | "clients" | "journals" | "attendance" | "presence" | "person";
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "tasks", label: "Tasks" },
+  { id: "clients", label: "Clients" },
   { id: "journals", label: "Journals" },
   { id: "attendance", label: "Attendance" },
   { id: "presence", label: "Presence" },
@@ -175,6 +177,7 @@ function AnalyticsBody({ range, businessId, employeeId, tab, today, nowMs }: { r
     return (
       <div>
         {tab === "tasks" ? <TasksReport reports={reports} range={range} /> : null}
+        {tab === "clients" ? <ClientsReport tasks={data.clientTasks.filter((t) => !businessId || t.businessId === businessId)} range={range} nowMs={nowMs} /> : null}
         {tab === "journals" ? <JournalsReport reports={reports} range={range} /> : null}
         {tab === "attendance" ? <AttendanceReport reports={reports} range={range} /> : null}
         {tab === "presence" ? <PresenceReport reports={reports} range={range} /> : null}

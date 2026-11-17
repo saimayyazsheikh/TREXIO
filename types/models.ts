@@ -65,6 +65,8 @@ export type TaskDoc = {
   missedReason?: string | null;
   missedReasonAt?: Timestamp | null;
   createdBy?: string;
+  /** The client this one-off task is for, if any. */
+  client?: string;
   /** Added by the employee for themselves. */
   selfCreated?: boolean;
   /** Each assignee's own steps on this task, keyed by user id. */

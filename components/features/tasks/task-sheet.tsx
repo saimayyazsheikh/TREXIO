@@ -24,6 +24,7 @@ import type { BusinessDoc, TaskDoc, UserDoc, WithId } from "@/types/models";
 type FormValues = {
   title: string;
   description: string;
+  client: string;
   priority: Priority;
   date: string;
   dueTime: string;
@@ -44,6 +45,7 @@ export function TaskSheet({
   businesses,
   defaultAssigneeId,
   prefill,
+  clients = [],
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -52,6 +54,8 @@ export function TaskSheet({
   employees: WithId<UserDoc>[];
   businesses: WithId<BusinessDoc>[];
   defaultAssigneeId?: string;
+  /** Client names already in use, offered as suggestions in the Client box. */
+  clients?: string[];
   /** Scheduling a dump task: the form starts with its words, and the dump entry is removed when the task is created. */
   prefill?: {
     dumpId?: string;
@@ -89,6 +93,7 @@ export function TaskSheet({
         ? {
             title: task.title,
             description: task.description,
+            client: task.client ?? "",
             priority: task.priority,
             date: task.date,
             dueTime: task.dueAt ? new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(task.dueAt.toDate()) : "",
@@ -100,7 +105,7 @@ export function TaskSheet({
             subtasks: task.subtasks.map((s) => ({ id: s.id, title: s.title })),
           }
         : {
-            title: prefill?.title ?? "", description: prefill?.description ?? "", priority: prefill?.priority ?? "medium", date: prefill?.date ?? pktDateString(), dueTime: prefill?.dueTime ?? "",
+            title: prefill?.title ?? "", description: prefill?.description ?? "", client: "", priority: prefill?.priority ?? "medium", date: prefill?.date ?? pktDateString(), dueTime: prefill?.dueTime ?? "",
             assigneeIds: prefill?.assigneeIds?.length ? prefill.assigneeIds : defaultAssigneeId ? [defaultAssigneeId] : [],
             completionMode: "all", dependsOnIds: [], relatedTaskIds: [], requiresReview: false, subtasks: (prefill?.subtasks ?? []).map((title) => ({ title })),
           },
@@ -111,7 +116,7 @@ export function TaskSheet({
     setFormError(null);
     const raw = getValues();
     const base = {
-      title: raw.title, description: raw.description, priority: raw.priority, date: raw.date, dueTime: raw.dueTime,
+      title: raw.title, description: raw.description, client: raw.client ?? "", priority: raw.priority, date: raw.date, dueTime: raw.dueTime,
       assigneeIds: raw.assigneeIds, completionMode: raw.completionMode, dependsOnIds: raw.dependsOnIds, relatedTaskIds: raw.relatedTaskIds,
       requiresReview: raw.requiresReview,
     };
@@ -159,6 +164,19 @@ export function TaskSheet({
                 className="w-full rounded-control border border-input bg-surface-solid px-3 py-2.5 text-base text-foreground placeholder:text-muted transition-colors focus-visible:border-ring md:text-sm"
                 {...register("description")}
               />
+            )}
+          </Field>
+
+          <Field id="task-client" label="Client" hint="Optional. Who the work is for, so you can see how it went client by client.">
+            {(aria) => (
+              <>
+                <Input {...aria} list="task-client-list" maxLength={60} autoComplete="off" {...register("client")} />
+                <datalist id="task-client-list">
+                  {clients.map((c) => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </>
             )}
           </Field>
 

@@ -12,6 +12,8 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date");
 const title = z.string().trim().min(2, "Give it a short title").max(120, "Keep the title under 120 characters");
 const description = z.string().trim().max(2000, "Keep the description under 2000 characters").default("");
 
+const client = z.string().trim().max(60, "Keep the client name under 60 characters").default("");
+
 const subtaskTitle = z.string().trim().min(1).max(120, "Keep each step under 120 characters");
 
 /** Checklist items on create: plain titles. Blank lines are dropped. */
@@ -54,6 +56,7 @@ const taskRelations = {
 export const createTaskSchema = z.object({
   title,
   description,
+  client,
   priority: z.enum(PRIORITIES),
   date,
   dueTime: hhmmOrEmpty,
@@ -67,6 +70,7 @@ export const updateTaskSchema = z.object({
   taskId: z.string().min(1),
   title,
   description,
+  client,
   priority: z.enum(PRIORITIES),
   date,
   dueTime: hhmmOrEmpty,

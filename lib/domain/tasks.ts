@@ -55,6 +55,8 @@ export type TaskData = {
   /** Why a daily routine wasn't done, written by the person it was for. */
   missedReason?: string | null;
   missedReasonAt?: Date | null;
+  /** The client this one-off task is for, if any (free text, shown on cards and used in the client report). */
+  client?: string;
   /** Added by the employee for themselves (for example, work the admin gave them out loud). */
   selfCreated?: boolean;
   /** Each assignee's own private-to-the-task step list, keyed by user id. */

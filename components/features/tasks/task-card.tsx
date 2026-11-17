@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { PriorityBadge, StatusBadge } from "@/components/features/badges";
 import { GlassCard } from "@/components/features/glass-card";
+import { TextWithLinks } from "@/components/features/text-with-links";
 import { ChecklistBox } from "@/components/features/tasks/checklist-box";
 import { DueChip } from "@/components/features/tasks/due-chip";
 import { PersonalSteps } from "@/components/features/tasks/personal-steps";
@@ -121,6 +122,7 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
           </div>
           <div className="mt-1.5 flex flex-wrap items-center gap-2">
             {status !== "todo" ? <StatusBadge status={status} /> : null}
+            {task.client ? <span className="inline-flex items-center rounded-full bg-surface-raised px-2.5 py-0.5 text-xs font-semibold text-muted">Client: {task.client}</span> : null}
             {!overdue ? <DueChip task={task} status={status} now={now} today={today} /> : null}
             {myPartDone ? <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2.5 py-0.5 text-xs font-semibold text-success">Your part is done</span> : null}
             {waiting.length > 0 ? (
@@ -144,7 +146,19 @@ export function TaskCard({ task, viewer, status, now, today, savingSubtasks, onM
             </p>
           ) : null}
 
-          {task.description ? <p className="mt-2 whitespace-pre-line text-sm text-muted">{task.description}</p> : null}
+          {task.description ? (
+            task.kind === "daily" ? (
+              // A routine's details are its how-to: set apart, with any link in them clickable.
+              <div className="mt-2 rounded-control border border-border-solid bg-surface-raised/40 px-3 py-2.5">
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">How to do this</p>
+                <TextWithLinks text={task.description} className="whitespace-pre-line text-sm" />
+              </div>
+            ) : (
+              <p className="mt-2 whitespace-pre-line text-sm text-muted">
+                <TextWithLinks text={task.description} />
+              </p>
+            )
+          ) : null}
           {(task.notes?.length ?? 0) > 0 ? (
             <ul className="mt-2 space-y-1" aria-label="Notes">
               {task.notes!.slice(-2).map((n) => (

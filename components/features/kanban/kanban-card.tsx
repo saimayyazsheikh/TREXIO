@@ -50,6 +50,7 @@ export function KanbanCardBody({ task, status, viewer, people, now, today, accen
         <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase leading-none tracking-wider" style={accent ? { color: accent } : undefined}>
           <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-current" />
           <span className="truncate">{businessName}</span>
+          {task.client ? <span className="truncate font-medium normal-case tracking-normal text-muted">· {task.client}</span> : null}
         </p>
       ) : null}
       <div className="flex items-start gap-2">

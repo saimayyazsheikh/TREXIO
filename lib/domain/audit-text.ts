@@ -14,6 +14,7 @@ const status = (s: string | null) => (s && s in TASK_STATUS_LABEL ? TASK_STATUS_
 const FIELD_LABEL: Record<string, string> = {
   title: "the title",
   description: "the details",
+  client: "the client",
   priority: "the priority",
   date: "the day",
   dueAt: "the due time",

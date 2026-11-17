@@ -6,6 +6,7 @@ import { useCollection } from "@/hooks/use-collection";
 import { getFirebase } from "@/lib/firebase/client";
 import { orgCollection } from "@/lib/firebase/org";
 import type { AnalyticsInput } from "@/lib/domain/analytics";
+import type { ClientTask } from "@/lib/domain/clients";
 import type { TeamInput } from "@/lib/domain/performance";
 import { pktDateString, pktDayBounds } from "@/lib/time";
 import type { BusinessDoc, CalendarDoc, JournalDoc, LeaveRequestDoc, PresenceDailyDoc, TaskDoc, UserDoc } from "@/types/models";
@@ -99,7 +100,13 @@ export function useAnalyticsData(range: { from: string; to: string }, businessId
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [from, to, tasks.data, journals.data, presence.data, leave.data, calendar.data]);
 
+  /** One-off tasks for the Clients report (only the fields it needs). */
+  const clientTasks = useMemo<ClientTask[]>(
+    () => (tasks.data ?? []).filter((t) => t.kind === "oneoff").map((t) => ({ client: t.client ?? "", status: t.status, dueAtMs: t.dueAt?.toMillis() ?? null, completedAtMs: t.completedAt?.toMillis() ?? null, businessId: t.businessId })),
+    [tasks.data],
+  );
+
   const truncated = [tasks, presence, journals, audit].some((c) => (c.data?.length ?? 0) >= CAP);
   const retry = () => all.forEach((c) => c.retry());
-  return { input, team, people: users.data ?? [], businesses: businesses.data ?? [], loading, error, retry, truncated };
+  return { input, team, clientTasks, people: users.data ?? [], businesses: businesses.data ?? [], loading, error, retry, truncated };
 }

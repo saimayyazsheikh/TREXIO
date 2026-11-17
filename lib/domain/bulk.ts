@@ -33,6 +33,7 @@ export function editWith(task: TaskData, taskId: string, change: Exclude<BulkCha
     taskId,
     title: task.title,
     description: task.description,
+    client: task.client ?? "",
     priority: change.kind === "priority" ? change.priority : task.priority,
     date: change.kind === "date" ? change.date : task.date,
     dueTime: task.dueAt ? hhmm(task.dueAt) : "",

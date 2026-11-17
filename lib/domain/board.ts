@@ -36,6 +36,7 @@ export type BoardTask = {
   assigneeIds: string[];
   assigneeNames: Record<string, string>;
   dueAtMs: number | null;
+  client?: string;
 };
 
 export type BoardFilters = { search: string; priority: Priority | ""; businessId: string; employeeId: string };
@@ -49,7 +50,7 @@ export function filterTasks<T extends BoardTask>(tasks: T[], f: BoardFilters): T
       (!f.priority || t.priority === f.priority) &&
       (!f.businessId || t.businessId === f.businessId) &&
       (!f.employeeId || t.assigneeIds.includes(f.employeeId)) &&
-      (!term || t.title.toLowerCase().includes(term) || Object.values(t.assigneeNames).some((n) => n.toLowerCase().includes(term))),
+      (!term || t.title.toLowerCase().includes(term) || (t.client ?? "").toLowerCase().includes(term) || Object.values(t.assigneeNames).some((n) => n.toLowerCase().includes(term))),
   );
 }
 

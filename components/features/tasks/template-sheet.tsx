@@ -159,7 +159,7 @@ export function TemplateSheet({
             {(aria) => <Input {...aria} autoComplete="off" {...register("title")} />}
           </Field>
 
-          <Field id="tpl-description" label="Details" hint="Instructions that show on every day's task." error={errors.description?.message}>
+          <Field id="tpl-description" label="How to do it" hint="Steps or tips that show on every day's task. A web link (a video or a document) becomes clickable." error={errors.description?.message}>
             {(aria) => (
               <textarea
                 {...aria}

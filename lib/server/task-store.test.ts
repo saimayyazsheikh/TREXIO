@@ -562,6 +562,39 @@ describe("changing several tasks at once", () => {
   });
 });
 
+describe("the client a task is for", () => {
+  it("is kept on the task, changed by an edit, and untouched by a bulk change", async () => {
+    const world = newWorld();
+    const db = makeDb(world, now);
+    const { taskId } = await createOneOffTask(db, admin, make({ client: "  Acme Traders ", subtasks: [] }));
+    expect(world.tasks.get(taskId)!.client).toBe("Acme Traders");
+
+    await expect(updateOneOffTask(db, admin, editOf(world, taskId, { client: "Acme Traders" }))).rejects.toThrow(/Nothing changed/);
+    await updateOneOffTask(db, admin, editOf(world, taskId, { client: "Zed Co" }));
+    expect(world.tasks.get(taskId)!.client).toBe("Zed Co");
+    expect(world.audits.at(-1)!.meta.changed).toEqual(["client"]);
+
+    await bulkChangeTasks(db, admin, bulkSchema.parse({ taskIds: [taskId], change: { kind: "priority", priority: "low" } }));
+    expect(world.tasks.get(taskId)).toMatchObject({ client: "Zed Co", priority: "low" });
+  });
+
+  it("is not added to a task that has none, and an old task is not shown as edited", async () => {
+    const world = newWorld();
+    const db = makeDb(world, now);
+    const { taskId } = await createOneOffTask(db, admin, make({ subtasks: [] }));
+    expect("client" in world.tasks.get(taskId)!).toBe(false);
+    await expect(updateOneOffTask(db, admin, editOf(world, taskId, {}))).rejects.toThrow(/Nothing changed/);
+    await updateOneOffTask(db, admin, editOf(world, taskId, { client: "New Client" }));
+    expect(world.tasks.get(taskId)!.client).toBe("New Client");
+    await updateOneOffTask(db, admin, editOf(world, taskId, { client: "" }));
+    expect(world.tasks.get(taskId)!.client).toBe("");
+  });
+
+  it("is limited in length", () => {
+    expect(createTaskSchema.safeParse({ ...base, client: "x".repeat(61) }).success).toBe(false);
+  });
+});
+
 async function seedDaily(db: TaskDb, world: World): Promise<TaskData> {
   const { taskId } = await createOneOffTask(db, admin, createTaskSchema.parse({ ...base, title: "Open shop", subtasks: [], dueTime: "17:00", date: "2026-10-21" }));
   const task = world.tasks.get(taskId)!;

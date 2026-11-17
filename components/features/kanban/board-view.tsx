@@ -27,6 +27,7 @@ import { orgCollection, orgDocument } from "@/lib/firebase/org";
 import { businessColorVar } from "@/lib/domain/business-colors";
 import { DATE_PRESETS, NO_FILTERS, filterTasks, groupLanes, rangeFor, type BoardFilters, type DatePreset, type GroupBy } from "@/lib/domain/board";
 import { PRIORITIES, PRIORITY_LABEL, type Role, type TaskStatus } from "@/lib/domain/constants";
+import { knownClients } from "@/lib/domain/clients";
 import { availableMoves } from "@/lib/domain/task-moves";
 import { pktDateString } from "@/lib/time";
 import type { BusinessDoc, TaskDoc, TemplateDoc, UserDoc, WithId } from "@/types/models";
@@ -100,7 +101,7 @@ export function BoardView({ viewer }: { viewer: { uid: string; role: Role } }) {
   const people = useMemo(() => new Map<string, Person>((users.data ?? []).map((u) => [u.id, { name: u.name }])), [users.data]);
 
   const rows: BoardRow[] = useMemo(
-    () => tasks.map((t) => ({ id: t.id, status: displayStatus(t), priority: t.priority, title: t.title, businessId: t.businessId, assigneeIds: t.assigneeIds, assigneeNames: t.assigneeNames, dueAtMs: t.dueAt?.toMillis() ?? null, task: t })),
+    () => tasks.map((t) => ({ id: t.id, status: displayStatus(t), priority: t.priority, title: t.title, businessId: t.businessId, assigneeIds: t.assigneeIds, assigneeNames: t.assigneeNames, dueAtMs: t.dueAt?.toMillis() ?? null, client: t.client, task: t })),
     [tasks, displayStatus],
   );
   const filtered = useMemo(() => filterTasks(rows, filters), [rows, filters]);
@@ -287,7 +288,7 @@ export function BoardView({ viewer }: { viewer: { uid: string; role: Role } }) {
         />
       ) : null}
       {isAdmin && selecting ? <BulkBar ids={[...picked]} employees={users.data ?? []} onDone={() => setPicked(new Set())} onCancel={stopSelecting} /> : null}
-      {isAdmin ? <TaskSheet open={sheet.open} onOpenChange={(o) => setSheet((s) => ({ ...s, open: o }))} task={sheet.task} employees={users.data ?? []} businesses={businesses.data ?? []} /> : null}
+      {isAdmin ? <TaskSheet open={sheet.open} onOpenChange={(o) => setSheet((s) => ({ ...s, open: o }))} task={sheet.task} employees={users.data ?? []} businesses={businesses.data ?? []} clients={knownClients(tasks)} /> : null}
     </>
   );
 }

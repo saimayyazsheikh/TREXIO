@@ -9,6 +9,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tooltip } from "@/components/ui/tooltip";
 import { BusinessChip, PriorityBadge, StatusBadge, pill } from "@/components/features/badges";
 import { DueChip } from "@/components/features/tasks/due-chip";
+import { TextWithLinks } from "@/components/features/text-with-links";
 import { NoteDialog, type NoteTarget } from "@/components/features/tasks/note-dialog";
 import { NudgeDialog } from "@/components/features/tasks/nudge-dialog";
 import { useCollection } from "@/hooks/use-collection";
@@ -118,6 +119,7 @@ export function TaskDrawer({
                   <Repeat className="size-3.5" aria-hidden /> Daily
                 </span>
               ) : null}
+              {task.client ? <span className={cn(pill, "bg-surface-raised text-muted")}>Client: {task.client}</span> : null}
               {task.selfCreated ? (
                 <span className={cn(pill, "bg-surface-raised text-muted")}>
                   <UserRound className="size-3.5" aria-hidden /> {viewer.role === "admin" ? "Added by the employee" : "Added by you"}
@@ -171,7 +173,9 @@ export function TaskDrawer({
 
             {task.description ? (
               <Section title="Details">
-                <p className="whitespace-pre-line text-sm">{task.description}</p>
+                <p className="whitespace-pre-line text-sm">
+                  <TextWithLinks text={task.description} />
+                </p>
               </Section>
             ) : null}
 
